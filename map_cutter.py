@@ -29,7 +29,7 @@ class Map():
 		map_bstring = map_file.read()
 		map_file.close()
 
-		map_lines = bytes.decode(map_bstring).splitlines()
+		map_lines = str.splitlines(bytes.decode(map_bstring))
 
 		start_entity = False
 		in_entity = False
@@ -115,20 +115,27 @@ class Map():
 
 			# Patch content
 			elif in_brush and in_patch:
+				# Stub
 				debug("Add line to patch")
 				self.entity_list[-1].brush_list[-1].patch_list[-1].raw_line_list.append(line)
 
 			# Brush content
 			elif in_brush and not in_patch:
+				# Stub
 				debug("Add line to brush")
 				self.entity_list[-1].brush_list[-1].raw_line_list.append(line)
 
 			else:
-				debug("Error, unknown line: " + line)
+				error("Error, unknown line: " + line)
+				return False
 
 		if len(self.entity_list) == 0:
 			error("Empty file")
 			self.entity_list = None
+			return False
+
+		return True
+
 
 	def export_map(self):
 		if self.entity_list == None:
@@ -159,10 +166,27 @@ class Map():
 					brush_count += 1
 			map_string += "}\n"
 
-			return map_string
+		return map_string
+
+	def export_bsp_entities(self):
+		if self.entity_list == None:
+			error("No map loaded")
+
+		map_string = ""
+
+		for i in range(0, len(self.entity_list)):
+			map_string += "{\n"
+			if len(self.entity_list[i].key_dict) > 0:
+				for key in self.entity_list[i].key_dict:
+					map_string += "\"" + key + "\" \"" + self.entity_list[i].key_dict[key] + "\"" + "\n"
+			map_string += "}\n"
+		return map_string
 
 	def print_map(self):
 		print(self.export_map())
+
+	def print_bsp_entities(self):
+		print(self.export_bsp_entities())
 
 	def write_file(self, file_name):
 		map_file = open(file_name, 'wb')
@@ -200,6 +224,9 @@ def main(argv):
 	elif argv[0] == "print_map":
 		qmap.read_file(argv[1])
 		qmap.print_map()
+	elif argv[0] == "print_bsp_entities":
+		qmap.read_file(argv[1])
+		qmap.print_bsp_entities()
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
