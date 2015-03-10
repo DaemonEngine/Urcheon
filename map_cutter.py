@@ -43,61 +43,61 @@ class Map():
 		self.entity_list = []
 
 		# empty line
-		empty_line_pattern = re.compile(r"^[ ]*$")
+		empty_line_pattern = re.compile(r"^[ \t]*$")
 
 		# entity start
 		# // entity num
-		entity_start_pattern = re.compile(r"^[ ]*//[ ]+entity[ ]+(?P<entity_num>[0-9]*)[ ]*$")
+		entity_start_pattern = re.compile(r"^[ \t]*//[ \t]+entity[ \t]+(?P<entity_num>[0-9]+)[ \t]*$")
 
 		# block opening
 		# {
-		block_opening_pattern = re.compile(r"^[ ]*{[ ]*$")
+		block_opening_pattern = re.compile(r"^[ \t]*{[ \t]*$")
 
 		# keyvalue pair
 		# "key" "value"
-		keyvalue_pattern = re.compile(r"^[ ]*\"(?P<key>.*)\"[ ]+\"(?P<value>.*)\"[ ]*$")
+		keyvalue_pattern = re.compile(r"^[ \t]*\"(?P<key>.*)\"[ \t]+\"(?P<value>.*)\"[ \t]*$")
 
 		# brush start
 		# // brush num
-		brush_start_pattern = re.compile(r"^[ ]*//[ ]+brush[ ]+(?P<brush_num>[0-9]*)[ ]*$")
+		brush_start_pattern = re.compile(r"^[ \t]*//[ \t]+brush[ \t]+(?P<brush_num>[0-9]+)[ \t]*$")
 
 		# patch start
 		# patchDef2
-		patch_start_pattern = re.compile(r"^[ ]*patchDef2[ ]*$")
+		patch_start_pattern = re.compile(r"^[ \t]*patchDef2[ \t]*$")
 
 		# block ending
 		# }
-		block_ending_pattern = re.compile(r"^[ ]*}[ ]*$")
+		block_ending_pattern = re.compile(r"^[ \t]*}[ \t]*$")
 
 		# plane
 		# coord, textures
 		# (orig_x orig_y orig_z) (orig_x orig_y orig_z) (orig_x orig_y orig_z) shader shift_x shift_y rotation scale_x scale_y flags_content flags_surface value
 		plane_pattern = re.compile(r"""
-			[ ]*\([ ]+
-			(?P<coord1_x>-*[0-9.]+)[ ]+
-			(?P<coord1_y>-*[0-9.]+)[ ]+
-			(?P<coord1_z>-*[0-9.]+)[ ]+
-			\)[ ]+
-			\([ ]+
-			(?P<coord2_x>-*[0-9.]+)[ ]+
-			(?P<coord2_y>-*[0-9.]+)[ ]+
-			(?P<coord2_z>-*[0-9.]+)[ ]+
-			\)[ ]+
-			\([ ]+
-			(?P<coord3_x>-*[0-9.]+)[ ]+
-			(?P<coord3_y>-*[0-9.]+)[ ]+
-			(?P<coord3_z>-*[0-9.]+)[ ]+
-			\)[ ]+
-			(?P<shader>[^ ]+)[ ]+
-			(?P<shift_x>-*[0-9.]+)[ ]+
-			(?P<shift_y>-*[0-9.]+)[ ]+
-			(?P<scale_x>-*[0-9.]+)[ ]+
-			(?P<scale_y>-*[0-9.]+)[ ]+
-			(?P<rotation>-*[0-9.]+)[ ]+
-			(?P<flag_content>[0-9]+)[ ]+
-			(?P<flag_surface>[0-9]+)[ ]+
+			[ \t]*\([ \t]+
+			(?P<coord1_x>-?[0-9.]+)[ \t]+
+			(?P<coord1_y>-?[0-9.]+)[ \t]+
+			(?P<coord1_z>-?[0-9.]+)[ \t]+
+			\)[ \t]+
+			\([ \t]+
+			(?P<coord2_x>-?[0-9.]+)[ \t]+
+			(?P<coord2_y>-?[0-9.]+)[ \t]+
+			(?P<coord2_z>-?[0-9.]+)[ \t]+
+			\)[ \t]+
+			\([ \t]+
+			(?P<coord3_x>-?[0-9.]+)[ \t]+
+			(?P<coord3_y>-?[0-9.]+)[ \t]+
+			(?P<coord3_z>-?[0-9.]+)[ \t]+
+			\)[ \t]+
+			(?P<shader>[^ ]+)[ \t]+
+			(?P<shift_x>-?[0-9.]+)[ \t]+
+			(?P<shift_y>-?[0-9.]+)[ \t]+
+			(?P<scale_x>-?[0-9.]+)[ \t]+
+			(?P<scale_y>-?[0-9.]+)[ \t]+
+			(?P<rotation>-?[0-9.]+)[ \t]+
+			(?P<flag_content>[0-9]+)[ \t]+
+			(?P<flag_surface>[0-9]+)[ \t]+
 			(?P<value>[0-9]+)
-			[ ]*
+			[ \t]*
 			""", re.VERBOSE)
 
 		for line in map_lines:
