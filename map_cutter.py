@@ -42,92 +42,193 @@ class Map():
 
 		self.entity_list = []
 
+		# empty line
+		empty_line_pattern = re.compile(r"^[ ]*$")
+
+		# entity start
+		# // entity num
+		entity_start_pattern = re.compile(r"^[ ]*//[ ]+entity[ ]+(?P<entity_num>[0-9]*)[ ]*$")
+
+		# block opening
+		# {
+		block_opening_pattern = re.compile(r"^[ ]*{[ ]*$")
+
+		# keyvalue pair
+		# "key" "value"
+		keyvalue_pattern = re.compile(r"^[ ]*\"(?P<key>.*)\"[ ]+\"(?P<value>.*)\"[ ]*$")
+
+		# brush start
+		# // brush num
+		brush_start_pattern = re.compile(r"^[ ]*//[ ]+brush[ ]+(?P<brush_num>[0-9]*)[ ]*$")
+
+		# patch start
+		# patchDef2
+		patch_start_pattern = re.compile(r"^[ ]*patchDef2[ ]*$")
+
+		# block ending
+		# }
+		block_ending_pattern = re.compile(r"^[ ]*}[ ]*$")
+
+		# plane
+		# coord, textures
+		# (orig_x orig_y orig_z) (orig_x orig_y orig_z) (orig_x orig_y orig_z) shader shift_x shift_y rotation scale_x scale_y flags_content flags_surface value
+		plane_pattern = re.compile(r"""
+			[ ]*\([ ]+
+			(?P<coord1_x>-*[0-9.]+)[ ]+
+			(?P<coord1_y>-*[0-9.]+)[ ]+
+			(?P<coord1_z>-*[0-9.]+)[ ]+
+			\)[ ]+
+			\([ ]+
+			(?P<coord2_x>-*[0-9.]+)[ ]+
+			(?P<coord2_y>-*[0-9.]+)[ ]+
+			(?P<coord2_z>-*[0-9.]+)[ ]+
+			\)[ ]+
+			\([ ]+
+			(?P<coord3_x>-*[0-9.]+)[ ]+
+			(?P<coord3_y>-*[0-9.]+)[ ]+
+			(?P<coord3_z>-*[0-9.]+)[ ]+
+			\)[ ]+
+			(?P<shader>[^ ]+)[ ]+
+			(?P<shift_x>-*[0-9.]+)[ ]+
+			(?P<shift_y>-*[0-9.]+)[ ]+
+			(?P<scale_x>-*[0-9.]+)[ ]+
+			(?P<scale_y>-*[0-9.]+)[ ]+
+			(?P<rotation>-*[0-9.]+)[ ]+
+			(?P<flag_content>[0-9]+)[ ]+
+			(?P<flag_surface>[0-9]+)[ ]+
+			(?P<value>[0-9]+)
+			[ ]*
+			""", re.VERBOSE)
+
 		for line in map_lines:
 			debug("reading: " + line)
 
 			# Empty lines
-			if re.search("^[ ]*$", line):
+			if empty_line_pattern.match(line):
 				debug("Empty line")
-				None
+				continue
 
 			# Entity start
-			elif re.search(r"^[ ]*//[ ]+entity[ ]+[0-9]*[ ]*$", line) and not start_entity and not in_entity:
-				entity_num = int(re.sub(r"^[ ]*//[ ]+entity[ ]+([0-9]*)[ ]*$", r"\1", line))
-				debug("Start Entity #" + str(entity_num))
-				self.entity_list.append(Entity())
-				start_entity = True
+			if not in_entity:
+				if not start_entity:
+					match = entity_start_pattern.match(line)
+					if match:
+						entity_num = int(match.group("entity_num"))
+						debug("Start Entity #" + str(entity_num))
+						self.entity_list.append(Entity())
+						start_entity = True
+						continue
 
-			# Entity opening
-			elif re.search(r"^[ ]*{[ ]*$", line) and start_entity and not in_entity:
-				debug("In Entity")
-				start_entity = False
-				in_entity = True
+				# Entity opening
+				if start_entity:
+					if block_opening_pattern.match(line):
+						debug("In Entity")
+						start_entity = False
+						in_entity = True
+						continue
 
-			# KeyValue pair
-			elif re.search(r"^[ ]*\".*\"[ ]+\".*\"[ ]*$", line) and in_entity:
-				key = re.sub(r"^[ ]*\"(.*)\"[ ]+\".*\"[ ]*$", r"\1", line)
-				value = re.sub(r"^[ ]*\".*\"[ ]+\"(.*)\"[ ]*$", r"\1", line)
-				debug("KeyValue pair [" + key + ", " + value + "]")
-				self.entity_list[-1].key_dict[key] = value
+			if in_entity:
 
-			# Brush start
-			elif re.search(r"^[ ]*//[ ]+brush[ ]+[0-9]*[ ]*$", line) and in_entity and not start_brush and not in_brush:
-				brush_num = int(re.sub(r"^[ ]*//[ ]+brush[ ]+([0-9]*)[ ]*$", r"\1", line))
-				debug("Start Brush #" + str(brush_num))
-				self.entity_list[-1].brush_list.append(Brush())
-				start_brush = True
+				# KeyValue pair
+				match = keyvalue_pattern.match(line)
+				if match and not start_brush and not in_brush and not start_patch and not in_patch:
+					key = match.group("key")
+					value = match.group("value")
+					debug("KeyValue pair [“" + key + "”, “" + value + "”]")
+					self.entity_list[-1].key_dict[key] = value
+					continue
 
-			# Brush opening
-			elif re.search(r"^[ ]*{[ ]*$", line) and start_brush and not in_brush:
-				debug("In Brush")
-				start_brush = False
-				in_brush = True
+				# Brush start
+				if not start_brush and not in_brush:
+					match = brush_start_pattern.match(line)
+					if match:
+						brush_num = match.group("brush_num")
+						debug("Start Brush #" + str(brush_num))
+						self.entity_list[-1].brush_list.append(Brush())
+						start_brush = True
+						continue
 
-			# Patch start
-			elif re.search(r"^[ ]*patchDef2[ ]*$", line) and in_brush and not start_patch and not in_patch:
-				debug("Start Patch")
-				self.entity_list[-1].brush_list[-1].patch_list.append(Patch())
-				start_patch = True
+				# Brush opening
+				if start_brush and not in_brush and block_opening_pattern.match(line):
+					debug("In Brush")
+					start_brush = False
+					in_brush = True
+					continue
+
+				# Patch start
+				if in_brush and not start_patch and not in_patch and patch_start_pattern.match(line):
+					debug("Start Patch")
+					self.entity_list[-1].brush_list[-1].patch_list.append(Patch())
+					start_patch = True
+					continue
 			
-			# Patch opening
-			elif re.search(r"^[ ]*{[ ]*$", line) and start_patch and not in_patch:
-				debug("In Patch")
-				start_patch = False
-				in_patch = True
+				# Patch opening
+				if start_patch and not in_patch and block_opening_pattern.match(line):
+					debug("In Patch")
+					start_patch = False
+					in_patch = True
+					continue
 
-			# Block End
-			elif re.search(r"^[ ]*}[ ]*$", line):
+				# Brush content
+				if in_brush and not in_patch:
+				
+					# Plane content
+					match = plane_pattern.match(line)
+					if match:
+						plane = OrderedDict()
+						plane["coord1_x"] = match.group("coord1_x")
+						plane["coord1_y"] = match.group("coord1_y")
+						plane["coord1_z"] = match.group("coord1_z")
+						plane["coord2_x"] = match.group("coord2_x")
+						plane["coord2_y"] = match.group("coord2_y")
+						plane["coord2_z"] = match.group("coord2_z")
+						plane["coord3_x"] = match.group("coord3_x")
+						plane["coord3_y"] = match.group("coord3_y")
+						plane["coord3_z"] = match.group("coord3_z")
+						plane["shader"] = match.group("shader")
+						plane["shift_x"] = match.group("shift_x")
+						plane["shift_y"] = match.group("shift_y")
+						plane["scale_x"] = match.group("scale_x")
+						plane["scale_y"] = match.group("scale_y")
+						plane["rotation"] = match.group("rotation")
+						plane["flag_content"] = match.group("flag_content")
+						plane["flag_surface"] = match.group("flag_surface")
+						plane["value"] = match.group("value")
 
-				# Patch End
+						debug("Add plane to brush")
+						self.entity_list[-1].brush_list[-1].plane_list.append(plane)
+						continue
+
+					# Brush End
+					if block_ending_pattern.match(line):
+						debug("End Brush")
+						in_brush = False
+						continue
+
+				# Patch content
 				if in_brush and in_patch:
-					debug("End Patch")
-					in_patch = False
+					# Stub
+					# vertexe: ( orig_x orig_y orig_z texcoord_x texcoord_y )
+					if not block_ending_pattern.match(line):
+						debug("Add line to patch")
+						self.entity_list[-1].brush_list[-1].patch_list[-1].raw_line_list.append(line)
+						continue
 
-				# Brush End
-				elif in_brush and not in_patch:
-					debug("End Brush")
-					in_brush = False
+					# Patch End
+					if block_ending_pattern.match(line):
+						debug("End Patch")
+						in_patch = False
+						continue
 
 				# Entity End
-				elif in_entity:
+				if block_ending_pattern.match(line):
 					debug("End Entity")
 					in_entity = False
+					continue
 
-			# Patch content
-			elif in_brush and in_patch:
-				# Stub
-				debug("Add line to patch")
-				self.entity_list[-1].brush_list[-1].patch_list[-1].raw_line_list.append(line)
-
-			# Brush content
-			elif in_brush and not in_patch:
-				# Stub
-				debug("Add line to brush")
-				self.entity_list[-1].brush_list[-1].raw_line_list.append(line)
-
-			else:
-				error("Error, unknown line: " + line)
-				return False
+			# No match
+			error("Unknown line: " + line)
+			return False
 
 		if len(self.entity_list) == 0:
 			error("Empty file")
@@ -154,8 +255,17 @@ class Map():
 				for brush in self.entity_list[i].brush_list:
 					map_string += "// brush " + str(brush_count) + "\n"
 					map_string += "{\n"
-					for line in brush.raw_line_list:
-						map_string += line + "\n"
+					for plane in brush.plane_list:
+						map_string += "( " + plane["coord1_x"] + " " + plane["coord1_y"] + " " + plane["coord1_z"] + " ) "
+						map_string += "( " + plane["coord2_x"] + " " + plane["coord2_y"] + " " + plane["coord2_z"] + " ) "
+						map_string += "( " + plane["coord3_x"] + " " + plane["coord3_y"] + " " + plane["coord3_z"] + " ) "
+						map_string += plane["shader"] + " "
+						map_string += plane["shift_x"] + " " + plane["shift_y"] + " "
+						map_string += plane["scale_x"] + " " + plane["scale_y"] + " "
+						map_string += plane["rotation"] + " "
+						map_string += plane["flag_content"] + " " + plane["flag_surface"] + " "
+						map_string += plane["value"]
+						map_string += "\n"
 					for patch in brush.patch_list:
 						map_string += "patchDef2\n"
 						map_string += "{\n"
@@ -201,7 +311,7 @@ class Entity():
 
 class Brush():
 	def __init__(self):
-		self.raw_line_list = []
+		self.plane_list = []
 		self.patch_list = []
 
 class Patch():
