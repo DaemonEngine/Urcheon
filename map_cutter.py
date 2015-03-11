@@ -530,12 +530,12 @@ def main():
 
 	args = argparse.ArgumentParser(description="%(prog)s is a map parser for my lovely granger.")
 	outgroup = args.add_mutually_exclusive_group()
-	outgroup.add_argument("-o", "--out", dest="out_file", metavar="FILENAME", help="write to %(metavar)s", default="/dev/stdout")
-	outgroup.add_argument("-i", "--inplace", help="rewrite file in place", action="store_true", default=False)
-	args.add_argument("-m", "--map", dest="map_file", metavar="FILENAME",  help="read map %(metavar)s to a new clean .map file")
+	args.add_argument("-d", "--debug", help="print debug information", action="store_true")
+	args.add_argument("-m", "--map", dest="map_file", metavar="FILENAME",  help="read map %(metavar)s")
 	args.add_argument("-be", "--dump-bsp-entities", dest="dump_bsp_entities", help="dump entities to BSP entities format", action="store_true")
 	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from %(metavar)s")
-	args.add_argument("-d", "--debug", help="print debug information", action="store_true")
+	outgroup.add_argument("-o", "--out", dest="out_file", metavar="FILENAME", help="write to %(metavar)s", default="/dev/stdout")
+	outgroup.add_argument("-i", "--in-place", dest="in_place", help="rewrite file in place", action="store_true", default=False)
 
 	args = args.parse_args()
 	if args.debug:
@@ -545,7 +545,7 @@ def main():
 	debug("args: " + str(args))
 
 	if args.map_file:
-		if args.inplace:
+		if args.in_place:
 			if args.dump_bsp_entities:
 				error("Can't rewrite this file, output format differs")
 				return False
