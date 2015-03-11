@@ -12,9 +12,10 @@ import re
 
 from collections import OrderedDict
 
+import argparse
+
 import logging
 from logging import debug, error
-#logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 
 # http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
@@ -123,9 +124,6 @@ class Map():
 		# (
 		vertex_matrix_opening_pattern = re.compile(r"^[ \t]*\([ \t]*$")
 
-		# vertex matrix line
-#		vertex_matrix_line_pattern = re.compile(r"^[ \t]*\([ \t]+( [ \t]*.*")
-
 		# vertex matrix ending
 		# )
 		vertex_matrix_ending_pattern = re.compile(r"^[ \t]*\)[ \t]*$")
@@ -136,8 +134,6 @@ class Map():
 
 		for line in map_lines:
 			debug("reading: " + line)
-#			for i in (in_entity, start_shape, in_shape, in_brush, start_patch, in_patch):
-#				debug(str(i))
 
 			# Empty lines
 			if empty_line_pattern.match(line):
@@ -410,9 +406,17 @@ class Map():
 
 		return map_string
 
+	def write_file(self, file_name):
+		map_string = self.export_map()
+		if map_string:
+			map_file = open(file_name, 'wb')
+			map_file.write(str.encode(map_string))
+			map_file.close()
+			
 	def export_bsp_entities(self):
 		if self.entity_list == None:
 			error("No map loaded")
+			return False
 
 		map_string = ""
 
@@ -424,23 +428,12 @@ class Map():
 			map_string += "}\n"
 		return map_string
 
-	def print_map(self):
-		qmap = self.export_map()
-		if qmap:
-			print(qmap)
-
-	def print_bsp_entities(self):
-		entities = self.export_bsp_entities()
-		if entities:
-			print(entities)
-			
-
-	def write_file(self, file_name):
-		qmap = self.export_map()
-		if qmap:
-			map_file = open(file_name, 'wb')
-			map_file.write(qmap.encode())
-			map_file.close
+	def write_bsp_entities(self, file_name):
+		bsp_entities_string = self.export_bsp_entities()
+		if bsp_entities_string:
+			bsp_entities_file = open(file_name, 'wb')
+			bsp_entities_file.write(str.encode(bsp_entities_string))
+			bsp_entities_file.close()
 			
 
 class Entity():
@@ -461,26 +454,44 @@ class Patch():
 		self.raw_vertex_matrix_line_list = []
 
 
-def main(argv):
-	qmap = Map()
+def main():
 
-	if len(argv) == 0:
-		print("ERR: missing command")
-		return False
-	elif len(argv) == 1:
-		print("ERR: missing filename")
-		return False
+	args = argparse.ArgumentParser(description="%(prog)s is a .map parser for my lovely granger.")
+	outgroup = args.add_mutually_exclusive_group()
+	outgroup.add_argument("-o", "--out", dest="outfile", metavar="FILENAME", help="output to %(metavar)s", default="/dev/stdout")
+	outgroup.add_argument("-i", "--inplace", help="rewrite file in place", action="store_true", default=False)
+	args.add_argument("-s", "--sanitize", dest="sanitize", metavar="FILENAME",  help="rewrite %(metavar)s to a new clean .map file")
+	args.add_argument("-e", "--bsp-entities", dest="bsp_entities", metavar="FILENAME",  help="dump entities from %(metavar)s to BSP format")
+	args.add_argument("-d", "--debug", help="print debug information", action="store_true")
 
-	if argv[0] == "rewrite_map":
-		qmap.read_file(argv[1])
-		qmap.write_file(argv[1] + ".new")
-	elif argv[0] == "print_map":
-		qmap.read_file(argv[1])
-		qmap.print_map()
-	elif argv[0] == "print_bsp_entities":
-		qmap.read_file(argv[1])
-		qmap.print_bsp_entities()
+	args = args.parse_args()
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		debug("Debug logging activated")
+		
+	debug("args: " + str(args))
+
+	if args.sanitize:
+		if args.inplace:
+			outfile = args.sanitize
+		elif args.outfile:
+			outfile = args.outfile
+
+		map = Map()
+		if map.read_file(args.sanitize):
+			map.write_file(outfile)
+	
+	if args.bsp_entities:
+		if args.inplace:
+			print("does not make sense at all to rewrite this file")
+			return False
+		elif args.outfile:
+			outfile = args.outfile
+
+		map = Map()
+		if map.read_file(args.bsp_entities):
+			map.write_bsp_entities(outfile)
 
 
 if __name__ == "__main__":
-	main(sys.argv[1:])
+	main()
