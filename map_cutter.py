@@ -63,7 +63,7 @@ class Map():
 
 		# keyvalue pair
 		# "key" "value"
-		keyvalue_pattern = re.compile(r"^[ \t]*\"(?P<key>.*)\"[ \t]+\"(?P<value>.*)\"[ \t]*$")
+		keyvalue_pattern = re.compile(r"^[ \t]*\"(?P<key>[^\"]*)\"[ \t]+\"(?P<value>[^\"]*)\"[ \t]*$")
 
 		# shape start
 		# // brush num
@@ -97,7 +97,7 @@ class Map():
 			(?P<flag_content>[0-9]+)[ \t]+
 			(?P<flag_surface>[0-9]+)[ \t]+
 			(?P<value>[0-9]+)
-			[ \t]*
+			[ \t]*$
 			""", re.VERBOSE)
 
 		# patch start
@@ -133,7 +133,7 @@ class Map():
 		block_ending_pattern = re.compile(r"^[ \t]*}[ \t]*$")
 
 		for line in map_lines:
-			debug("reading: " + line)
+			debug("Reading: " + line)
 
 			# Empty lines
 			if empty_line_pattern.match(line):
@@ -168,7 +168,7 @@ class Map():
 						key = match.group("key")
 						value = match.group("value")
 						debug("KeyValue pair [“" + key + "”, “" + value + "”]")
-						self.entity_list[-1].key_dict[key] = value
+						self.entity_list[-1].keyvalue_dict[key] = value
 						continue
 
 				# Shape start
@@ -330,7 +330,8 @@ class Map():
 
 	def export_map(self):
 		if self.entity_list == None:
-			error("No map loaded")
+			error("No Map loaded")
+			return False
 
 		map_string = ""
 		shape_count = 0
@@ -339,10 +340,10 @@ class Map():
 			debug("Exporting Entity #" + str(i))
 			map_string += "// entity " + str(i) + "\n"
 			map_string += "{\n"
-			if len(self.entity_list[i].key_dict) > 0:
-				for key in self.entity_list[i].key_dict:
+			if len(self.entity_list[i].keyvalue_dict) > 0:
+				for key in self.entity_list[i].keyvalue_dict:
 					debug("Exporting KeyValue pair")
-					map_string += "\"" + key + "\" \"" + self.entity_list[i].key_dict[key] + "\"" + "\n"
+					map_string += "\"" + key + "\" \"" + self.entity_list[i].keyvalue_dict[key] + "\"" + "\n"
 			if len(self.entity_list[i].shape_list) > 0:
 				for shape in self.entity_list[i].shape_list:
 					map_string += "// brush " + str(shape_count) + "\n"
@@ -415,16 +416,16 @@ class Map():
 			
 	def export_bsp_entities(self):
 		if self.entity_list == None:
-			error("No map loaded")
+			error("No Map loaded")
 			return False
 
 		map_string = ""
 
 		for i in range(0, len(self.entity_list)):
 			map_string += "{\n"
-			if len(self.entity_list[i].key_dict) > 0:
-				for key in self.entity_list[i].key_dict:
-					map_string += "\"" + key + "\" \"" + self.entity_list[i].key_dict[key] + "\"" + "\n"
+			if len(self.entity_list[i].keyvalue_dict) > 0:
+				for key in self.entity_list[i].keyvalue_dict:
+					map_string += "\"" + key + "\" \"" + self.entity_list[i].keyvalue_dict[key] + "\"" + "\n"
 			map_string += "}\n"
 		return map_string
 
@@ -434,12 +435,40 @@ class Map():
 			bsp_entities_file = open(file_name, 'wb')
 			bsp_entities_file.write(str.encode(bsp_entities_string))
 			bsp_entities_file.close()
-			
+
+
+	def substitute_entities(self, substitution):
+		if not self.entity_list:
+			error("No Map loaded")
+			return False
+
+		for entity in self.entity_list:
+			if not entity.substitute_keys(substitution):
+				return False
+
+			if not entity.substitute_values(substitution):
+				return False
+
+		return True
+
 
 class Entity():
 	def __init__(self):
-		self.key_dict = OrderedDict()
+		self.keyvalue_dict = OrderedDict()
 		self.shape_list = []
+
+	def substitute_keys(self, substitution):
+		for old_key, new_key in substitution.key_dict.items():
+			# rename the key in place
+			self.keyvalue_dict = OrderedDict((new_key if str.lower(key) == str.lower(old_key) else key, value) for key, value in self.keyvalue_dict.items())
+		return True
+
+	def substitute_values(self, substitution):
+		for old_value, new_value in substitution.value_dict.items():
+			for key, value in self.keyvalue_dict.items():
+				if str.lower(value) == str.lower(old_value):
+					self.keyvalue_dict[key] = new_value
+		return True
 
 
 class Brush():
@@ -454,14 +483,58 @@ class Patch():
 		self.raw_vertex_matrix_line_list = []
 
 
+class KeyValueSubstitution():
+	def __init__(self):
+		self.key_dict = {}
+		self.value_dict = {}
+
+
+	def read_file(self, file_name):
+		substitution_file = open(file_name, "rb")
+
+		if not substitution_file:
+			error("failed to open file: " + file_name)
+			return False
+
+		substitution_bstring = substitution_file.read()
+		substitution_file.close()
+
+		substitution_pattern = re.compile(r"""
+			^[ \t]*
+			(?P<value_type>key|value)[ \t]*,[ \t]*
+			"(?P<old_value>[^\"]*)"[ \t]*,[ \t]*
+			"(?P<new_value>[^\"]*)"[ \t]*$
+			""", re.VERBOSE)
+
+		substitution_lines = str.splitlines(bytes.decode(substitution_bstring))
+
+		for line in substitution_lines:
+			debug("Reading: " + line)
+			match = substitution_pattern.match(line)
+			if match:
+				debug("Matched")
+				value_type = match.group("value_type")
+				old_value = match.group("old_value")
+				new_value = match.group("new_value")
+				if value_type == "key":
+					debug("Add Key Substitution [ " + old_value + ", " + new_value + " ]")
+					self.key_dict[old_value] = new_value
+				elif value_type == "value":
+					debug("Add Value Substitution [ " + old_value + ", " + new_value + " ]")
+					self.value_dict[old_value] = new_value
+
+		return True
+
+
 def main():
 
-	args = argparse.ArgumentParser(description="%(prog)s is a .map parser for my lovely granger.")
+	args = argparse.ArgumentParser(description="%(prog)s is a map parser for my lovely granger.")
 	outgroup = args.add_mutually_exclusive_group()
-	outgroup.add_argument("-o", "--out", dest="outfile", metavar="FILENAME", help="output to %(metavar)s", default="/dev/stdout")
+	outgroup.add_argument("-o", "--out", dest="out_file", metavar="FILENAME", help="write to %(metavar)s", default="/dev/stdout")
 	outgroup.add_argument("-i", "--inplace", help="rewrite file in place", action="store_true", default=False)
-	args.add_argument("-s", "--sanitize", dest="sanitize", metavar="FILENAME",  help="rewrite %(metavar)s to a new clean .map file")
-	args.add_argument("-e", "--bsp-entities", dest="bsp_entities", metavar="FILENAME",  help="dump entities from %(metavar)s to BSP format")
+	args.add_argument("-m", "--map", dest="map_file", metavar="FILENAME",  help="read map %(metavar)s to a new clean .map file")
+	args.add_argument("-be", "--dump-bsp-entities", dest="dump_bsp_entities", help="dump entities to BSP entities format", action="store_true")
+	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from %(metavar)s")
 	args.add_argument("-d", "--debug", help="print debug information", action="store_true")
 
 	args = args.parse_args()
@@ -471,26 +544,33 @@ def main():
 		
 	debug("args: " + str(args))
 
-	if args.sanitize:
+	if args.map_file:
 		if args.inplace:
-			outfile = args.sanitize
-		elif args.outfile:
-			outfile = args.outfile
+			if args.dump_bsp_entities:
+				error("Can't rewrite this file, output format differs")
+				return False
+			else:
+				out_file = args.map_file
+		elif args.out_file:
+			out_file = args.out_file
 
 		map = Map()
-		if map.read_file(args.sanitize):
-			map.write_file(outfile)
-	
-	if args.bsp_entities:
-		if args.inplace:
-			print("does not make sense at all to rewrite this file")
+		if not map.read_file(args.map_file):
+			error("Failed to read " + args.map_file)
 			return False
-		elif args.outfile:
-			outfile = args.outfile
 
-		map = Map()
-		if map.read_file(args.bsp_entities):
-			map.write_bsp_entities(outfile)
+		debug("File " + args.map_file + " read")
+
+		if args.dump_bsp_entities:
+			map.write_bsp_entities(out_file)
+		else:
+			if args.substitute_entities:
+				substitution = KeyValueSubstitution()
+				substitution.read_file(args.substitute_entities)
+				map.substitute_entities(substitution)
+				map.write_file(out_file)
+
+			map.write_file(out_file)
 
 
 if __name__ == "__main__":
