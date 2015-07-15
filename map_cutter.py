@@ -9,26 +9,23 @@
 
 import sys
 import re
-
-from collections import OrderedDict
-
 import argparse
-
 import logging
 from logging import debug, error
+from collections import OrderedDict
 
 
-# http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
+# see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
 
 class Map():
 	def __init__(self):
 		self.entity_list = None
 
 	def read_file(self, file_name):
-		map_file = open(file_name, "rb")
+		input_map_file = open(file_name, "rb")
 
-		map_bstring = map_file.read()
-		map_file.close()
+		map_bstring = input_map_file.read()
+		input_map_file.close()
 
 		map_lines = str.splitlines(bytes.decode(map_bstring))
 
@@ -410,9 +407,9 @@ class Map():
 	def write_file(self, file_name):
 		map_string = self.export_map()
 		if map_string:
-			map_file = open(file_name, 'wb')
-			map_file.write(str.encode(map_string))
-			map_file.close()
+			input_map_file = open(file_name, 'wb')
+			input_map_file.write(str.encode(map_string))
+			input_map_file.close()
 			
 	def export_bsp_entities(self):
 		if self.entity_list == None:
@@ -529,13 +526,11 @@ class KeyValueSubstitution():
 def main():
 
 	args = argparse.ArgumentParser(description="%(prog)s is a map parser for my lovely granger.")
-	outgroup = args.add_mutually_exclusive_group()
-	args.add_argument("-d", "--debug", help="print debug information", action="store_true")
-	args.add_argument("-m", "--map", dest="map_file", metavar="FILENAME",  help="read map %(metavar)s")
-	args.add_argument("-be", "--dump-bsp-entities", dest="dump_bsp_entities", help="dump entities to BSP entities format", action="store_true")
-	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from %(metavar)s")
-	outgroup.add_argument("-o", "--out", dest="out_file", metavar="FILENAME", help="write to %(metavar)s", default="/dev/stdout")
-	outgroup.add_argument("-i", "--in-place", dest="in_place", help="rewrite file in place", action="store_true", default=False)
+	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
+	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from MAP file %(metavar)s")
+	args.add_argument("-de", "--dump-bsp-entities", dest="dump_bsp_entities", metavar="FILENAME", help="dump entities to BSP entities format to TXT file %(metavar)s")
+	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from CSV file %(metavar)s")
+	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to MAP file %(metavar)s")
 
 	args = args.parse_args()
 	if args.debug:
@@ -544,33 +539,24 @@ def main():
 		
 	debug("args: " + str(args))
 
-	if args.map_file:
-		if args.in_place:
-			if args.dump_bsp_entities:
-				error("Can't rewrite this file, output format differs")
-				return False
-			else:
-				out_file = args.map_file
-		elif args.out_file:
-			out_file = args.out_file
-
+	if args.input_map_file:
 		map = Map()
-		if not map.read_file(args.map_file):
-			error("Failed to read " + args.map_file)
+		if not map.read_file(args.input_map_file):
+			error("Failed to read " + args.input_map_file)
 			return False
 
-		debug("File " + args.map_file + " read")
+		debug("File " + args.input_map_file + " read")
 
-		if args.dump_bsp_entities:
-			map.write_bsp_entities(out_file)
-		else:
-			if args.substitute_entities:
-				substitution = KeyValueSubstitution()
-				substitution.read_file(args.substitute_entities)
-				map.substitute_entities(substitution)
-				map.write_file(out_file)
+	if args.substitute_entities:
+		substitution = KeyValueSubstitution()
+		substitution.read_file(args.substitute_entities)
+		map.substitute_entities(substitution)
 
-			map.write_file(out_file)
+	if args.dump_bsp_entities:
+		map.write_bsp_entities(args.dump_bsp_entities)
+
+	if args.output_map_file:
+		map.write_file(args.output_map_file)
 
 
 if __name__ == "__main__":

@@ -7,30 +7,35 @@
 # License: ISC
 # 
 
-import struct
-import re
-import sys
 import os
+import struct
+import sys
+import re
+import argparse
+import logging
+from logging import debug, error
+from collections import OrderedDict
+
 
 # see http://www.mralligator.com/q3/
 lump_name_list = [
-	"Entities",
-	"Textures",
+	"entities",
+	"textures",
 	"Planes",
-	"Nodes",
-	"Leafs",
-	"Leaffaces",
-	"Leafbrushes",
-	"Models",
-	"Brushes",
-	"Brushsides",
-	"Vertexes",
-	"Meshverts",
-	"Effects",
-	"Faces",
-	"Lightmaps",
-	"Lightvols",
-	"Visdata",
+	"nodes",
+	"leafs",
+	"leaffaces",
+	"leafbrushes",
+	"models",
+	"brushes",
+	"brushsides",
+	"vertexes",
+	"meshverts",
+	"effects",
+	"faces",
+	"lightmaps",
+	"lightvols",
+	"visdata",
 ]
 
 # see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
@@ -68,15 +73,17 @@ class Entities():
 		print("")
 
 	def print_list(self):
+		print("*** Entities")
 		for i in range(0, len(self.entity_list)):
 			string = ""
 			for keyword in self.entity_list[i].keys():
 				string += '\"' + keyword + "\": \"" + self.entity_list[i][keyword] + "\", "
 			print(str(i) + ": [" + string[:-2] + "]")
+		print("")
 		return True
 
-	def print_sounds_list(self):
-		print("*** Sounds")
+	def print_sound_list(self):
+		print("*** Sounds:")
 		i = 0
 		for entity in self.entity_list:
 			for entity_keyword in entity.keys():
@@ -97,7 +104,7 @@ class Entities():
 		entities_bstring = blob.split(b'\0', 1)[0]
 		for almost_entity in entities_bstring.split(b"{\n")[1:]:
 			entity = almost_entity.split(b'\n}')[:-1][0]
-			entity_dict = {}
+			entity_dict = OrderedDict()
 			for line in entity.split(b'\n'):
 				almost_keyword, almost_value = line.split(b"\" \"")
 				keyword = bytes.decode(almost_keyword.split(b'\"')[1:2][0])
@@ -209,16 +216,18 @@ class Textures():
 
 
 class Lightmaps():
-	def __init_(self):
-		self.ligthmap_list = None
+	def __init__(self):
+		self.lightmap_list = []
 
-
-	def list_lightmaps(self):
+	def print_list(self):
 		print("*** Lightmaps:")
 		for i in range(0, len(self.lightmap_list)):
 			print("#" + str(i) + ": [128x128x24, RGB, " + str(len(self.lightmap_list[i])) + "]")
 		print("")
 		return True
+
+	def read_dir(self, dir_name):
+		print("STUB STUB STUB STUB")
 
 	def write_dir(self, dir_name):
 		if not os.path.exists(dir_name):
@@ -258,14 +267,17 @@ class Lightmaps():
 		lightmap_size = 49152
 		lump_count = int(len(blob) / lightmap_size)
 
-		self.lightmap_list = []
 		for i in range(0, lump_count):
 			self.lightmap_list.append(blob[i * lightmap_size:(i + 1) * lightmap_size])
 		return True
 
 	def export_lump(self):
-		# STUB
-		return False
+		blob = b''
+		# TODO: better
+		for i in range(0, len(self.lightmap_list)):
+			blob += self.lightmap[i]
+
+		return blob
 
 class BSP():
 	def __init__(self):
@@ -420,104 +432,147 @@ class BSP():
 		return self.lump_dict[lump_name]
 
 def main(argv):
-	bsp = BSP()
-	textures = Textures()
-	entities = Entities()
-	lightmaps = Lightmaps()
-
-	# CLI Proof of concept
-
-	# TODO: rewrite all this part
 	# TODO: check files
 
-	if len(argv) == 0:
-		print("ERR: missing command")
-		return False
-	elif len(argv) == 1:
-		print("ERR: missing filename")
-		return False
+	args = argparse.ArgumentParser(description="%(prog)s is a BSP parser for my lovely granger.")
+	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
+	args.add_argument("-ib", "--input-bsp", dest="input_bsp_file", metavar="FILENAME",  help="read from BSP file %(metavar)s")
+	args.add_argument("-ob", "--output-bsp", dest="output_bsp_file", metavar="FILENAME", help="write to BSP file %(metavar)s")
+	args.add_argument("-ie", "--input-entities", dest="input_entities_file", metavar="FILENAME",  help="read from entities TXT file %(metavar)s")
+	args.add_argument("-oe", "--output-entities", dest="output_entities_file", metavar="FILENAME", help="write to entities TXT file %(metavar)s")
+	args.add_argument("-it", "--input-textures", dest="input_textures_file", metavar="FILENAME",  help="read rom textures CSV file %(metavar)s")
+	args.add_argument("-ot", "--output-textures", dest="output_textures_file", metavar="FILENAME", help="write to textures CSV file %(metavar)s")
+	args.add_argument("-il", "--input-lightmaps", dest="input_lightmaps_dir", metavar="DIRNAME",  help="read from lightmaps directory %(metavar)s")
+	args.add_argument("-ol", "--output-lightmaps", dest="output_lightmaps_dir", metavar="DIRNAME", help="write to lightmaps directory %(metavar)s")
+	args.add_argument("-sl", "--strip-lightmaps", help="empty the lightmap lump", action="store_true")
+	args.add_argument("-la", "--list-all", help="list all", action="store_true")
+	args.add_argument("-lL", "--list-lumps", help="list lumps", action="store_true")
+	args.add_argument("-le", "--list-entities", help="list entities", action="store_true")
+	args.add_argument("-ls", "--list-sounds", help="list sounds", action="store_true")
+	args.add_argument("-lt", "--list-textures", help="list textures", action="store_true")
+	args.add_argument("-ll", "--list-lightmaps", help="list lightmaps", action="store_true")
+#	args.add_argument("-d", "--dump", help="dump lump(s)", action="store_true")
 
-	if argv[0] == "list_lumps":
-		if bsp.read_file(argv[1]):
-			if bsp.print_lump_list():
-				return True
-		return False
-	elif argv[0] == "print_entities":
-		if bsp.read_file(argv[1]):
-			entities.import_lump(bsp.export_lump("Entities"))
-			if entities.print_string():
-				return True
-		return False
-	elif argv[0] == "list_entities":
-		if bsp.read_file(argv[1]):
-			entities.import_lump(bsp.export_lump("Entities"))
-			if entities.print_list():
-				return True
-		return False
-	elif argv[0] == "list_sounds":
-		if bsp.read_file(argv[1]):
-			entities.import_lump(bsp.export_lump("Entities"))
-			if entities.print_sounds_list():
-				return True
-		return False
-	elif argv[0] == "list_textures":
-		if bsp.read_file(argv[1]):
-			textures.import_lump(bsp.export_lump("Textures"))
-			if textures.print_list():
-				return True
-		return False
-	elif argv[0] == "list_lightmaps":
-		if bsp.read_file(argv[1]):
-			if lightmaps.import_lump(bsp.export_lump("Lightmaps")):
-				lightmaps.list_lightmaps()
-				return True
-		return False
-	elif argv[0] == "print_all":
-		if bsp.read_file(argv[1]):
-			bsp.print_file_name()
+	args.add_argument("-pe", "--print-entities", help="print entities", action="store_true")
+
+	args = args.parse_args()
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		debug("Debug logging activated")
+								
+	debug("args: " + str(args))
+
+	bsp = None
+	entities = None
+	textures = None
+	lightmaps = None
+
+	if args.input_bsp_file:
+		bsp = BSP()
+		bsp.read_file(args.input_bsp_file)
+		entities = Entities()
+		entities.import_lump(bsp.export_lump("entities"))
+		textures = Textures()
+		textures.import_lump(bsp.export_lump("textures"))
+		lightmaps = Lightmaps()
+		lightmaps.import_lump(bsp.export_lump("lightmaps"))
+
+	if args.input_entities_file:
+		entities = Entities()
+		entities.read_file(args.input_entities_file)
+
+	if args.input_textures_file:
+		textures = Textures()
+		textures.read_file(args.input_textures_file)
+
+	if args.input_lightmaps_dir:
+		lightmaps = Lightmaps()
+		lightmaps.read_dir(args.input_lightmaps_dir)
+
+	# TODO: perhaps it must conflict with input_lightmaps_file
+	if args.strip_lightmaps:
+		lightmaps = Lightmaps()
+	#	lightmaps.import_lump(b'')
+
+	if args.output_entities_file:
+		if entities:
+			entities.write_file(args.output_entities_file)
+		else:
+			debug("TODO: ERR: no entities lump loaded")
+
+	if args.output_textures_file:
+		if textures:
+			textures.write_file(args.output_textures_file)
+		else:
+			debug("TODO: ERR: no textures lump loaded")
+
+	if args.output_lightmaps_dir:
+		if lightmaps:
+			lightmaps.write_dir(args.output_lightmaps_dir)
+
+	if args.output_bsp_file:
+		if lightmaps:
+			bsp.import_lump("lightmaps", lightmaps.export_lump())
+		if entities:
+			bsp.import_lump("entities", entities.export_lump())
+		if textures:
+			bsp.import_lump("textures", textures.export_lump())
+		bsp.write_file(args.output_bsp_file)
+
+	if args.list_all:
+		if bsp:
+			args.list_lumps = True
+			args.list_entities = True
+			args.list_textures = True
+			args.list_lightmaps = True
+			args.list_sounds = True
+
+		if entities:
+			args.list_entities = True
+			args.list_sounds = True
+
+		if textures:
+			args.list_textures = True
+
+		if lightmaps:
+			args.list_lightmaps = True
+
+	if args.list_lumps:
+		if bsp:
 			bsp.print_lump_list()
-			entities.import_lump(bsp.export_lump("Entities"))
-			entities.print_string()
-			textures.import_lump(bsp.export_lump("Textures"))
+		else:
+			error("BSP file missing")
+
+	if args.list_entities:
+		if entities:
+			entities.print_list()
+		else:
+			error("Entities lump missing")
+
+	if args.list_textures:
+		if textures:
 			textures.print_list()
-			return True
-		return False
-	elif argv[0] == "dump_entities":
-		if bsp.read_file(argv[1]):
-			entities.import_lump(bsp.export_lump("Entities"))
-			if entities.write_file(argv[1].split(".bsp")[0] + ".entities"):
-				return True
-		return False
-	elif argv[0] == "dump_textures":
-		if bsp.read_file(argv[1]):
-			textures.import_lump(bsp.export_lump("Textures"))
-			if textures.write_file(argv[1].split(".bsp")[0] + ".textures"):
-				return True
-		return False
-	elif argv[0] == "dump_lightmaps":
-		if bsp.read_file(argv[1]):
-			lightmaps.import_lump(bsp.export_lump("Lightmaps"))
-			if lightmaps.write_dir(argv[1].split(".bsp")[0]):
-				return True
-		return False
-	elif argv[0] == "patch_entities":
-		if bsp.read_file(argv[1]):
-			if entities.read_file(argv[1].split(".bsp")[0] + ".entities"):
-				bsp.import_lump("Entities", entities.export_lump())
-				if bsp.write_file(argv[1]):
-					return True
-		return False
-	elif argv[0] == "patch_textures":
-		# TODO: verify number of lines in textures list
-		if bsp.read_file(argv[1]):
-			if textures.read_file(argv[1].split(".bsp")[0] + ".textures"):
-				bsp.import_lump("Textures", textures.export_lump())
-				if bsp.write_file(argv[1]):
-					return True
-		return False
-	else:
-		print("ERR: Unknown command")
-		return False
+		else:
+			error("Textures lump missing")
+
+	if args.list_lightmaps:
+		if lightmaps:
+			lightmaps.print_list()
+		else:
+			error("Lightmaps lump missing")
+
+	if args.list_sounds:
+		if entities:
+			entities.print_sound_list()
+		else:
+			error("Entities lump missing")
+
+	if args.print_entities:
+		if entities:
+			entities.print_string()
+		else:
+			error("Entities lump missing")
+
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
