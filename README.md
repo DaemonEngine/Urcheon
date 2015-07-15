@@ -1,5 +1,8 @@
-Granger's toolbox
-=================
+Granger's gardening toolbox
+===========================
+
+![Cute Granger](doc/cute-granger.512.png)  
+_My lovely granger needs a gardening toolbox to care for his little flower._
 
 Description
 -----------
