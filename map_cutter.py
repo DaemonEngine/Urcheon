@@ -527,10 +527,10 @@ def main():
 
 	args = argparse.ArgumentParser(description="%(prog)s is a map parser for my lovely granger.")
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
-	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from MAP file %(metavar)s")
-	args.add_argument("-de", "--dump-bsp-entities", dest="dump_bsp_entities", metavar="FILENAME", help="dump entities to BSP entities format to TXT file %(metavar)s")
-	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from CSV file %(metavar)s")
-	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to MAP file %(metavar)s")
+	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
+	args.add_argument("-de", "--dump-bsp-entities", dest="dump_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
+	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from .csv file %(metavar)s")
+	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
 
 	args = args.parse_args()
 	if args.debug:
