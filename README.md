@@ -11,7 +11,7 @@ This toolbox is currently [Unvanquished](http://unvanquished.net)-centric, but c
 Help
 ----
 
-Currently, the `-il` option (to read lightmaps from a directory to embed them inside the BSP lightmaps lump) is a stub.
+Currently, the `-il` option for `bsp_cutter.py` (to read lightmaps from a directory to embed them inside the BSP lightmaps lump) is a stub.
 
 ```
 ./bsp_cutter.py -h
@@ -53,6 +53,8 @@ optional arguments:
   -pe, --print-entities
                         print entities
 ```
+
+Currently, `map_parser.py` does not parse yet vertex matrices, it carbon copy them instead.
 
 ```
 $ ./map_cutter.py -h
