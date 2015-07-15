@@ -21,7 +21,7 @@ from collections import OrderedDict
 lump_name_list = [
 	"entities",
 	"textures",
-	"Planes",
+	"planes",
 	"nodes",
 	"leafs",
 	"leaffaces",
@@ -160,7 +160,7 @@ class Textures():
 			textures_string += self.texture_list[i]["name"] + "\n"
 
 		# TODO: check
-		textures_file = open(file_name, 'wb')
+		textures_file = open(file_name, "wb")
 		textures_file.write(textures_string.encode())
 		textures_file.close()
 
@@ -239,7 +239,7 @@ class Lightmaps():
 			# TODO: os independent:
 			file_path = dir_name + "/" + file_name
 			# TODO: check
-			lightmap_file = open(file_path, 'wb')
+			lightmap_file = open(file_path, "wb")
 
 			# 1: Identification field length (see later for my arbitrary 18 chars string, here 18, up to 255)
 			# 1: No color map
@@ -275,7 +275,7 @@ class Lightmaps():
 		blob = b''
 		# TODO: better
 		for i in range(0, len(self.lightmap_list)):
-			blob += self.lightmap[i]
+			blob += self.lightmap_list[i]
 
 		return blob
 
@@ -287,10 +287,13 @@ class BSP():
 		# only one version supported for the moment
 		self.bsp_version = bsp_version
 
+		# metadata for printing purpose
 		self.lump_directory = None
 		self.sound_list = None
 
+		# lumps are stored here
 		self.lump_dict = {}
+
 		for lump_name in lump_name_list:
 			self.lump_dict[lump_name] = None
 
@@ -381,7 +384,7 @@ class BSP():
 
 
 	def write_file(self, bsp_file_name):
-		bsp_file = open(bsp_file_name, 'wb')
+		bsp_file = open(bsp_file_name, "wb")
 
 		# Must be a multiple of 4
 		metadata_blob = b'Granger loves you!\0\0'
@@ -414,7 +417,7 @@ class BSP():
 					lump_start += 1
 
 		# extra empty lump
-		directory_blob += lump_start.to_bytes(4, "little") + b'\0\0\0\0'
+		directory_blob += lump_start.to_bytes(4, "little") + b"\0\0\0\0"
 
 		blob = bsp_magic_number
 		blob += self.bsp_version.to_bytes(4, "little")
@@ -424,6 +427,29 @@ class BSP():
 		
 		bsp_file.write(blob)
 		bsp_file.close()
+
+	def write_dir(self, dir_name):
+		if not os.path.exists(dir_name):
+		    os.makedirs(dir_name)
+
+		for entity in lump_name_list:
+			if entity == "entities":
+				entities = Entities()
+				entities.import_lump(self.lump_dict["entities"])
+				# TODO: sanitize '/'
+				entities.write_file(dir_name + "/entities.txt")
+			elif entity == "textures":
+				textures = Textures()
+				textures.import_lump(self.lump_dict["textures"])
+				textures.write_file(dir_name + "/textures.csv")
+			elif entity == "lightmaps":
+				lightmaps = Lightmaps()
+				lightmaps.import_lump(self.lump_dict["lightmaps"])
+				lightmaps.write_dir(dir_name + "/lightmaps")
+			else:
+				blob_file = open(dir_name + '/' + entity + ".bin", "wb")
+				blob_file.write(self.lump_dict[entity])
+				blob_file.close()
 
 	def import_lump(self, lump_name, blob):
 		self.lump_dict[lump_name] = blob
@@ -451,7 +477,7 @@ def main(argv):
 	args.add_argument("-ls", "--list-sounds", help="list sounds", action="store_true")
 	args.add_argument("-lt", "--list-textures", help="list textures", action="store_true")
 	args.add_argument("-ll", "--list-lightmaps", help="list lightmaps", action="store_true")
-#	args.add_argument("-d", "--dump", help="dump lump(s)", action="store_true")
+	args.add_argument("-od", "--output-bsp-dir", dest="output_bsp_dir", metavar="DIRNAME", help="write to BSPDIR directory %(metavar)s")
 
 	args.add_argument("-pe", "--print-entities", help="print entities", action="store_true")
 
@@ -518,6 +544,15 @@ def main(argv):
 		if textures:
 			bsp.import_lump("textures", textures.export_lump())
 		bsp.write_file(args.output_bsp_file)
+
+	if args.output_bsp_dir:
+		if lightmaps:
+			bsp.import_lump("lightmaps", lightmaps.export_lump())
+		if entities:
+			bsp.import_lump("entities", entities.export_lump())
+		if textures:
+			bsp.import_lump("textures", textures.export_lump())
+		bsp.write_dir(args.output_bsp_dir)
 
 	if args.list_all:
 		if bsp:

@@ -17,11 +17,10 @@ Help
 Currently, the `-il` option for `bsp_cutter.py` (to read lightmaps from a directory to embed them inside the BSP lightmaps lump) is a stub.
 
 ```
-./bsp_cutter.py -h
 usage: bsp_cutter.py [-h] [-D] [-ib FILENAME] [-ob FILENAME] [-ie FILENAME]
                      [-oe FILENAME] [-it FILENAME] [-ot FILENAME]
                      [-il DIRNAME] [-ol DIRNAME] [-sl] [-la] [-lL] [-le] [-ls]
-                     [-lt] [-ll] [-pe]
+                     [-lt] [-ll] [-od DIRNAME] [-pe]
 
 bsp_cutter.py is a BSP parser for my lovely granger.
 
@@ -53,6 +52,8 @@ optional arguments:
   -lt, --list-textures  list textures
   -ll, --list-lightmaps
                         list lightmaps
+  -od DIRNAME, --output-bsp-dir DIRNAME
+                        write to BSPDIR directory DIRNAME
   -pe, --print-entities
                         print entities
 ```
