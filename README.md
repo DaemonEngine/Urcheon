@@ -18,9 +18,9 @@ Currently, the `-il` option for `bsp_cutter.py` (to read lightmaps from a direct
 
 ```
 $ ./bsp_cutter.py -h
-usage: bsp_cutter.py [-h] [-D] [-ib FILENAME] [-ob FILENAME] [-ie FILENAME]
-                     [-oe FILENAME] [-it FILENAME] [-ot FILENAME]
-                     [-il DIRNAME] [-ol DIRNAME] [-sl] [-od DIRNAME] [-la]
+usage: bsp_cutter.py [-h] [-D] [-ib FILENAME] [-ob FILENAME] [-od DIRNAME]
+                     [-ie FILENAME] [-oe FILENAME] [-it FILENAME]
+                     [-ot FILENAME] [-il DIRNAME] [-ol DIRNAME] [-sl] [-la]
                      [-lL] [-le] [-ls] [-lt] [-ll] [-pe]
 
 bsp_cutter.py is a BSP parser for my lovely granger.
@@ -32,6 +32,8 @@ optional arguments:
                         read from .bsp file FILENAME
   -ob FILENAME, --output-bsp FILENAME
                         write to .bsp file FILENAME
+  -od DIRNAME, --output-bsp-dir DIRNAME
+                        write to .bspdir directory DIRNAME
   -ie FILENAME, --input-entities FILENAME
                         read from entities .txt file FILENAME
   -oe FILENAME, --output-entities FILENAME
@@ -46,8 +48,6 @@ optional arguments:
                         write to lightmaps directory DIRNAME
   -sl, --strip-lightmaps
                         empty the lightmap lump
-  -od DIRNAME, --output-bsp-dir DIRNAME
-                        write to .bspdir directory DIRNAME
   -la, --list-all       list all
   -lL, --list-lumps     list lumps
   -le, --list-entities  list entities
@@ -93,6 +93,10 @@ Author
 Thomas Debesse <dev@illwieckz.net>
 
 Copyright
+---------
+
+This script is distributed under the highly permissive and laconic [ISC License](COPYING.md).
+pyright
 ---------
 
 This script is distributed under the highly permissive and laconic [ISC License](COPYING.md).

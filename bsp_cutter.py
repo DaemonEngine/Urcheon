@@ -13,8 +13,10 @@ import sys
 import re
 import argparse
 import logging
+import glob
 from logging import debug, error
 from collections import OrderedDict
+from PIL import Image
 
 
 # see http://www.mralligator.com/q3/
@@ -227,7 +229,24 @@ class Lightmaps():
 		return True
 
 	def read_dir(self, dir_name):
-		print("STUB STUB STUB STUB")
+		self.lightmap_list = []
+		file_list = sorted(glob.glob(dir_name + "/lm_*.tga"))
+		for file_name in file_list:
+			debug("loading lightmap: " + file_name)
+			image = Image.open(file_name)
+			lightmap = image.convert("RGB").tostring()
+
+			# 49152: Size (128x128x3 bits)
+			# 128: Lines
+			# 3: Bits per pixels
+			# lightmap_size = 49152		# 128*128*3
+			# lightmap_line_size = 384	# 128*3
+			# lightmap_num_lines = 128
+
+			if int(len(lightmap) != 49152):
+				error("bad file, must be a 128x128x3 picture")
+
+			self.lightmap_list.append(lightmap)
 
 	def write_dir(self, dir_name):
 		if not os.path.exists(dir_name):
@@ -254,16 +273,35 @@ class Lightmaps():
 			header += b'\x80\0\x80\0'
 			# 2: Bits per pixels (24)
 			# 2: Attribute bits (0 for 24)
-			header += b'\x18\0\0\0'
+			header += b'\x18\0'
 			header += b'Granger loves you\0'
 
-			blob = header + self.lightmap_list[i]
+			raw = self.lightmap_list[i]
+
+			# 49152: Size (128x128x3 bits)
+			# 384: Line size (128x3 bits)
+			# 3: Bits per pixels
+
+			data = b''
+			# Last line is first line
+			for j in range(0, 49152, 384):
+				line = raw[49152 - 384 - j : 49152 - j]
+
+				# RGB → BGR
+				for k in range(0, 384, 3):
+					data += line[k : k + 3][::-1]
+
+			debug("header length: " + str(len(header)))
+			debug("data length: " + str(len(data)))
+
+			blob = header + data
 
 			lightmap_file.write(blob)
 			lightmap_file.close()
 
 	def import_lump(self, blob):
-		# 128*128*3
+		self.lightmap_list = []
+		# 59152: Size (128x128x83 bits)
 		lightmap_size = 49152
 		lump_count = int(len(blob) / lightmap_size)
 
@@ -463,7 +501,9 @@ def main(argv):
 	args = argparse.ArgumentParser(description="%(prog)s is a BSP parser for my lovely granger.")
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-ib", "--input-bsp", dest="input_bsp_file", metavar="FILENAME",  help="read from .bsp file %(metavar)s")
+#	args.add_argument("-id", "--input-bsp-dir", dest="input_bsp_dir", metavar="DIRNAME", help="read from .bspdir directory %(metavar)s")
 	args.add_argument("-ob", "--output-bsp", dest="output_bsp_file", metavar="FILENAME", help="write to .bsp file %(metavar)s")
+	args.add_argument("-od", "--output-bsp-dir", dest="output_bsp_dir", metavar="DIRNAME", help="write to .bspdir directory %(metavar)s")
 	args.add_argument("-ie", "--input-entities", dest="input_entities_file", metavar="FILENAME",  help="read from entities .txt file %(metavar)s")
 	args.add_argument("-oe", "--output-entities", dest="output_entities_file", metavar="FILENAME", help="write to entities .txt file %(metavar)s")
 	args.add_argument("-it", "--input-textures", dest="input_textures_file", metavar="FILENAME",  help="read rom textures .csv file %(metavar)s")
@@ -471,7 +511,6 @@ def main(argv):
 	args.add_argument("-il", "--input-lightmaps", dest="input_lightmaps_dir", metavar="DIRNAME",  help="read from lightmaps directory %(metavar)s")
 	args.add_argument("-ol", "--output-lightmaps", dest="output_lightmaps_dir", metavar="DIRNAME", help="write to lightmaps directory %(metavar)s")
 	args.add_argument("-sl", "--strip-lightmaps", help="empty the lightmap lump", action="store_true")
-	args.add_argument("-od", "--output-bsp-dir", dest="output_bsp_dir", metavar="DIRNAME", help="write to .bspdir directory %(metavar)s")
 	args.add_argument("-la", "--list-all", help="list all", action="store_true")
 	args.add_argument("-lL", "--list-lumps", help="list lumps", action="store_true")
 	args.add_argument("-le", "--list-entities", help="list entities", action="store_true")
@@ -502,6 +541,10 @@ def main(argv):
 		lightmaps = Lightmaps()
 		lightmaps.import_lump(bsp.export_lump("lightmaps"))
 
+	if args.input_bsp_dir:
+		bsp = BSP()
+		bsp.read_dir(args.input_bsp_dir)
+
 	if args.input_entities_file:
 		entities = Entities()
 		entities.read_file(args.input_entities_file)
@@ -518,22 +561,6 @@ def main(argv):
 	if args.strip_lightmaps:
 		lightmaps = Lightmaps()
 	#	lightmaps.import_lump(b'')
-
-	if args.output_entities_file:
-		if entities:
-			entities.write_file(args.output_entities_file)
-		else:
-			debug("TODO: ERR: no entities lump loaded")
-
-	if args.output_textures_file:
-		if textures:
-			textures.write_file(args.output_textures_file)
-		else:
-			debug("TODO: ERR: no textures lump loaded")
-
-	if args.output_lightmaps_dir:
-		if lightmaps:
-			lightmaps.write_dir(args.output_lightmaps_dir)
 
 	if args.output_bsp_file:
 		if lightmaps:
@@ -552,6 +579,22 @@ def main(argv):
 		if textures:
 			bsp.import_lump("textures", textures.export_lump())
 		bsp.write_dir(args.output_bsp_dir)
+
+	if args.output_entities_file:
+		if entities:
+			entities.write_file(args.output_entities_file)
+		else:
+			debug("TODO: ERR: no entities lump loaded")
+
+	if args.output_textures_file:
+		if textures:
+			textures.write_file(args.output_textures_file)
+		else:
+			debug("TODO: ERR: no textures lump loaded")
+
+	if args.output_lightmaps_dir:
+		if lightmaps:
+			lightmaps.write_dir(args.output_lightmaps_dir)
 
 	if args.list_all:
 		if bsp:
