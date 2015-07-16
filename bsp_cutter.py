@@ -229,6 +229,7 @@ class Lightmaps():
 		return True
 
 	def read_dir(self, dir_name):
+		# TODO: check if a dir, perhaps argparse can do
 		self.lightmap_list = []
 		file_list = sorted(glob.glob(dir_name + "/lm_*.tga"))
 		for file_name in file_list:
@@ -250,7 +251,7 @@ class Lightmaps():
 
 	def write_dir(self, dir_name):
 		if not os.path.exists(dir_name):
-		    os.makedirs(dir_name)
+			os.makedirs(dir_name)
 
 		for i in range(0, len(self.lightmap_list)):
 			file_name = "lm_" + str(i).zfill(4) + ".tga"
@@ -366,6 +367,60 @@ class BSP():
 		self.bsp_file.close()
 		return True
 
+	def read_dir(self, dir_name):
+		# TODO: check if a dir, perhapas argparse can do
+		for lump_name in lump_name_list:
+			file_list = glob.glob(dir_name + "/" + lump_name + ".*")
+
+			if len(file_list) > 1:
+				error("more than one " + lump_name + " lump in bspdir")
+				# TODO: handling
+				return
+
+			file_path = file_list[0]
+			file_ext = file_path.split(".")[-1]
+			file_name = file_path.split("/")[-1][: -(len(file_ext) +1)]
+
+			if file_ext == "bin":
+				if file_name in lump_name_list:
+					lump_file = open( file_path, "rb")
+					# TODO: check
+					self.lump_dict[file_name] = lump_file.read()
+				else:
+					error("unknown lump format: " + filename)
+					return
+
+			elif file_ext == "csv":
+				if file_name == "textures":
+					textures = Textures()
+					textures.read_file(file_path)
+					self.lump_dict[file_name] = textures.export_lump()
+				else:
+					error("unknown lump format: " + file_path)
+					return
+
+			elif file_ext == "txt":
+				if file_name == "entities":
+						entities = Entities()
+						entities.read_file(file_path)
+						self.lump_dict[file_name] = entities.export_lump()
+				else:
+					error("unknown lump format: " + file_path)
+					return
+
+			elif file_ext == "d":
+				if file_name == "lightmaps":
+						lightmaps = Lightmaps()
+						lightmaps.read_dir(file_path)
+						self.lump_dict[file_name] = lightmaps.export_lump()
+				else:
+					error("unknown lump format: " + file_path)
+					return
+
+			else:
+				error("unknown lump format: " + file_path)
+				return
+
 	def print_file_name(self):
 		print("*** File:")
 		print(self.bsp_file_name)
@@ -468,7 +523,7 @@ class BSP():
 
 	def write_dir(self, dir_name):
 		if not os.path.exists(dir_name):
-		    os.makedirs(dir_name)
+			os.makedirs(dir_name)
 
 		for entity in lump_name_list:
 			if entity == "entities":
@@ -501,7 +556,7 @@ def main(argv):
 	args = argparse.ArgumentParser(description="%(prog)s is a BSP parser for my lovely granger.")
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-ib", "--input-bsp", dest="input_bsp_file", metavar="FILENAME",  help="read from .bsp file %(metavar)s")
-#	args.add_argument("-id", "--input-bsp-dir", dest="input_bsp_dir", metavar="DIRNAME", help="read from .bspdir directory %(metavar)s")
+	args.add_argument("-id", "--input-bsp-dir", dest="input_bsp_dir", metavar="DIRNAME", help="read from .bspdir directory %(metavar)s")
 	args.add_argument("-ob", "--output-bsp", dest="output_bsp_file", metavar="FILENAME", help="write to .bsp file %(metavar)s")
 	args.add_argument("-od", "--output-bsp-dir", dest="output_bsp_dir", metavar="DIRNAME", help="write to .bspdir directory %(metavar)s")
 	args.add_argument("-ie", "--input-entities", dest="input_entities_file", metavar="FILENAME",  help="read from entities .txt file %(metavar)s")
