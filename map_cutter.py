@@ -21,7 +21,7 @@ class Map():
 	def __init__(self):
 		self.entity_list = None
 		# write entity numbers or not
-		self.entity_numbering = True
+		self.numbering = True
 
 	def read_file(self, file_name):
 		input_map_file = open(file_name, "rb")
@@ -336,7 +336,7 @@ class Map():
 
 		for i in range(0, len(self.entity_list)):
 			debug("Exporting Entity #" + str(i))
-			if self.entity_numbering == True:
+			if self.numbering == True:
 				map_string += "// entity " + str(i) + "\n"
 			else:
 				map_string += "// entity 0\n"
@@ -349,7 +349,7 @@ class Map():
 			if len(self.entity_list[i].shape_list) > 0:
 				shape_count = 0
 				for shape in self.entity_list[i].shape_list:
-					if self.entity_numbering == True:
+					if self.numbering == True:
 						map_string += "// brush " + str(shape_count) + "\n"
 					else:
 						map_string += "// brush 0\n"
@@ -537,8 +537,9 @@ def main():
 	args = argparse.ArgumentParser(description="%(prog)s is a map parser for my lovely granger.")
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
-	args.add_argument("-de", "--dump-bsp-entities", dest="dump_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
+	args.add_argument("-ob", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
 	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from .csv file %(metavar)s")
+	args.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
 	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
 
 	args = args.parse_args()
@@ -561,8 +562,11 @@ def main():
 		substitution.read_file(args.substitute_entities)
 		map.substitute_entities(substitution)
 
-	if args.dump_bsp_entities:
-		map.write_bsp_entities(args.dump_bsp_entities)
+	if args.disable_numbering:
+		map.numbering = False
+
+	if args.output_bsp_entities:
+		map.write_bsp_entities(args.output_bsp_entities)
 
 	if args.output_map_file:
 		map.write_file(args.output_map_file)
