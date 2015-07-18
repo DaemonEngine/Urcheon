@@ -20,6 +20,8 @@ from collections import OrderedDict
 class Map():
 	def __init__(self):
 		self.entity_list = None
+		# write entity numbers or not
+		self.entity_numbering = True
 
 	def read_file(self, file_name):
 		input_map_file = open(file_name, "rb")
@@ -331,19 +333,26 @@ class Map():
 			return False
 
 		map_string = ""
-		shape_count = 0
 
 		for i in range(0, len(self.entity_list)):
 			debug("Exporting Entity #" + str(i))
-			map_string += "// entity " + str(i) + "\n"
+			if self.entity_numbering == True:
+				map_string += "// entity " + str(i) + "\n"
+			else:
+				map_string += "// entity 0\n"
+
 			map_string += "{\n"
 			if len(self.entity_list[i].keyvalue_dict) > 0:
 				for key in self.entity_list[i].keyvalue_dict:
 					debug("Exporting KeyValue pair")
 					map_string += "\"" + key + "\" \"" + self.entity_list[i].keyvalue_dict[key] + "\"" + "\n"
 			if len(self.entity_list[i].shape_list) > 0:
+				shape_count = 0
 				for shape in self.entity_list[i].shape_list:
-					map_string += "// brush " + str(shape_count) + "\n"
+					if self.entity_numbering == True:
+						map_string += "// brush " + str(shape_count) + "\n"
+					else:
+						map_string += "// brush 0\n"
 					map_string += "{\n"
 					debug("Exporting Shape #" + str(shape_count))
 					if type(shape) is Brush:
