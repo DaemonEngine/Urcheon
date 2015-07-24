@@ -237,12 +237,10 @@ class Lightmaps():
 			image = Image.open(file_name)
 			lightmap = image.convert("RGB").tostring()
 
-			# 49152: Size (128x128x3 bits)
-			# 128: Lines
-			# 3: Bits per pixels
-			# lightmap_size = 49152		# 128*128*3
-			# lightmap_line_size = 384	# 128*3
-			# lightmap_num_lines = 128
+			# 49152: Lightmap size (128x128x3 bytes)
+			# 128: Number of lines
+			# 3: Bytes per pixels
+			# 384: Lightmap line size (128x3 bytes)
 
 			if int(len(lightmap) != 49152):
 				error("bad file, must be a 128x128x3 picture")
@@ -279,8 +277,8 @@ class Lightmaps():
 
 			raw = self.lightmap_list[i]
 
-			# 49152: Size (128x128x3 bits)
-			# 384: Line size (128x3 bits)
+			# 49152: Size (128x128x3 bytes)
+			# 384: Line size (128x3 bytes)
 			# 3: Bits per pixels
 
 			data = b''
@@ -302,7 +300,7 @@ class Lightmaps():
 
 	def import_lump(self, blob):
 		self.lightmap_list = []
-		# 59152: Size (128x128x83 bits)
+		# 49152: Size (128x128x3 bytes)
 		lightmap_size = 49152
 		lump_count = int(len(blob) / lightmap_size)
 
