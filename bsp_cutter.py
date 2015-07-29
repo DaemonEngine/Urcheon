@@ -132,6 +132,12 @@ class Textures():
 	def __init__(self):
 		self.texture_list = None
 
+	def int2bstr(self, i):
+		return "{0:b}".format(i).zfill(30)
+
+	def bstr2int(self, s):
+		return int(s, 2)
+
 	def read_file(self, file_name):
 		# TODO: check
 		textures_file = open(file_name, 'rb')
@@ -144,8 +150,8 @@ class Textures():
 			# TODO: allow string path with comma
 			if texture_line_bstring != b'':
 				bstring_list = texture_line_bstring.split(b',')
-				flags = int(bstring_list[0])
-				contents = int(bstring_list[1])
+				flags = self.bstr2int(bstring_list[0])
+				contents = self.bstr2int(bstring_list[1])
 				name = bytes.decode(bstring_list[2])
 				self.texture_list.append({"name": name, "flags": flags, "contents": contents})
 
@@ -157,8 +163,8 @@ class Textures():
 
 		textures_string = ""
 		for i in range(0, len(self.texture_list)):
-			textures_string += str(self.texture_list[i]["flags"]) + ","
-			textures_string += str(self.texture_list[i]["contents"]) + ","
+			textures_string += self.int2bstr(self.texture_list[i]["flags"]) + ","
+			textures_string += self.int2bstr(self.texture_list[i]["contents"]) + ","
 			textures_string += self.texture_list[i]["name"] + "\n"
 
 		# TODO: check
@@ -171,7 +177,7 @@ class Textures():
 
 		print("*** Textures:")
 		for i in range(0, len(self.texture_list)):
-			print(str(i) + ": " + self.texture_list[i]["name"] + " [" + str(self.texture_list[i]["flags"]) + ", " + str(self.texture_list[i]["contents"]) + "]")
+			print(str(i) + ": " + self.texture_list[i]["name"] + " [" + self.int2bstr(self.texture_list[i]["flags"]) + ", " + int2bstr(self.texture_list[i]["contents"]) + "]")
 		print("")
 
 	def import_lump(self, blob):
@@ -231,7 +237,7 @@ class Lightmaps():
 	def read_dir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
 		self.lightmap_list = []
-		file_list = sorted(glob.glob(dir_name + "/lm_*.tga"))
+		file_list = sorted(glob.glob(dir_name + "/lm_*.*"))
 		for file_name in file_list:
 			debug("loading lightmap: " + file_name)
 			image = Image.open(file_name)
@@ -399,18 +405,18 @@ class BSP():
 
 			elif file_ext == "txt":
 				if file_name == "entities":
-						entities = Entities()
-						entities.read_file(file_path)
-						self.lump_dict[file_name] = entities.export_lump()
+					entities = Entities()
+					entities.read_file(file_path)
+					self.lump_dict[file_name] = entities.export_lump()
 				else:
 					error("unknown lump format: " + file_path)
 					return
 
 			elif file_ext == "d":
 				if file_name == "lightmaps":
-						lightmaps = Lightmaps()
-						lightmaps.read_dir(file_path)
-						self.lump_dict[file_name] = lightmaps.export_lump()
+					lightmaps = Lightmaps()
+					lightmaps.read_dir(file_path)
+					self.lump_dict[file_name] = lightmaps.export_lump()
 				else:
 					error("unknown lump format: " + file_path)
 					return
