@@ -23,7 +23,7 @@ class Map():
 		# write entity numbers or not
 		self.numbering = True
 
-	def read_file(self, file_name):
+	def readFile(self, file_name):
 		input_map_file = open(file_name, "rb")
 
 		map_bstring = input_map_file.read()
@@ -327,7 +327,7 @@ class Map():
 		return True
 
 
-	def export_map(self):
+	def exportMap(self):
 		if self.entity_list == None:
 			error("No Map loaded")
 			return False
@@ -413,14 +413,14 @@ class Map():
 
 		return map_string
 
-	def write_file(self, file_name):
-		map_string = self.export_map()
+	def writeFile(self, file_name):
+		map_string = self.exportMap()
 		if map_string:
 			input_map_file = open(file_name, 'wb')
 			input_map_file.write(str.encode(map_string))
 			input_map_file.close()
 			
-	def export_bsp_entities(self):
+	def exportBspEntities(self):
 		if self.entity_list == None:
 			error("No Map loaded")
 			return False
@@ -435,24 +435,24 @@ class Map():
 			map_string += "}\n"
 		return map_string
 
-	def write_bsp_entities(self, file_name):
-		bsp_entities_string = self.export_bsp_entities()
+	def writeBspEntities(self, file_name):
+		bsp_entities_string = self.exportBspEntities()
 		if bsp_entities_string:
 			bsp_entities_file = open(file_name, 'wb')
 			bsp_entities_file.write(str.encode(bsp_entities_string))
 			bsp_entities_file.close()
 
 
-	def substitute_entities(self, substitution):
+	def substituteEntities(self, substitution):
 		if not self.entity_list:
 			error("No Map loaded")
 			return False
 
 		for entity in self.entity_list:
-			if not entity.substitute_keys(substitution):
+			if not entity.substituteKeys(substitution):
 				return False
 
-			if not entity.substitute_values(substitution):
+			if not entity.substituteValues(substitution):
 				return False
 
 		return True
@@ -463,13 +463,13 @@ class Entity():
 		self.keyvalue_dict = OrderedDict()
 		self.shape_list = []
 
-	def substitute_keys(self, substitution):
+	def substituteKeys(self, substitution):
 		for old_key, new_key in substitution.key_dict.items():
 			# rename the key in place
 			self.keyvalue_dict = OrderedDict((new_key if str.lower(key) == str.lower(old_key) else key, value) for key, value in self.keyvalue_dict.items())
 		return True
 
-	def substitute_values(self, substitution):
+	def substituteValues(self, substitution):
 		for old_value, new_value in substitution.value_dict.items():
 			for key, value in self.keyvalue_dict.items():
 				if str.lower(value) == str.lower(old_value):
@@ -495,7 +495,7 @@ class KeyValueSubstitution():
 		self.value_dict = {}
 
 
-	def read_file(self, file_name):
+	def readFile(self, file_name):
 		substitution_file = open(file_name, "rb")
 
 		if not substitution_file:
@@ -546,12 +546,11 @@ def main():
 	if args.debug:
 		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 		debug("Debug logging activated")
-		
-	debug("args: " + str(args))
+		debug("args: " + str(args))
 
 	if args.input_map_file:
 		map = Map()
-		if not map.read_file(args.input_map_file):
+		if not map.readFile(args.input_map_file):
 			error("Failed to read " + args.input_map_file)
 			return False
 
@@ -559,17 +558,17 @@ def main():
 
 	if args.substitute_entities:
 		substitution = KeyValueSubstitution()
-		substitution.read_file(args.substitute_entities)
-		map.substitute_entities(substitution)
+		substitution.readFile(args.substitute_entities)
+		map.substituteEntities(substitution)
 
 	if args.disable_numbering:
 		map.numbering = False
 
 	if args.output_bsp_entities:
-		map.write_bsp_entities(args.output_bsp_entities)
+		map.writeBspEntities(args.output_bsp_entities)
 
 	if args.output_map_file:
-		map.write_file(args.output_map_file)
+		map.writeFile(args.output_map_file)
 
 
 if __name__ == "__main__":

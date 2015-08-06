@@ -57,24 +57,24 @@ class Entities():
 	def __init__(self):
 		self.entity_list = None
 
-	def read_file(self, file_name):
+	def readFile(self, file_name):
 		entities_file = open(file_name, "rb")
-		self.import_lump(entities_file.read())
+		self.importLump(entities_file.read())
 		entities_file.close()
 		return True
 
-	def write_file(self, file_name):
+	def writeFile(self, file_name):
 		entities_file = open(file_name, "wb")
-		entities_file.write(self.export_lump().split(b'\0', 1)[0])
+		entities_file.write(self.exportLump().split(b'\0', 1)[0])
 		entities_file.close()
 		return True
 
-	def print_string(self):
+	def printString(self):
 		print("*** Entities")
-		print(bytes.decode(self.export_lump().split(b'\0', 1)[0]))
+		print(bytes.decode(self.exportLump().split(b'\0', 1)[0]))
 		print("")
 
-	def print_list(self):
+	def printList(self):
 		print("*** Entities")
 		for i in range(0, len(self.entity_list)):
 			string = ""
@@ -84,7 +84,7 @@ class Entities():
 		print("")
 		return True
 
-	def print_sound_list(self):
+	def printSoundList(self):
 		print("*** Sounds:")
 		i = 0
 		for entity in self.entity_list:
@@ -101,7 +101,7 @@ class Entities():
 	# s/^[ \t]*}[ \t]*$/{/
 	# s/^[ \t]*"\(.*\)"[ \t]+[ \t]*"\(.*\)"[ \t]*$/"\1" "\2"/
 
-	def import_lump(self, blob):
+	def importLump(self, blob):
 		self.entity_list = []
 		entities_bstring = blob.split(b'\0', 1)[0]
 		for almost_entity in entities_bstring.split(b"{\n")[1:]:
@@ -115,7 +115,7 @@ class Entities():
 				entity_dict[keyword] = value
 			self.entity_list.append(entity_dict)
 
-	def export_lump(self):
+	def exportLump(self):
 		blob = b''
 
 		for entity in self.entity_list:
@@ -138,7 +138,7 @@ class Textures():
 	def bstr2int(self, s):
 		return int(s, 2)
 
-	def read_file(self, file_name):
+	def readFile(self, file_name):
 		# TODO: check
 		textures_file = open(file_name, 'rb')
 
@@ -159,7 +159,7 @@ class Textures():
 
 		return True
 
-	def write_file(self, file_name):
+	def writeFile(self, file_name):
 
 		textures_string = ""
 		for i in range(0, len(self.texture_list)):
@@ -172,7 +172,7 @@ class Textures():
 		textures_file.write(textures_string.encode())
 		textures_file.close()
 
-	def print_list(self):
+	def printList(self):
 		# TODO: check
 
 		print("*** Textures:")
@@ -180,7 +180,7 @@ class Textures():
 			print(str(i) + ": " + self.texture_list[i]["name"] + " [" + self.int2bstr(self.texture_list[i]["flags"]) + ", " + int2bstr(self.texture_list[i]["contents"]) + "]")
 		print("")
 
-	def import_lump(self, blob):
+	def importLump(self, blob):
 		# TODO: check exists
 
 		# 64 bytes string name
@@ -203,7 +203,7 @@ class Textures():
 			self.texture_list[i]["contents"] = contents
 
 
-	def export_lump(self):
+	def exportLump(self):
 		blob = b''
 
 		for i in range(0, len(self.texture_list)):
@@ -227,14 +227,14 @@ class Lightmaps():
 	def __init__(self):
 		self.lightmap_list = []
 
-	def print_list(self):
+	def printList(self):
 		print("*** Lightmaps:")
 		for i in range(0, len(self.lightmap_list)):
 			print("#" + str(i) + ": [128x128x24, RGB, " + str(len(self.lightmap_list[i])) + "]")
 		print("")
 		return True
 
-	def read_dir(self, dir_name):
+	def readDir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
 		self.lightmap_list = []
 		file_list = sorted(glob.glob(dir_name + "/lm_*.*"))
@@ -253,7 +253,7 @@ class Lightmaps():
 
 			self.lightmap_list.append(lightmap)
 
-	def write_dir(self, dir_name):
+	def writeDir(self, dir_name):
 		if not os.path.exists(dir_name):
 			os.makedirs(dir_name)
 
@@ -304,7 +304,7 @@ class Lightmaps():
 			lightmap_file.write(blob)
 			lightmap_file.close()
 
-	def import_lump(self, blob):
+	def importLump(self, blob):
 		self.lightmap_list = []
 		# 49152: Size (128x128x3 bytes)
 		lightmap_size = 49152
@@ -314,7 +314,7 @@ class Lightmaps():
 			self.lightmap_list.append(blob[i * lightmap_size:(i + 1) * lightmap_size])
 		return True
 
-	def export_lump(self):
+	def exportLump(self):
 		blob = b''
 		# TODO: better
 		for i in range(0, len(self.lightmap_list)):
@@ -322,7 +322,7 @@ class Lightmaps():
 
 		return blob
 
-class BSP():
+class Bsp():
 	def __init__(self):
 		self.bsp_file = None
 		self.bsp_file_name = None
@@ -336,11 +336,10 @@ class BSP():
 
 		# lumps are stored here
 		self.lump_dict = {}
-
 		for lump_name in lump_name_list:
-			self.lump_dict[lump_name] = None
+			self.lump_dict[lump_name] = b""
 
-	def read_file(self, bsp_file_name):
+	def readFile(self, bsp_file_name):
 		# TODO: check
 		self.bsp_file_name = bsp_file_name
 		self.bsp_file = open(self.bsp_file_name, 'rb')
@@ -359,20 +358,20 @@ class BSP():
 			self.bsp_file = None
 			return False
 
-		if not self.read_lump_list():
+		if not self.readLumpList():
 			print("ERR: Can't read lump list")
 			return False
 
 		for lump_name in lump_name_list:
-			if not self.read_lump(lump_name):
+			if not self.readLump(lump_name):
 				print("ERR: Can't read lump: " + lump_name)
 				return False
 
 		self.bsp_file.close()
 		return True
 
-	def read_dir(self, dir_name):
-		# TODO: check if a dir, perhapas argparse can do
+	def readDir(self, dir_name):
+		# TODO: check if a dir, perhaps argparse can do
 		for lump_name in lump_name_list:
 			file_list = glob.glob(dir_name + "/" + lump_name + ".*")
 
@@ -380,6 +379,9 @@ class BSP():
 				error("more than one " + lump_name + " lump in bspdir")
 				# TODO: handling
 				return
+			if len(file_list) == 0:
+				# TODO: warning?
+				continue
 
 			file_path = file_list[0]
 			file_ext = file_path.split(".")[-1]
@@ -387,8 +389,7 @@ class BSP():
 
 			if file_ext == "bin":
 				if file_name in lump_name_list:
-					lump_file = open( file_path, "rb")
-					# TODO: check
+					lump_file = open(file_path, "rb")
 					self.lump_dict[file_name] = lump_file.read()
 				else:
 					error("unknown lump format: " + filename)
@@ -397,8 +398,8 @@ class BSP():
 			elif file_ext == "csv":
 				if file_name == "textures":
 					textures = Textures()
-					textures.read_file(file_path)
-					self.lump_dict[file_name] = textures.export_lump()
+					textures.readFile(file_path)
+					self.lump_dict[file_name] = textures.exportLump()
 				else:
 					error("unknown lump format: " + file_path)
 					return
@@ -406,8 +407,8 @@ class BSP():
 			elif file_ext == "txt":
 				if file_name == "entities":
 					entities = Entities()
-					entities.read_file(file_path)
-					self.lump_dict[file_name] = entities.export_lump()
+					entities.readFile(file_path)
+					self.lump_dict[file_name] = entities.exportLump()
 				else:
 					error("unknown lump format: " + file_path)
 					return
@@ -415,8 +416,8 @@ class BSP():
 			elif file_ext == "d":
 				if file_name == "lightmaps":
 					lightmaps = Lightmaps()
-					lightmaps.read_dir(file_path)
-					self.lump_dict[file_name] = lightmaps.export_lump()
+					lightmaps.readDir(file_path)
+					self.lump_dict[file_name] = lightmaps.exportLump()
 				else:
 					error("unknown lump format: " + file_path)
 					return
@@ -425,12 +426,12 @@ class BSP():
 				error("unknown lump format: " + file_path)
 				return
 
-	def print_file_name(self):
+	def printFileName(self):
 		print("*** File:")
 		print(self.bsp_file_name)
 		print("")
 
-	def read_lump_list(self):
+	def readLumpList(self):
 		if (self.lump_directory != None):
 			return False
 
@@ -452,7 +453,7 @@ class BSP():
 
 		return True
 	
-	def print_lump_list(self):
+	def printLumpList(self):
 		# TODO: check
 
 		print("*** Lumps:")
@@ -461,10 +462,7 @@ class BSP():
 			print(str(i) + ": " + lump_name + " [" + str(self.lump_directory[lump_name]["offset"]) + ", " + str(self.lump_directory[lump_name]["length"]) + "]")
 		print("")
 
-	def read_lump(self, lump_name):
-		if (self.lump_dict[lump_name] != None):
-			return False
-
+	def readLump(self, lump_name):
 		# TODO: check
 
 		# 4 bytes string magic number (IBSP)
@@ -480,7 +478,7 @@ class BSP():
 		return True
 
 
-	def write_file(self, bsp_file_name):
+	def writeFile(self, bsp_file_name):
 		bsp_file = open(bsp_file_name, "wb")
 
 		# Must be a multiple of 4
@@ -525,33 +523,33 @@ class BSP():
 		bsp_file.write(blob)
 		bsp_file.close()
 
-	def write_dir(self, dir_name):
+	def writeDir(self, dir_name):
 		if not os.path.exists(dir_name):
 			os.makedirs(dir_name)
 
 		for entity in lump_name_list:
 			if entity == "entities":
 				entities = Entities()
-				entities.import_lump(self.lump_dict["entities"])
+				entities.importLump(self.lump_dict["entities"])
 				# TODO: sanitize '/'
-				entities.write_file(dir_name + "/entities.txt")
+				entities.writeFile(dir_name + "/entities.txt")
 			elif entity == "textures":
 				textures = Textures()
-				textures.import_lump(self.lump_dict["textures"])
-				textures.write_file(dir_name + "/textures.csv")
+				textures.importLump(self.lump_dict["textures"])
+				textures.writeFile(dir_name + "/textures.csv")
 			elif entity == "lightmaps":
 				lightmaps = Lightmaps()
-				lightmaps.import_lump(self.lump_dict["lightmaps"])
-				lightmaps.write_dir(dir_name + "/lightmaps.d")
+				lightmaps.importLump(self.lump_dict["lightmaps"])
+				lightmaps.writeDir(dir_name + "/lightmaps.d")
 			else:
 				blob_file = open(dir_name + '/' + entity + ".bin", "wb")
 				blob_file.write(self.lump_dict[entity])
 				blob_file.close()
 
-	def import_lump(self, lump_name, blob):
+	def importLump(self, lump_name, blob):
 		self.lump_dict[lump_name] = blob
 
-	def export_lump(self, lump_name):
+	def exportLump(self, lump_name):
 		return self.lump_dict[lump_name]
 
 def main(argv):
@@ -582,8 +580,7 @@ def main(argv):
 	if args.debug:
 		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 		debug("Debug logging activated")
-								
-	debug("args: " + str(args))
+		debug("args: " + str(args))
 
 	bsp = None
 	entities = None
@@ -591,69 +588,69 @@ def main(argv):
 	lightmaps = None
 
 	if args.input_bsp_file:
-		bsp = BSP()
-		bsp.read_file(args.input_bsp_file)
+		bsp = Bsp()
+		bsp.readFile(args.input_bsp_file)
 		entities = Entities()
-		entities.import_lump(bsp.export_lump("entities"))
+		entities.importLump(bsp.exportLump("entities"))
 		textures = Textures()
-		textures.import_lump(bsp.export_lump("textures"))
+		textures.importLump(bsp.exportLump("textures"))
 		lightmaps = Lightmaps()
-		lightmaps.import_lump(bsp.export_lump("lightmaps"))
+		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_bsp_dir:
-		bsp = BSP()
-		bsp.read_dir(args.input_bsp_dir)
+		bsp = Bsp()
+		bsp.readDir(args.input_bsp_dir)
 
 	if args.input_entities_file:
 		entities = Entities()
-		entities.read_file(args.input_entities_file)
+		entities.readFile(args.input_entities_file)
 
 	if args.input_textures_file:
 		textures = Textures()
-		textures.read_file(args.input_textures_file)
+		textures.readFile(args.input_textures_file)
 
 	if args.input_lightmaps_dir:
 		lightmaps = Lightmaps()
-		lightmaps.read_dir(args.input_lightmaps_dir)
+		lightmaps.readDir(args.input_lightmaps_dir)
 
 	# TODO: perhaps it must conflict with input_lightmaps_file
 	if args.strip_lightmaps:
 		lightmaps = Lightmaps()
-	#	lightmaps.import_lump(b'')
+	#	lightmaps.importLump(b'')
 
 	if args.output_bsp_file:
 		if lightmaps:
-			bsp.import_lump("lightmaps", lightmaps.export_lump())
+			bsp.importLump("lightmaps", lightmaps.exportLump())
 		if entities:
-			bsp.import_lump("entities", entities.export_lump())
+			bsp.importLump("entities", entities.exportLump())
 		if textures:
-			bsp.import_lump("textures", textures.export_lump())
-		bsp.write_file(args.output_bsp_file)
+			bsp.importLump("textures", textures.exportLump())
+		bsp.writeFile(args.output_bsp_file)
 
 	if args.output_bsp_dir:
 		if lightmaps:
-			bsp.import_lump("lightmaps", lightmaps.export_lump())
+			bsp.importLump("lightmaps", lightmaps.exportLump())
 		if entities:
-			bsp.import_lump("entities", entities.export_lump())
+			bsp.importLump("entities", entities.exportLump())
 		if textures:
-			bsp.import_lump("textures", textures.export_lump())
-		bsp.write_dir(args.output_bsp_dir)
+			bsp.importLump("textures", textures.exportLump())
+		bsp.writeDir(args.output_bsp_dir)
 
 	if args.output_entities_file:
 		if entities:
-			entities.write_file(args.output_entities_file)
+			entities.writeFile(args.output_entities_file)
 		else:
 			debug("TODO: ERR: no entities lump loaded")
 
 	if args.output_textures_file:
 		if textures:
-			textures.write_file(args.output_textures_file)
+			textures.writeFile(args.output_textures_file)
 		else:
 			debug("TODO: ERR: no textures lump loaded")
 
 	if args.output_lightmaps_dir:
 		if lightmaps:
-			lightmaps.write_dir(args.output_lightmaps_dir)
+			lightmaps.writeDir(args.output_lightmaps_dir)
 
 	if args.list_all:
 		if bsp:
@@ -675,37 +672,37 @@ def main(argv):
 
 	if args.list_lumps:
 		if bsp:
-			bsp.print_lump_list()
+			bsp.printLumpList()
 		else:
 			error("BSP file missing")
 
 	if args.list_entities:
 		if entities:
-			entities.print_list()
+			entities.printList()
 		else:
 			error("Entities lump missing")
 
 	if args.list_textures:
 		if textures:
-			textures.print_list()
+			textures.printList()
 		else:
 			error("Textures lump missing")
 
 	if args.list_lightmaps:
 		if lightmaps:
-			lightmaps.print_list()
+			lightmaps.printList()
 		else:
 			error("Lightmaps lump missing")
 
 	if args.list_sounds:
 		if entities:
-			entities.print_sound_list()
+			entities.printSoundList()
 		else:
 			error("Entities lump missing")
 
 	if args.print_entities:
 		if entities:
-			entities.print_string()
+			entities.printString()
 		else:
 			error("Entities lump missing")
 
