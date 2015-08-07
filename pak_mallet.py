@@ -21,7 +21,7 @@ from collections import OrderedDict
 
 import bsp_cutter
 
-# TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing# TODO: comment out missing files
+# TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
 
 

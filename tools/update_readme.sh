@@ -2,6 +2,7 @@
 
 # generate a REDAME.md file with up-to-date built-in help.
 
+rm "README.md"
 exec 1<&-
 exec 1<>"README.md"
 

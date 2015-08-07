@@ -133,4 +133,3 @@ Copyright
 ---------
 
 This script is distributed under the highly permissive and laconic [ISC License](COPYING.md).
- and laconic [ISC License](COPYING.md).
