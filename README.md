@@ -90,9 +90,9 @@ Currently, `pak_maller.py` needs [q3map2_helper.sh](https://github.com/illwieckz
 
 ```
 $ ./pak_mallet.py -h
-usage: pak_mallet.py [-h] [-D] [-v] [-g FILENAME] [-id FILENAME]
-                     [-pd FILENAME] [-pp FILENAME] [-od FILENAME]
-                     [-op FILENAME] [-ev VERSION] [-u] [-b] [-p]
+usage: pak_mallet.py [-h] [-D] [-v] [-g GAMENAME] [-id DIRNAME] [-pd DIRNAME]
+                     [-pp DIRNAME] [-od DIRNAME] [-op FILENAME] [-ev VERSION]
+                     [-u] [-b] [-p]
 
 pak_mallet.py is a pak builder for my lovely granger.
 
@@ -100,17 +100,16 @@ optional arguments:
   -h, --help            show this help message and exit
   -D, --debug           print debug information
   -v, --verbose         print verbose information
-  -g FILENAME, --game-profile FILENAME
-                        use game profile FILENAME, default: unvanquished
-  -id FILENAME, --input-pk3dir FILENAME
-                        build from directory FILENAME, default: .
-  -pd FILENAME, --output-prefix-pk3dir FILENAME
-                        build pk3dir in directory FILENAME, default:
-                        build/test
-  -pp FILENAME, --output-prefix-pk3 FILENAME
-                        build pk3 in directory FILENAME, default: build/pkg
-  -od FILENAME, --output-pk3dir FILENAME
-                        build pk3dir as directory FILENAME
+  -g GAMENAME, --game-profile GAMENAME
+                        use game profile GAMENAME, default: unvanquished
+  -id DIRNAME, --input-pk3dir DIRNAME
+                        build from directory DIRNAME, default: .
+  -pd DIRNAME, --output-prefix-pk3dir DIRNAME
+                        build pk3dir in directory DIRNAME, default: build/test
+  -pp DIRNAME, --output-prefix-pk3 DIRNAME
+                        build pk3 in directory DIRNAME, default: build/pkg
+  -od DIRNAME, --output-pk3dir DIRNAME
+                        build pk3dir as directory DIRNAME
   -op FILENAME, --output-pk3 FILENAME
                         build pk3 as file FILENAME
   -ev VERSION, --extra-version VERSION
@@ -134,3 +133,4 @@ Copyright
 ---------
 
 This script is distributed under the highly permissive and laconic [ISC License](COPYING.md).
+ and laconic [ISC License](COPYING.md).
