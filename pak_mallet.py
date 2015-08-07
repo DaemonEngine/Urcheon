@@ -203,6 +203,8 @@ class PakList():
 
 		self.blacklist = [
 			"Thumbs.db",
+			"Makefile",
+			"CMakeLists.txt",
 			"__MACOSX",
 			"*.DS_Store",
 			"*.autosave",
