@@ -7,7 +7,7 @@ _My lovely granger needs a gardening toolbox to care for his little flower._
 Description
 -----------
 
-This is a toolset to modify `.map` and `.bsp` files.
+This is a toolset to modify `.map` and `.bsp` files and to package `.pk3` files.
 
 This toolbox is currently [Unvanquished](http://unvanquished.net)-centric, but could be extended in the future.
 
@@ -65,8 +65,8 @@ Currently, `map_cutter.py` does not parse yet vertex matrices, it carbon copy th
 
 ```
 $ ./map_cutter.py -h
-usage: map_cutter.py [-h] [-D] [-im FILENAME] [-de FILENAME] [-se FILENAME]
-                     [-om FILENAME]
+usage: map_cutter.py [-h] [-D] [-im FILENAME] [-ob FILENAME] [-se FILENAME]
+                     [-dn] [-om FILENAME]
 
 map_cutter.py is a map parser for my lovely granger.
 
@@ -75,13 +75,49 @@ optional arguments:
   -D, --debug           print debug information
   -im FILENAME, --input-map FILENAME
                         read from .map file FILENAME
-  -de FILENAME, --dump-bsp-entities FILENAME
+  -ob FILENAME, --output-bsp-entities FILENAME
                         dump entities to .bsp entities format to .txt file
                         FILENAME
   -se FILENAME, --substitute-entities FILENAME
                         use entitie substitution rules from .csv file FILENAME
+  -dn, --disable-numbering
+                        disable entity and shape numbering
   -om FILENAME, --output-map FILENAME
                         write to .map file FILENAME
+```
+
+Currently, `pak_maller.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to compile `.map` files (only able to merge `.bspdir` directories).
+
+```
+$ ./pak_mallet.py -h
+usage: pak_mallet.py [-h] [-D] [-v] [-g FILENAME] [-id FILENAME]
+                     [-pd FILENAME] [-pp FILENAME] [-od FILENAME]
+                     [-op FILENAME] [-ev VERSION] [-u] [-b] [-p]
+
+pak_mallet.py is a pak builder for my lovely granger.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -D, --debug           print debug information
+  -v, --verbose         print verbose information
+  -g FILENAME, --game-profile FILENAME
+                        use game profile FILENAME, default: unvanquished
+  -id FILENAME, --input-pk3dir FILENAME
+                        build from directory FILENAME, default: .
+  -pd FILENAME, --output-prefix-pk3dir FILENAME
+                        build pk3dir in directory FILENAME, default:
+                        build/test
+  -pp FILENAME, --output-prefix-pk3 FILENAME
+                        build pk3 in directory FILENAME, default: build/pkg
+  -od FILENAME, --output-pk3dir FILENAME
+                        build pk3dir as directory FILENAME
+  -op FILENAME, --output-pk3 FILENAME
+                        build pk3 as file FILENAME
+  -ev VERSION, --extra-version VERSION
+                        add VERSION to pk3 version string
+  -u, --update          update paklist
+  -b, --build           build pak
+  -p, --package         compress pak
 ```
 
 Warning

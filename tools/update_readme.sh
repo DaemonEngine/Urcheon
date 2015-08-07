@@ -15,7 +15,7 @@ _My lovely granger needs a gardening toolbox to care for his little flower._
 Description
 -----------
 
-This is a toolset to modify `.map` and `.bsp` files.
+This is a toolset to modify `.map` and `.bsp` files and to package `.pk3` files.
 
 This toolbox is currently [Unvanquished](http://unvanquished.net)-centric, but could be extended in the future.
 
@@ -40,6 +40,17 @@ $ ./map_cutter.py -h
 EOF
 
 ./map_cutter.py -h
+
+cat <<\EOF
+```
+
+Currently, `pak_maller.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to compile `.map` files (only able to merge `.bspdir` directories).
+
+```
+$ ./pak_mallet.py -h
+EOF
+
+./pak_mallet.py -h
 
 cat <<\EOF
 ```
