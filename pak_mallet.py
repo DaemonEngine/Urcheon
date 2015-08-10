@@ -110,7 +110,7 @@ class Inspector():
 		self.action_name_dict = OrderedDict()
 		self.action_name_dict["copy"] =			"copy file"
 		self.action_name_dict["merge_bsp"] =	"merge into a bsp file"
-		self.action_name_dict["build_bsp"] =	"compile to bsp format"
+		self.action_name_dict["compile_bsp"] =	"compile to bsp format"
 		self.action_name_dict["convert_crn"] =	"convert to crn format"
 		self.action_name_dict["convert_jpg"] =	"convert to jpg format"
 		self.action_name_dict["convert_png"] =	"convert to png format"
@@ -249,7 +249,7 @@ class PakList():
 				file_path = line[len(action) + 1:]
 				if action[0] == '#':
 					inactive_action = action[1:]
-					logging.debug("known inactive action: " + inative_action + " for file: " + file_path)
+					logging.debug("known inactive action: " + inactive_action + " for file: " + file_path)
 					self.inactive_action_dict[inactive_action].append(file_path)
 				else:
 					if os.path.isfile(file_path):
@@ -260,7 +260,7 @@ class PakList():
 						self.computed_inactive_action_dict[action].append(file_path)
 						
 		else:
-			log.print("List .pakinfo/paklist not found: " + self.pak_list_file_name)
+			log.print("List not found will create: " + self.pak_list_file_name)
 
 	def computeActions(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.file_dir):
@@ -301,6 +301,13 @@ class PakList():
 						self.computed_active_action_dict[action].append(file_path)
 
 	def writeActions(self):
+		pak_info_subdir = os.path.dirname(self.pak_list_file_name)
+		if os.path.isdir(pak_info_subdir):
+			logging.debug("found pakinfo subdir: " +  pak_info_subdir)
+		else:
+			logging.debug("create pakinfo subdir: " + pak_info_subdir)
+			os.makedirs(pak_info_subdir)
+
 		pak_list_file = open(self.pak_list_file_name, "w")
 		for action in self.computed_active_action_dict.keys():
 			for file_path in sorted(self.computed_active_action_dict[action]):
@@ -325,7 +332,7 @@ class Builder():
 		self.builder_name_dict = OrderedDict()
 		self.builder_name_dict["copy"] = 			self.copyFile
 		self.builder_name_dict["merge_bsp"] =		self.mergeBsp
-		self.builder_name_dict["build_bsp"] =		self.buildBsp
+		self.builder_name_dict["compile_bsp"] =		self.buildBsp
 		self.builder_name_dict["convert_jpg"] = 	self.convertJpg
 		self.builder_name_dict["convert_png"] = 	self.convertPng
 		self.builder_name_dict["convert_crn"] = 	self.convertCrn
@@ -339,14 +346,14 @@ class Builder():
 	def getBuildPath(self, file_path):
 		return self.build_dir + os.path.sep + file_path
 
-	def isOlder(self, source_path, build_path):
+	def isDifferent(self, source_path, build_path):
 		if not os.path.isfile(build_path):
-			logging.debug("build file not found, acting like if older than source file: " + build_path)
+			logging.debug("build file not found: " + build_path)
 			return True
-		if os.stat(build_path).st_mtime < os.stat(source_path).st_mtime:
-			logging.debug("build file older than source file: " + build_path)
+		if os.stat(build_path).st_mtime != os.stat(source_path).st_mtime:
+			logging.debug("build file has a different modification time than source file: " + build_path)
 			return True
-		logging.debug("build file is not older than source file: " + build_path)
+		logging.debug("build file has same modification time than source file: " + build_path)
 		return False
 
 	def createSubdirs(self, build_path):
@@ -389,7 +396,7 @@ class Builder():
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(file_path)
 		self.createSubdirs(build_path)
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		log.print("Keeping: " + file_path)
@@ -400,7 +407,7 @@ class Builder():
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(file_path)
 		self.createSubdirs(build_path)
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		log.print("Copying: " + file_path)
@@ -414,7 +421,7 @@ class Builder():
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(self.getFileJpgNewName(file_path))
 		self.createSubdirs(build_path)
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) in ("jpg", "jpeg"):
@@ -429,7 +436,7 @@ class Builder():
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(self.getFilePngNewName(file_path))
 		self.createSubdirs(build_path)
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "png":
@@ -444,7 +451,7 @@ class Builder():
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(self.getFileCrnNewName(file_path))
 		self.createSubdirs(build_path)
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "crn":
@@ -460,7 +467,7 @@ class Builder():
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(self.getFileOpusNewName(file_path))
 		self.createSubdirs(build_path)
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "opus":
@@ -480,7 +487,7 @@ class Builder():
 		if bspdir_path in self.bsp_list:
 			warning("Bsp file already there, will do nothing with: " + build_path)
 			return
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		logging.debug("looking for file in same bspdir than: " + file_path)
@@ -505,7 +512,7 @@ class Builder():
 		if build_path in self.bsp_list:
 			warning("Bsp file already there, will do nothing with: " + build_path)
 			return
-		if not self.isOlder(source_path, build_path):
+		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		log.print("Build to bsp " + file_path)

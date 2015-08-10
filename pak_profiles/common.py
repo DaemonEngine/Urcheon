@@ -7,6 +7,12 @@
 # License: ISC
 # 
 
+file_common_deps = {
+	"file_base": "DEPS",
+	"description": "Package DEPS file",
+	"action": "copy",
+}
+
 file_common_external_editor = {
 	"file_ext": [
 		"xcf",

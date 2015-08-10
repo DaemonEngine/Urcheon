@@ -11,6 +11,8 @@ This is a toolset to modify `.map` and `.bsp` files and to package `.pk3` files.
 
 This toolbox is currently [Unvanquished](http://unvanquished.net)-centric, but could be extended in the future.
 
+This toolbox was developed for the [Interstellar Oasis](https://github.com/interstellar-oasis/interstellar-oasis) initiative.
+
 Help
 ----
 
@@ -86,7 +88,7 @@ optional arguments:
                         write to .map file FILENAME
 ```
 
-Currently, `pak_maller.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to compile `.map` files (only able to merge `.bspdir` directories).
+Currently, `pak_mallet.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to compile `.map` files (only able to merge `.bspdir` directories).
 
 ```
 $ ./pak_mallet.py -h
