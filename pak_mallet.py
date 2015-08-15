@@ -110,15 +110,17 @@ class Inspector():
 		}
 		# I want lines printed in this order
 		self.action_name_dict = OrderedDict()
-		self.action_name_dict["copy"] =			"copy file"
-		self.action_name_dict["merge_bsp"] =	"merge into a bsp file"
-		self.action_name_dict["compile_bsp"] =	"compile to bsp format"
-		self.action_name_dict["convert_crn"] =	"convert to crn format"
-		self.action_name_dict["convert_jpg"] =	"convert to jpg format"
-		self.action_name_dict["convert_png"] =	"convert to png format"
-		self.action_name_dict["convert_opus"] =	"convert to opus format"
-		self.action_name_dict["keep"] = 		"keep file"
-		self.action_name_dict["ignore"] =	 	"ignore file"
+		self.action_name_dict["copy"] =						"copy file"
+		self.action_name_dict["merge_bsp"] =				"merge into a bsp file"
+		self.action_name_dict["compile_bsp"] =				"compile to bsp format"
+		self.action_name_dict["convert_crn"] =				"convert to crn format"
+		self.action_name_dict["convert_jpg"] =				"convert to jpg format"
+		self.action_name_dict["convert_png"] =				"convert to png format"
+		self.action_name_dict["convert_lossy_webp"] =		"convert to lossy webp format"
+		self.action_name_dict["convert_lossless_webp"] =	"convert to lossless format"
+		self.action_name_dict["convert_opus"] =				"convert to opus format"
+		self.action_name_dict["keep"] =						"keep file"
+		self.action_name_dict["ignore"] =				 	"ignore file"
 	
 	def inspectFileName(self, file_path, file_name):
 		name = os.path.basename(file_path)
@@ -428,15 +430,17 @@ class PakBuilder():
 
 		# I want actions executed in this order
 		self.builder_name_dict = OrderedDict()
-		self.builder_name_dict["copy"] = 			self.copyFile
-		self.builder_name_dict["merge_bsp"] =		self.mergeBsp
-		self.builder_name_dict["compile_bsp"] =		self.buildBsp
-		self.builder_name_dict["convert_jpg"] = 	self.convertJpg
-		self.builder_name_dict["convert_png"] = 	self.convertPng
-		self.builder_name_dict["convert_crn"] = 	self.convertCrn
-		self.builder_name_dict["convert_opus"] =	self.convertOpus
-		self.builder_name_dict["keep"] = 			self.keepFile
-		self.builder_name_dict["ignore"] =			self.ignoreFile
+		self.builder_name_dict["copy"] =					self.copyFile
+		self.builder_name_dict["merge_bsp"] =				self.mergeBsp
+		self.builder_name_dict["compile_bsp"] =				self.buildBsp
+		self.builder_name_dict["convert_jpg"] =				self.convertJpg
+		self.builder_name_dict["convert_png"] =				self.convertPng
+		self.builder_name_dict["convert_lossy_webp"] =		self.convertLossyWebp
+		self.builder_name_dict["convert_lossless_webp"] =	self.convertLosslessWebp
+		self.builder_name_dict["convert_crn"] =				self.convertCrn
+		self.builder_name_dict["convert_opus"] =			self.convertOpus
+		self.builder_name_dict["keep"] =					self.keepFile
+		self.builder_name_dict["ignore"] =					self.ignoreFile
 
 	def getSourcePath(self, file_path):
 		return self.source_dir + os.path.sep + file_path
@@ -527,7 +531,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to jpg: " + file_path)
-			subprocess.call(["convert", "-verbose", source_path, build_path])
+			subprocess.call(["convert", "-verbose", "-quality", "92", source_path, build_path])
 		shutil.copystat(source_path, build_path)
 
 	def convertPng(self, file_path):
@@ -542,7 +546,37 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to png: " + file_path)
-			subprocess.call(["convert", "-verbose", source_path, build_path])
+			subprocess.call(["convert", "-verbose", "-quality", "100", source_path, build_path])
+		shutil.copystat(source_path, build_path)
+
+	def convertLossyWebp(self, file_path):
+		source_path = self.getSourcePath(file_path)
+		build_path = self.getBuildPath(self.getFileWebpNewName(file_path))
+		self.createSubdirs(build_path)
+		if not self.isDifferent(source_path, build_path):
+			log.verbose("Unmodified file, do nothing: " + file_path)
+			return
+		if self.getExt(file_path) == "webp":
+			log.print("File already in webp, copying: " + file_path)
+			shutil.copyfile(source_path, build_path)
+		else:
+			log.print("Convert to lossy webp: " + file_path)
+			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", source_path, "-o", build_path])
+
+	def convertLosslessWebp(self, file_path):
+		source_path = self.getSourcePath(file_path)
+		build_path = self.getBuildPath(self.getFileWebpNewName(file_path))
+		self.createSubdirs(build_path)
+		if not self.isDifferent(source_path, build_path):
+			log.verbose("Unmodified file, do nothing: " + file_path)
+			return
+		if self.getExt(file_path) == "webp":
+			log.print("File already in webp, copying: " + file_path)
+			shutil.copyfile(source_path, build_path)
+		else:
+			log.print("Convert to lossless webp: " + file_path)
+			subprocess.call(["cwebp", "-v", "-lossless", source_path, "-o", build_path])
+		shutil.copystat(source_path, build_path)
 
 	# TODO: convertDDS
 	def convertCrn(self, file_path):
@@ -651,6 +685,9 @@ class PakBuilder():
 
 	def getFilePngNewName(self, file_path):
 		return os.path.splitext(file_path)[0] + ".png"
+
+	def getFileWebpNewName(self, file_path):
+		return os.path.splitext(file_path)[0] + ".webp"
 
 	def getFileCrnNewName(self, file_path):
 		return os.path.splitext(file_path)[0] + ".crn"

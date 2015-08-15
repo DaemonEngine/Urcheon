@@ -55,7 +55,7 @@ file_unvanquished_skybox = {
 	],
 	"dir_ancestor_name": "env",
 	"description": "Skybox",
-	"action": "convert_jpg",
+	"action": "convert_lossy_webp",
 }
 
 file_unvanquished_jpg_skybox = {
@@ -70,7 +70,7 @@ file_unvanquished_lightmap = {
 	"dir_ancestor_name": "maps",
 	"dir_grand_father_name": "maps",
 	"description": "LightMap",
-	"action": "convert_png",
+	"action": "convert_lossless_webp",
 }
 
 file_unvanquished_png_lightmap = {
@@ -83,7 +83,7 @@ file_unvanquished_preview = {
 	"inherit": "file_common_texture",
 	"file_suffix": "p",
 	"description": "Editor preview image",
-	"action": "convert_jpg",
+	"action": "convert_lossy_webp",
 }
 
 file_unvanquished_jpg_preview = {
@@ -120,7 +120,7 @@ file_unvanquished_colorgrade = {
 	"dir_ancestor_name": "gfx",
 	"file_base": "colorgrading",
 	"description": "ColorGrade",
-	"action": "convert_png",
+	"action": "convert_lossless_webp",
 }
 
 file_unvanquished_png_colorgrade = {
