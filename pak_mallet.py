@@ -17,6 +17,8 @@ import argparse
 import logging
 import fnmatch
 import zipfile
+import configparser
+import tempfile
 from collections import OrderedDict
 
 import bsp_cutter
@@ -49,7 +51,7 @@ class Log():
 
 log = Log()
 
-class Config():
+class PakConfig():
 	def __init__(self, game_name):
 		self.game = importlib.import_module("pak_profiles." + game_name)
 		self.config_file_type_dict = [variable for variable in dir(self.game) if variable.startswith("file_")]
@@ -91,7 +93,7 @@ class Config():
 class Inspector():
 	def __init__(self, game_name):
 		if game_name:
-			self.config = Config(game_name)
+			self.config = PakConfig(game_name)
 		else:
 			self.config = None
 		self.inspector_name_dict = {
@@ -320,14 +322,102 @@ class PakList():
 		pak_list_file.close()
 	
 
-class Builder():
-	def __init__(self, source_dir, build_dir, game_name):
+class BspBuilder():
+	def __init__(self, source_dir, game_name, build_profile):
+		self.map_config = configparser.ConfigParser()
+		self.source_dir = source_dir
+		self.build_profile = build_profile
+		self.build_stage_dict = OrderedDict()
+		# I want compilation in this order:
+		self.build_stage_dict["bsp"] = None
+		self.build_stage_dict["vis"] = None
+		self.build_stage_dict["light"] = None
+
+		# TODO: check
+		default_ini_file = game_name + os.path.extsep + "ini"
+		default_ini_path = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0]))) + os.path.sep + "map_profiles" + os.path.sep + default_ini_file
+
+		self.readIni(default_ini_path)
+
+	def readIni(self, ini_path):
+		logging.debug("reading map profile: " + ini_path)
+		self.map_config.read(ini_path)
+
+		logging.debug("build profiles: " + str(self.map_config.sections()))
+		for build_profile in self.map_config.sections():
+			logging.debug("build profile found: " + build_profile)
+
+			if build_profile == self.build_profile:
+				logging.debug("will use profile: " + build_profile)
+
+				for build_stage in self.map_config[build_profile].keys():
+					if not build_stage in self.build_stage_dict.keys():
+						log.warning("unknown stage in " + ini_path + ": " + build_stage)
+
+					else:
+						logging.debug("add build param for stage " + build_stage + ": " + self.map_config[build_profile][build_stage])
+						self.build_stage_dict[build_stage] = self.map_config[build_profile][build_stage]
+
+
+	def buildBsp(self, map_path, build_prefix):
+		logging.debug("building " + map_path + " to prefix: " + build_prefix)
+
+		map_base = os.path.splitext(os.path.basename(map_path))[0]
+		lightmapdir_path = os.path.splitext(map_path)[0]
+
+		map_profile_path =  self.source_dir + os.path.sep + ".pakinfo" + os.path.sep + "maps" + os.path.sep + map_base + os.path.extsep + "ini"
+
+		os.makedirs(build_prefix, exist_ok=True)
+
+		if not os.path.isfile(map_profile_path):
+			logging.debug("map profile not found, will use default: " + map_profile_path)
+		else:
+			log.print("Customized build profile found: " + map_profile_path)
+			self.readIni(map_profile_path)
+
+		for build_stage in self.build_stage_dict.keys():
+			if self.build_stage_dict[build_stage] == None:
+				continue
+
+			log.print("Building " + map_path + ", stage: " + build_stage)
+
+			prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + ".prt")
+			srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + ".srf")
+			bsp_path = build_prefix + os.path.sep + map_base + os.path.extsep + "bsp"
+
+			source_path = map_path
+			extended_option_list = {}
+			if build_stage == "bsp":
+				extended_option_list = ["-prtfile", prt_path, "-srffile", srf_path, "-bspfile", bsp_path]
+				source_path = map_path
+			elif build_stage == "vis":
+				extended_option_list = ["-prtfile", prt_path]
+				source_path = bsp_path
+			elif build_stage == "light":
+				extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
+				source_path = map_path
+
+			# TODO: game independant
+			call_list = ["q3map2", "-game", "unv"] + ["-" + build_stage] + extended_option_list + self.build_stage_dict[build_stage].split(" ") + [source_path]
+			logging.debug("call list: " + str(call_list))
+			# TODO: verbose?
+			log.print("Build command: " + " ".join(call_list))
+			subprocess.call(call_list)
+
+			os.remove(prt_path)
+			os.remove(srf_path)
+
+
+class PakBuilder():
+	def __init__(self, source_dir, build_dir, game_name, build_profile):
 		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.game_name = game_name
+		self.build_profile = build_profile
 		self.pak_list = PakList(source_dir, game_name)
 		self.pak_list.readActions()
 		self.bsp_list = []
+
 		# I want actions executed in this order
 		self.builder_name_dict = OrderedDict()
 		self.builder_name_dict["copy"] = 			self.copyFile
@@ -506,18 +596,29 @@ class Builder():
 
 	def buildBsp(self, file_path):
 		source_path = self.getSourcePath(file_path)
-		build_path = self.getBuildPath(file_path)
-		bsp_path = self.getDirBspNewName(file_path)
+		copy_path = self.getBuildPath(file_path)
+		build_path = self.getBuildPath(self.getFileBspNewName(file_path))
+		bsp_path = self.getFileBspNewName(file_path)
 		self.createSubdirs(build_path)
 		if build_path in self.bsp_list:
-			warning("Bsp file already there, will do nothing with: " + build_path)
+			warning("Bsp file already there, will only copy: " + source_path)
 			return
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			log.verbose("Unmodified file " + build_path + ", will only copy: " + source_path)
 			return
-		log.print("Build to bsp " + file_path)
-		shutil.copyfile(source_path, build_path)
-		shutil.copystat(source_path, build_path)
+
+		log.print("Building to bsp: " + file_path)
+
+		bsp_builder = BspBuilder(self.source_dir, self.game_name, self.build_profile)
+		bsp_builder.buildBsp(source_path, os.path.dirname(build_path))
+		
+		# TODO: for all files created
+#		shutil.copystat(source_path, build_path)
+
+		log.print("Copying map: " + file_path)
+		shutil.copyfile(source_path, copy_path)
+		shutil.copystat(source_path, copy_path)
+
 		self.bsp_list.append(bsp_path)
 
 	def createMiniMap(self, file_path):
@@ -630,6 +731,7 @@ def main():
 	args.add_argument("-pp", "--output-prefix-pk3", dest="output_prefix_pk3", metavar="DIRNAME", default="build" + os.path.sep + "pkg", help="build pk3 in directory %(metavar)s, default: %(default)s")
 	args.add_argument("-od", "--output-pk3dir", dest="output_pk3dir", metavar="DIRNAME", help="build pk3dir as directory %(metavar)s")
 	args.add_argument("-op", "--output-pk3", dest="output_pk3", metavar="FILENAME", help="build pk3 as file %(metavar)s")
+	args.add_argument("-bp", "--build-profile", dest="build_profile", metavar="PROFILE", default="fast", help="build map with profile %(metavar)s, default: %(default)s")
 	args.add_argument("-ev", "--extra-version", dest="extra_version", metavar="VERSION", help="add %(metavar)s to pk3 version string")
 	args.add_argument("-u", "--update", dest="update", help="update paklist", action="store_true")
 	args.add_argument("-b", "--build", dest="build", help="build pak", action="store_true")
@@ -665,7 +767,7 @@ def main():
 			output_pk3dir = args.output_prefix_pk3dir + os.path.sep + pak_pakname + "_test.pk3dir"
 
 	if args.build:
-		builder = Builder(args.input_pk3dir, output_pk3dir, args.game_profile)
+		builder = PakBuilder(args.input_pk3dir, output_pk3dir, args.game_profile, args.build_profile)
 		builder.build()
 
 	if args.package:

@@ -88,13 +88,13 @@ optional arguments:
                         write to .map file FILENAME
 ```
 
-Currently, `pak_mallet.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to compile `.map` files (only able to merge `.bspdir` directories).
+Currently, `pak_mallet.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to correctly compile `.map` files (only able to merge `.bspdir` directories).
 
 ```
 $ ./pak_mallet.py -h
 usage: pak_mallet.py [-h] [-D] [-v] [-g GAMENAME] [-id DIRNAME] [-pd DIRNAME]
-                     [-pp DIRNAME] [-od DIRNAME] [-op FILENAME] [-ev VERSION]
-                     [-u] [-b] [-p]
+                     [-pp DIRNAME] [-od DIRNAME] [-op FILENAME] [-bp PROFILE]
+                     [-ev VERSION] [-u] [-b] [-p]
 
 pak_mallet.py is a pak builder for my lovely granger.
 
@@ -114,6 +114,8 @@ optional arguments:
                         build pk3dir as directory DIRNAME
   -op FILENAME, --output-pk3 FILENAME
                         build pk3 as file FILENAME
+  -bp PROFILE, --build-profile PROFILE
+                        build map with profile PROFILE, default: fast
   -ev VERSION, --extra-version VERSION
                         add VERSION to pk3 version string
   -u, --update          update paklist

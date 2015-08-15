@@ -47,7 +47,7 @@ EOF
 cat <<\EOF
 ```
 
-Currently, `pak_mallet.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to compile `.map` files (only able to merge `.bspdir` directories).
+Currently, `pak_mallet.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and is not yet able to correctly compile `.map` files (only able to merge `.bspdir` directories).
 
 ```
 $ ./pak_mallet.py -h
