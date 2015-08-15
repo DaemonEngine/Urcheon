@@ -677,6 +677,12 @@ class Packer():
 		log.print("Packing " + self.pk3dir_path + " to: " + self.pk3_path)
 		self.createSubdirs(self.pk3_path)
 		logging.debug("opening: " + self.pk3_path)
+
+		# remove existing file (do not write in place) to force the game engine to reread the file
+		if os.path.isfile(self.pk3_path):
+			logging.debug("remove existing pack: " + self.pk3_path)
+			os.remove(self.pk3_path)
+
 		pk3 = zipfile.ZipFile(self.pk3_path, "w")
 		
 		orig_dir = os.getcwd()
