@@ -414,8 +414,11 @@ class BspBuilder():
 			log.print("Build command: " + " ".join(call_list))
 			subprocess.call(call_list)
 
-		os.remove(prt_path)
-		os.remove(srf_path)
+		if os.path.isfile(prt_path):
+			os.remove(prt_path)
+
+		if os.path.isfile(srf_path):
+			os.remove(srf_path)
 
 
 class PakBuilder():
