@@ -363,7 +363,7 @@ class BspBuilder():
 		logging.debug("building " + map_path + " to prefix: " + build_prefix)
 
 		map_base = os.path.splitext(os.path.basename(map_path))[0]
-		lightmapdir_path = os.path.splitext(map_path)[0]
+		lightmapdir_path = build_prefix + os.path.sep + map_base
 
 		map_profile_path =  self.source_dir + os.path.sep + ".pakinfo" + os.path.sep + "maps" + os.path.sep + map_base + os.path.extsep + "ini"
 
@@ -375,15 +375,15 @@ class BspBuilder():
 			log.print("Customized build profile found: " + map_profile_path)
 			self.readIni(map_profile_path)
 
+		prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + ".prt")
+		srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + ".srf")
+		bsp_path = build_prefix + os.path.sep + map_base + os.path.extsep + "bsp"
+
 		for build_stage in self.build_stage_dict.keys():
 			if self.build_stage_dict[build_stage] == None:
 				continue
 
 			log.print("Building " + map_path + ", stage: " + build_stage)
-
-			prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + ".prt")
-			srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + ".srf")
-			bsp_path = build_prefix + os.path.sep + map_base + os.path.extsep + "bsp"
 
 			source_path = map_path
 			extended_option_list = {}
@@ -397,15 +397,23 @@ class BspBuilder():
 				extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
 				source_path = map_path
 
+			# pakpath_list = ["-fs_pakpath", os.path.abspath(self.source_dir)]
+			pakpath_list = ["-fs_pakpath", self.source_dir]
+
+			pakpath_env = os.getenv("PAKPATH")
+			if pakpath_env:
+				for pakpath in pakpath_env.split(":"):
+					pakpath_list += ["-fs_pakpath", pakpath]
+
 			# TODO: game independant
-			call_list = ["q3map2", "-game", "unv"] + ["-" + build_stage] + extended_option_list + self.build_stage_dict[build_stage].split(" ") + [source_path]
+			call_list = ["q3map2", "-game", "unv"] + ["-" + build_stage] + pakpath_list + extended_option_list + self.build_stage_dict[build_stage].split(" ") + [source_path]
 			logging.debug("call list: " + str(call_list))
 			# TODO: verbose?
 			log.print("Build command: " + " ".join(call_list))
 			subprocess.call(call_list)
 
-			os.remove(prt_path)
-			os.remove(srf_path)
+		os.remove(prt_path)
+		os.remove(srf_path)
 
 
 class PakBuilder():
