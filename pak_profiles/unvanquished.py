@@ -80,16 +80,23 @@ file_unvanquished_png_lightmap = {
 }
 
 file_unvanquished_preview = {
-	"inherit": "file_common_texture",
+	"inherit": "file_unvanquished_texture",
 	"file_suffix": "p",
 	"description": "Editor preview image",
-	"action": "convert_lossy_webp",
+	"action": "convert_jpg",
 }
 
 file_unvanquished_jpg_preview = {
 	"inherit": "file_unvanquished_preview",
 	"ext": "jpg",
 	"action": "copy",
+}
+
+file_unvanquished_normalmap = {
+	"inherit": "file_unvanquished_texture",
+	"file_suffix": "n",
+	"description": "Normal map",
+	"action": "convert_lossless_webp",
 }
 
 file_unvanquished_minimap = {
