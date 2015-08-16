@@ -731,7 +731,7 @@ class Packer():
 			logging.debug("remove existing pack: " + self.pk3_path)
 			os.remove(self.pk3_path)
 
-		pk3 = zipfile.ZipFile(self.pk3_path, "w")
+		pk3 = zipfile.ZipFile(self.pk3_path, "w", zipfile.ZIP_DEFLATED)
 		
 		orig_dir = os.getcwd()
 		os.chdir(self.pk3dir_path)
