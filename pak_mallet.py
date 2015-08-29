@@ -26,7 +26,6 @@ import bsp_cutter
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
 
-
 class Log():
 	# This is NOT the runtime logging, it's the package build logging
 	def __init__(self):
@@ -565,6 +564,7 @@ class PakBuilder():
 		else:
 			log.print("Convert to lossy webp: " + file_path)
 			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", source_path, "-o", build_path])
+		shutil.copystat(source_path, build_path)
 
 	def convertLosslessWebp(self, file_path):
 		source_path = self.getSourcePath(file_path)
@@ -754,7 +754,8 @@ class PakInfo():
 
 		if not os.path.isfile(pak_info_path):
 			log.error("Missing pakinfo file")
-			return None
+			raise Exception("pakinfo", "missing")
+			return
 
 		pak_info_file = open(pak_info_path, "r")
 		line_list = [line.strip() for line in pak_info_file]
@@ -812,9 +813,11 @@ def main():
 		if args.output_pk3dir:
 			output_pk3dir = args.output_pk3dir
 		else:
-			pak_info = PakInfo(args.input_pk3dir)
-			if not pak_info:
+			try:
+				pak_info = PakInfo(args.input_pk3dir)
+			except:
 				return
+
 			pak_pakname = pak_info.getKey("pakname")
 			if not pak_pakname:
 				return
