@@ -96,7 +96,7 @@ file_unvanquished_normalmap = {
 	"inherit": "file_unvanquished_texture",
 	"file_suffix": "n",
 	"description": "Normal map",
-	"action": "convert_lossless_webp",
+	"action": "convert_normalized_crn",
 }
 
 file_unvanquished_minimap = {

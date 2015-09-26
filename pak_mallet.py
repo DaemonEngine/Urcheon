@@ -113,6 +113,7 @@ class Inspector():
 		self.action_name_dict["merge_bsp"] =				"merge into a bsp file"
 		self.action_name_dict["compile_bsp"] =				"compile to bsp format"
 		self.action_name_dict["convert_crn"] =				"convert to crn format"
+		self.action_name_dict["convert_normalized_crn"] =	"convert to normalized crn format"
 		self.action_name_dict["convert_jpg"] =				"convert to jpg format"
 		self.action_name_dict["convert_png"] =				"convert to png format"
 		self.action_name_dict["convert_lossy_webp"] =		"convert to lossy webp format"
@@ -440,6 +441,7 @@ class PakBuilder():
 		self.builder_name_dict["convert_lossy_webp"] =		self.convertLossyWebp
 		self.builder_name_dict["convert_lossless_webp"] =	self.convertLosslessWebp
 		self.builder_name_dict["convert_crn"] =				self.convertCrn
+		self.builder_name_dict["convert_normalzed_crn"] =	self.convertNormalCrn
 		self.builder_name_dict["convert_opus"] =			self.convertOpus
 		self.builder_name_dict["keep"] =					self.keepFile
 		self.builder_name_dict["ignore"] =					self.ignoreFile
@@ -594,7 +596,22 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to crn: " + file_path)
-			subprocess.call(["crunch", "-file", source_path, "-out", build_path, "-quality", "255"])
+			subprocess.call(["crunch", "-file", source_path, "-quality", "255", "-out", build_path])
+		shutil.copystat(source_path, build_path)
+
+	def convertNormalCrn(self, file_path):
+		source_path = self.getSourcePath(file_path)
+		build_path = self.getBuildPath(self.getFileCrnNewName(file_path))
+		self.createSubdirs(build_path)
+		if not self.isDifferent(source_path, build_path):
+			log.verbose("Unmodified file, do nothing: " + file_path)
+			return
+		if self.getExt(file_path) == "crn":
+			log.print("File already in crn, copying: " + file_path)
+			shutil.copyfile(source_path, build_path)
+		else:
+			log.print("Convert to crn: " + file_path)
+			subprocess.call(["crunch", "-file", source_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
 		shutil.copystat(source_path, build_path)
 
 	# TODO: convertVorbis
