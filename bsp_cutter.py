@@ -177,7 +177,7 @@ class Textures():
 
 		print("*** Textures:")
 		for i in range(0, len(self.texture_list)):
-			print(str(i) + ": " + self.texture_list[i]["name"] + " [" + self.int2bstr(self.texture_list[i]["flags"]) + ", " + int2bstr(self.texture_list[i]["contents"]) + "]")
+			print(str(i) + ": " + self.texture_list[i]["name"] + " [" + self.int2bstr(self.texture_list[i]["flags"]) + ", " + self.int2bstr(self.texture_list[i]["contents"]) + "]")
 		print("")
 
 	def importLump(self, blob):
