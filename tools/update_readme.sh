@@ -1,8 +1,8 @@
 #! /bin/sh
 
-# generate a REDAME.md file with up-to-date built-in help.
+# generate a README.md file with up-to-date built-in help.
 
-rm "README.md"
+test -f "README.md" && rm "README.md"
 exec 1<&-
 exec 1<>"README.md"
 

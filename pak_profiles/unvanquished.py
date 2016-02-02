@@ -164,6 +164,11 @@ file_unvanquished_map = {
 }
 
 file_unvanquished_bspdir_lump = {
+	"file_ext": [
+		"txt",
+		"csv",
+		"bin",
+	],
 	"dir_ancestor_name": "maps",
 	"dir_father_ext": "bspdir",
 	"description": "BSP Lump",

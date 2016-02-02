@@ -269,14 +269,25 @@ class PakList():
 	def computeActions(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.file_dir):
 			dir_name = dir_name[len(os.path.curdir + os.path.sep):]
+
+			logging.debug("dir_name: " + str(dir_name) + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
+
+			blacklisted_dir = False
+			for subdir_name in dir_name.split(os.path.sep):
+				for pattern in self.blacklist:
+					logging.debug("comparing subdir path: " + subdir_name + " from dir path: " + dir_name + " with blacklist pattern: " + pattern)
+					if fnmatch.fnmatch(subdir_name, pattern):
+						logging.debug("found blacklisted directory: " + subdir_name)
+						blacklisted_dir = True
+						break
+				if blacklisted_dir == True:
+					break
+
+			if blacklisted_dir == True:
+				continue
+
 			for file_name in file_name_list:
 				file_path = os.path.join(dir_name, file_name)
-				for subdir_name in subdir_name_list:
-					for pattern in self.blacklist:
-						logging.debug("comparing subdir path: " + subdir_name + " with blacklist pattern: " + pattern)
-						if fnmatch.fnmatch(subdir_name, pattern):
-							logging.debug("found blacklisted directory: " + subdir_name)
-							subdir_name_list.remove(subdir_name)
 
 				blacklisted_file = False
 				for pattern in self.blacklist:
