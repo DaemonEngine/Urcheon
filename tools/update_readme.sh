@@ -25,8 +25,6 @@ This toolbox was developed for the [Interstellar Oasis](https://github.com/inter
 Help
 ----
 
-Currently, the `-il` option for `bsp_cutter.py` (to read lightmaps from a directory to embed them inside the BSP lightmaps lump) is a stub.
-
 ```
 $ ./bsp_cutter.py -h
 EOF
@@ -36,7 +34,7 @@ EOF
 cat <<\EOF
 ```
 
-Currently, `map_cutter.py` does not parse yet vertex matrices, it carbon copy them instead.
+Currently, `map_cutter.py` does not parse vertex matrices yet, it carbon copies them instead.
 
 ```
 $ ./map_cutter.py -h
@@ -47,7 +45,8 @@ EOF
 cat <<\EOF
 ```
 
-Currently, `pak_mallet.py` needs [q3map2_helper.sh](https://github.com/illwieckz/q3map2_helper) and the [illwieckz`s netradiant branch](https://gitlab.com/illwieckz/netradiant/commits/illwieckz) to be able to correctly compile `.map` files.
+Currently, `pak_mallet.py` relies on a not yet upstreamed branch of q3map2.
+
 
 ```
 $ ./pak_mallet.py -h
