@@ -86,7 +86,7 @@ optional arguments:
                         write to .map file FILENAME
 ```
 
-Currently, `pak_mallet.py` relies on a not yet upstreamed branch of q3map2.
+The `pak_mallet.py` tool relies on [q3map2 from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet.py` to build map packages.
 
 
 ```
