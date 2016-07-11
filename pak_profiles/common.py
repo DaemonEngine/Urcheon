@@ -23,6 +23,14 @@ file_common_external_editor = {
 	"action": "ignore",
 }
 
+file_common_metada_sidecar = {
+	"file_ext": [
+		"vorbiscomment",
+	],
+	"description": "Metadata Sidecar",
+	"action": "ignore",
+}
+
 file_common_texture = {
 	"file_ext": [
 		"jpg", 
@@ -41,6 +49,7 @@ file_common_texture = {
 file_common_sound = {
 	"file_ext": [
 		"wav",
+		"flac",
 		"ogg",
 		"opus",
 	],
@@ -85,8 +94,9 @@ file_common_readme = {
 }
 
 file_common_nullwav = {
-	"dir_ancestor_name": "file_common_sound",
-	"file_name": "null.wav",
+	"inherit": "file_common_sound",
+	"file_ext": "wav",
+	"file_base": "null",
 	"description": "Common NULL Sound File",
 	"action": "copy",
 }
