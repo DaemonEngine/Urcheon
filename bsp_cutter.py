@@ -241,7 +241,7 @@ class Lightmaps():
 		for file_name in file_list:
 			debug("loading lightmap: " + file_name)
 			image = Image.open(file_name)
-			lightmap = image.convert("RGB").tostring()
+			lightmap = image.convert("RGB").tobytes()
 
 			# 49152: Lightmap size (128x128x3 bytes)
 			# 128: Number of lines
