@@ -70,9 +70,12 @@ file_common_script = {
 
 file_common_model = {
 	"file_ext": [
-		"qc",
 		"ase",
+		"iqm",
 		"md3",
+		"md5anim",
+		"md5mesh",
+		"qc",
 	],
 	"description": "Common Model File",
 	"action": "copy",
