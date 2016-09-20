@@ -99,6 +99,15 @@ file_unvanquished_normalmap = {
 	"action": "convert_normalized_crn",
 }
 
+file_unvanquished_crn_normalmap = {
+	"inherit": "file_unvanquished_normalmap",
+	"ext": [
+		"crn",
+		"dds",
+	],
+	"action": "copy",
+}
+
 file_unvanquished_minimap = {
 	"file_ext": "minimap",
 	"dir_ancestor_name": "minimaps",
