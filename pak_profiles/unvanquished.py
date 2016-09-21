@@ -75,7 +75,7 @@ file_unvanquished_lightmap = {
 
 file_unvanquished_png_lightmap = {
 	"inherit": "file_unvanquished_lightmap",
-	"ext": "png",
+	"file_ext": "png",
 	"action": "copy",
 }
 
@@ -88,7 +88,7 @@ file_unvanquished_preview = {
 
 file_unvanquished_jpg_preview = {
 	"inherit": "file_unvanquished_preview",
-	"ext": "jpg",
+	"file_ext": "jpg",
 	"action": "copy",
 }
 
@@ -101,7 +101,7 @@ file_unvanquished_normalmap = {
 
 file_unvanquished_crn_normalmap = {
 	"inherit": "file_unvanquished_normalmap",
-	"ext": [
+	"file_ext": [
 		"crn",
 		"dds",
 	],
@@ -124,7 +124,7 @@ file_unvanquished_minimap_image = {
 
 file_unvanquished_crn_minimap_image = {
 	"inherit": "file_unvanquished_minimap_image",
-	"ext": [
+	"file_ext": [
 		"crn",
 		"dds",
 	],
@@ -141,7 +141,7 @@ file_unvanquished_colorgrade = {
 
 file_unvanquished_png_colorgrade = {
 	"inherit": "file_unvanquished_colorgrade",
-	"ext": "png",
+	"file_ext": "png",
 	"action": "copy",
 }
 
