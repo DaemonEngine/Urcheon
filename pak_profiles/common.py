@@ -81,6 +81,14 @@ file_common_model = {
 	"action": "copy",
 }
 
+file_common_model_source = {
+	"file_ext": [
+		"blend",
+	],
+	"description": "Common Model Source",
+	"action": "ignore",
+}
+
 file_common_text = {
 	"file_ext": [
 		"txt",
