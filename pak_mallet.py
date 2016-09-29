@@ -607,7 +607,11 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to crn: " + file_path)
-			subprocess.call(["crunch", "-file", source_path, "-quality", "255", "-out", build_path])
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient.tga")
+			subprocess.call(["convert", "-verbose", source_path, transient_path])
+			subprocess.call(["crunch", "-file", transient_path, "-quality", "255", "-out", build_path])
+			if os.path.isfile(transient_path):
+				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
 
 	def convertNormalCrn(self, file_path):
@@ -622,7 +626,11 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to crn: " + file_path)
-			subprocess.call(["crunch", "-file", source_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient.tga")
+			subprocess.call(["convert", "-verbose", source_path, transient_path])
+			subprocess.call(["crunch", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
+			if os.path.isfile(transient_path):
+				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
 
 	# TODO: convertVorbis
