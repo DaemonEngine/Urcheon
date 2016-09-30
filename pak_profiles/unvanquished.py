@@ -229,3 +229,11 @@ file_unvanquished_model = {
 	"dir_ancestor_name": "models",
 	"description": "Model File",
 }
+
+file_unvanquished_iqe_model = {
+	"inherit": "file_unvanquished_model",
+	"file_ext": "iqe",
+	"dir_ancestor_name": "models",
+	"description": "IQE Model File",
+	"action": "compile_iqm",
+}

@@ -72,6 +72,7 @@ file_common_model = {
 	"file_ext": [
 		"ase",
 		"iqm",
+		"iqe",
 		"md3",
 		"md5anim",
 		"md5mesh",

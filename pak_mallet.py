@@ -112,6 +112,7 @@ class Inspector():
 		self.action_name_dict["copy"] =						"copy file"
 		self.action_name_dict["merge_bsp"] =				"merge into a bsp file"
 		self.action_name_dict["compile_bsp"] =				"compile to bsp format"
+		self.action_name_dict["compile_iqm"] =				"compile to iqm format"
 		self.action_name_dict["convert_crn"] =				"convert to crn format"
 		self.action_name_dict["convert_normalized_crn"] =	"convert to normalized crn format"
 		self.action_name_dict["convert_jpg"] =				"convert to jpg format"
@@ -447,6 +448,7 @@ class PakBuilder():
 		self.builder_name_dict["copy"] =					self.copyFile
 		self.builder_name_dict["merge_bsp"] =				self.mergeBsp
 		self.builder_name_dict["compile_bsp"] =				self.buildBsp
+		self.builder_name_dict["compile_iqm"] =				self.buildIqm
 		self.builder_name_dict["convert_jpg"] =				self.convertJpg
 		self.builder_name_dict["convert_png"] =				self.convertPng
 		self.builder_name_dict["convert_lossy_webp"] =		self.convertLossyWebp
@@ -649,6 +651,21 @@ class PakBuilder():
 			subprocess.call(["opusenc", source_path, build_path])
 		shutil.copystat(source_path, build_path)
 
+	def buildIqm(self, file_path):
+		source_path = self.getSourcePath(file_path)
+		build_path = self.getBuildPath(self.getFileIqmNewName(file_path))
+		self.createSubdirs(build_path)
+		if not self.isDifferent(source_path, build_path):
+			log.verbose("Unmodified file, do nothing: " + file_path)
+			return
+		if self.getExt(file_path) == "iqm":
+			log.print("File already in iqm, copying: " + file_path)
+			shutil.copyfile(source_path, build_path)
+		else:
+			log.print("Building to iqm: " + file_path)
+			subprocess.call(["iqm", build_path, source_path])
+		shutil.copystat(source_path, build_path)
+
 	def mergeBsp(self, file_path):
 		source_path = self.getSourcePath(self.getDirBspDirNewName(file_path))
 		build_path = self.getBuildPath(self.getDirBspNewName(file_path))
@@ -733,6 +750,9 @@ class PakBuilder():
 
 	def getFileOpusNewName(self, file_path):
 		return os.path.splitext(file_path)[0] + ".opus"
+
+	def getFileIqmNewName(self, file_path):
+		return os.path.splitext(file_path)[0] + ".iqm"
 
 	def getFileBspNewName(self, file_path):
 		return os.path.splitext(file_path)[0] + ".bsp"
