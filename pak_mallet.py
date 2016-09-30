@@ -336,7 +336,7 @@ class PakList():
 		pak_list_file.close()
 	
 
-class BspBuilder():
+class BspCompiler():
 	def __init__(self, source_dir, game_name, build_profile):
 		self.map_config = configparser.ConfigParser()
 		self.source_dir = source_dir
@@ -373,7 +373,7 @@ class BspBuilder():
 						self.build_stage_dict[build_stage] = self.map_config[build_profile][build_stage]
 
 
-	def buildBsp(self, map_path, build_prefix):
+	def compileBsp(self, map_path, build_prefix):
 		logging.debug("building " + map_path + " to prefix: " + build_prefix)
 
 		map_base = os.path.splitext(os.path.basename(map_path))[0]
@@ -447,8 +447,8 @@ class PakBuilder():
 		self.builder_name_dict = OrderedDict()
 		self.builder_name_dict["copy"] =					self.copyFile
 		self.builder_name_dict["merge_bsp"] =				self.mergeBsp
-		self.builder_name_dict["compile_bsp"] =				self.buildBsp
-		self.builder_name_dict["compile_iqm"] =				self.buildIqm
+		self.builder_name_dict["compile_bsp"] =				self.compileBsp
+		self.builder_name_dict["compile_iqm"] =				self.compileIqm
 		self.builder_name_dict["convert_jpg"] =				self.convertJpg
 		self.builder_name_dict["convert_png"] =				self.convertPng
 		self.builder_name_dict["convert_lossy_webp"] =		self.convertLossyWebp
@@ -651,7 +651,7 @@ class PakBuilder():
 			subprocess.call(["opusenc", source_path, build_path])
 		shutil.copystat(source_path, build_path)
 
-	def buildIqm(self, file_path):
+	def compileIqm(self, file_path):
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(self.getFileIqmNewName(file_path))
 		self.createSubdirs(build_path)
@@ -662,7 +662,7 @@ class PakBuilder():
 			log.print("File already in iqm, copying: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Building to iqm: " + file_path)
+			log.print("Compiling to iqm: " + file_path)
 			subprocess.call(["iqm", build_path, source_path])
 		shutil.copystat(source_path, build_path)
 
@@ -692,7 +692,7 @@ class PakBuilder():
 		shutil.copystat(source_path, build_path)
 		self.bsp_list.append(bsp_path)
 
-	def buildBsp(self, file_path):
+	def compileBsp(self, file_path):
 		source_path = self.getSourcePath(file_path)
 		copy_path = self.getBuildPath(file_path)
 		build_path = self.getBuildPath(self.getFileBspNewName(file_path))
@@ -705,10 +705,10 @@ class PakBuilder():
 			log.verbose("Unmodified file " + build_path + ", will only copy: " + source_path)
 			return
 
-		log.print("Building to bsp: " + file_path)
+		log.print("Compiling to bsp: " + file_path)
 
-		bsp_builder = BspBuilder(self.source_dir, self.game_name, self.build_profile)
-		bsp_builder.buildBsp(source_path, os.path.dirname(build_path))
+		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.build_profile)
+		bsp_compiler.compileBsp(source_path, os.path.dirname(build_path))
 		
 		# TODO: for all files created
 #		shutil.copystat(source_path, build_path)
