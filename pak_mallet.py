@@ -75,7 +75,7 @@ class PakConfig():
 				inherited_file_type[keyword] = config_file_type_dict[keyword]
 			elif keyword not in inherited_file_type.keys():
 				inherited_file_type[keyword] = None
-		
+
 		for keyword in inspector.inspector_name_dict.keys():
 			if isinstance(inherited_file_type[keyword], str):
 				inherited_file_type[keyword] = [ inherited_file_type[keyword] ]
@@ -122,7 +122,7 @@ class Inspector():
 		self.action_name_dict["convert_opus"] =				"convert to opus format"
 		self.action_name_dict["keep"] =						"keep file"
 		self.action_name_dict["ignore"] =				 	"ignore file"
-	
+
 	def inspectFileName(self, file_path, file_name):
 		name = os.path.basename(file_path)
 		return name in file_name
@@ -263,7 +263,7 @@ class PakList():
 					else:
 						log.print("Disabling action: " + action + " for missing file: " + file_path)
 						self.computed_inactive_action_dict[action].append(file_path)
-						
+
 		else:
 			log.print("List not found will create: " + self.pak_list_file_name)
 
@@ -334,13 +334,13 @@ class PakList():
 				line = "#" + action + " " + file_path
 				pak_list_file.write(line + "\n")
 		pak_list_file.close()
-	
+
 
 class BspCompiler():
-	def __init__(self, source_dir, game_name, build_profile):
+	def __init__(self, source_dir, game_name, map_profile):
 		self.map_config = configparser.ConfigParser()
 		self.source_dir = source_dir
-		self.build_profile = build_profile
+		self.map_profile = map_profile
 		self.build_stage_dict = OrderedDict()
 		# I want compilation in this order:
 		self.build_stage_dict["bsp"] = None
@@ -358,19 +358,19 @@ class BspCompiler():
 		self.map_config.read(ini_path)
 
 		logging.debug("build profiles: " + str(self.map_config.sections()))
-		for build_profile in self.map_config.sections():
-			logging.debug("build profile found: " + build_profile)
+		for map_profile in self.map_config.sections():
+			logging.debug("build profile found: " + map_profile)
 
-			if build_profile == self.build_profile:
-				logging.debug("will use profile: " + build_profile)
+			if map_profile == self.map_profile:
+				logging.debug("will use profile: " + map_profile)
 
-				for build_stage in self.map_config[build_profile].keys():
+				for build_stage in self.map_config[map_profile].keys():
 					if not build_stage in self.build_stage_dict.keys():
 						log.warning("unknown stage in " + ini_path + ": " + build_stage)
 
 					else:
-						logging.debug("add build param for stage " + build_stage + ": " + self.map_config[build_profile][build_stage])
-						self.build_stage_dict[build_stage] = self.map_config[build_profile][build_stage]
+						logging.debug("add build param for stage " + build_stage + ": " + self.map_config[map_profile][build_stage])
+						self.build_stage_dict[build_stage] = self.map_config[map_profile][build_stage]
 
 
 	def compileBsp(self, map_path, build_prefix):
@@ -434,11 +434,11 @@ class BspCompiler():
 
 
 class PakBuilder():
-	def __init__(self, source_dir, build_dir, game_name, build_profile):
+	def __init__(self, source_dir, build_dir, game_name, map_profile):
 		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.game_name = game_name
-		self.build_profile = build_profile
+		self.map_profile = map_profile
 		self.pak_list = PakList(source_dir, game_name)
 		self.pak_list.readActions()
 		self.bsp_list = []
@@ -673,7 +673,7 @@ class PakBuilder():
 		bspdir_path = self.getDirBspDirNewName(file_path)
 		bsp_path = self.getDirBspNewName(file_path)
 		if bspdir_path in self.bsp_list:
-			warning("Bsp file already there, will do nothing with: " + build_path)
+			log.warning("Bsp file already there, will do nothing with: " + build_path)
 			return
 		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
@@ -699,7 +699,7 @@ class PakBuilder():
 		bsp_path = self.getFileBspNewName(file_path)
 		self.createSubdirs(build_path)
 		if build_path in self.bsp_list:
-			warning("Bsp file already there, will only copy: " + source_path)
+			log.warning("Bsp file already there, will only copy: " + source_path)
 			return
 		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file " + build_path + ", will only copy: " + source_path)
@@ -707,9 +707,9 @@ class PakBuilder():
 
 		log.print("Compiling to bsp: " + file_path)
 
-		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.build_profile)
+		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, os.path.dirname(build_path))
-		
+
 		# TODO: for all files created
 #		shutil.copystat(source_path, build_path)
 
@@ -732,7 +732,7 @@ class PakBuilder():
 		build_path = self.getBuildPath(file_path)
 		log.print("Creating NavMeshes for: " + file_path)
 		subprocess.call(["q3map2", "-game", "unvanquished", "-nav", build_path])
-	
+
 	def getExt(self, file_path):
 		return os.path.splitext(file_path)[1][len(os.path.extsep):].lower()
 
@@ -771,6 +771,9 @@ class Packer():
 
 	def createSubdirs(self, pack_path):
 		pack_subdir = os.path.dirname(pack_path)
+		if pack_subdir == "":
+			pack_subdir = "."
+
 		if os.path.isdir(pack_subdir):
 			logging.debug("found pack subdir: " +  pack_subdir)
 		else:
@@ -788,7 +791,7 @@ class Packer():
 			os.remove(self.pk3_path)
 
 		pk3 = zipfile.ZipFile(self.pk3_path, "w", zipfile.ZIP_DEFLATED)
-		
+
 		orig_dir = os.getcwd()
 		os.chdir(self.pk3dir_path)
 		for dirname, subdirname_list, file_name_list in os.walk('.'):
@@ -796,7 +799,7 @@ class Packer():
 				file_path = os.path.join(dirname, file_name)[len(os.path.curdir + os.path.sep):]
 				log.print("adding file to archive: " + file_path)
 				pk3.write(file_path)
-			
+
 		logging.debug("closing: " + self.pk3_path)
 		pk3.close()
 
@@ -837,57 +840,85 @@ def main():
 	args.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	args.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	args.add_argument("-g", "--game-profile", dest="game_profile", metavar="GAMENAME", default="unvanquished", help="use game profile %(metavar)s, default: %(default)s")
-	args.add_argument("-id", "--input-pk3dir", dest="input_pk3dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
-	args.add_argument("-pd", "--output-prefix-pk3dir", dest="output_prefix_pk3dir", metavar="DIRNAME", default="build" + os.path.sep + "test", help="build pk3dir in directory %(metavar)s, default: %(default)s")
-	args.add_argument("-pp", "--output-prefix-pk3", dest="output_prefix_pk3", metavar="DIRNAME", default="build" + os.path.sep + "pkg", help="build pk3 in directory %(metavar)s, default: %(default)s")
-	args.add_argument("-od", "--output-pk3dir", dest="output_pk3dir", metavar="DIRNAME", help="build pk3dir as directory %(metavar)s")
-	args.add_argument("-op", "--output-pk3", dest="output_pk3", metavar="FILENAME", help="build pk3 as file %(metavar)s")
-	args.add_argument("-bp", "--build-profile", dest="build_profile", metavar="PROFILE", default="fast", help="build map with profile %(metavar)s, default: %(default)s")
+	args.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
+	args.add_argument("-bp", "--build-prefix", dest="build_prefix", metavar="DIRNAME", default="build", help="build in prefix %(metavar)s, default: %(default)s")
+	args.add_argument("-tp", "--test-parent", dest="test_parent", metavar="DIRNAME", default="test", help="build test pk3dir in parent directory %(metavar)s, default: %(default)s")
+	args.add_argument("-pp", "--pkg-parent", dest="pkg_parent", metavar="DIRNAME", default="pkg", help="build release pk3 in parent directory %(metavar)s, default: %(default)s")
+	args.add_argument("-td", "--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pk3dir as directory %(metavar)s")
+	args.add_argument("-pf", "--pkg-file", dest="pkg_file", metavar="FILENAME", help="build release pk3 as file %(metavar)s")
+	args.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", default="fast", help="build map with profile %(metavar)s, default: %(default)s")
 	args.add_argument("-ev", "--extra-version", dest="extra_version", metavar="VERSION", help="add %(metavar)s to pk3 version string")
 	args.add_argument("-u", "--update", dest="update", help="update paklist", action="store_true")
 	args.add_argument("-b", "--build", dest="build", help="build pak", action="store_true")
 	args.add_argument("-p", "--package", dest="package", help="compress pak", action="store_true")
 
-
 	args = args.parse_args()
+
+	env_build_prefix = os.getenv("BUILDPREFIX")
+	env_test_parent = os.getenv("TESTPARENT")
+	env_pkg_parent = os.getenv("PKGPARENT")
 
 	if args.debug:
 		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 		logging.debug("Debug logging activated")
 		logging.debug("args: " + str(args))
-	
+
 	if args.verbose:
 		log.verbosely = True
 
 	if args.update:
-		pak_list = PakList(args.input_pk3dir, args.game_profile)
+		pak_list = PakList(args.source_dir, args.game_profile)
 		pak_list.readActions()
 		pak_list.computeActions()
 		pak_list.writeActions()
 
 	if args.package or args.build:
-		if args.output_pk3dir:
-			output_pk3dir = args.output_pk3dir
+		if args.build_prefix:
+			build_prefix = args.build_prefix
+
+		if env_build_prefix:
+			if args.build_prefix:
+				log.warning("build dir “" + build_prefix + "” superseded by env BUILDPREFIX: " + env_build_prefix)
+			build_prefix = env_build_prefix
+
+		if args.test_parent:
+			test_parent = args.test_parent
+
+		if env_test_parent:
+			if args.test_parent:
+				log.warning("build test dir “" + test_parent + "” superseded by env TESTPARENT: " + env_test_parent)
+			test_parent = env_test_parent
+
+		if args.pkg_parent:
+			pkg_parent = args.pkg_parent
+
+		if env_pkg_parent:
+			if args.pkg_parent:
+				log.warning("build pkg dir “" + pkg_parent + "” superseded by env PKGPARENT: " + env_pkg_parent)
+			pkg_parent = env_pkg_parent
+
+		if args.test_dir:
+			test_dir = args.test_dir
 		else:
 			try:
-				pak_info = PakInfo(args.input_pk3dir)
+				pak_info = PakInfo(args.source_dir)
 			except:
 				return
 
 			pak_pakname = pak_info.getKey("pakname")
 			if not pak_pakname:
 				return
-			output_pk3dir = args.output_prefix_pk3dir + os.path.sep + pak_pakname + "_test.pk3dir"
+			test_dir = build_prefix + os.path.sep + test_parent + os.path.sep + pak_pakname + "_test.pk3dir"
 
 	if args.build:
-		builder = PakBuilder(args.input_pk3dir, output_pk3dir, args.game_profile, args.build_profile)
+		builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile)
 		builder.build()
 
 	if args.package:
-		if args.output_pk3:
-			output_pk3 = args.output_pk3
+		if args.pkg_file:
+			pkg_file = args.pkg_file
 		else:
-			pak_info = PakInfo(args.input_pk3dir)
+			pak_info = PakInfo(args.source_dir)
 			if not pak_info:
 				return
 			pak_pakname = pak_info.getKey("pakname")
@@ -896,11 +927,11 @@ def main():
 				return
 			if args.extra_version:
 				pak_version += args.extra_version
-			output_pk3 = args.output_prefix_pk3 + os.path.sep + pak_pakname + "_" + pak_version + ".pk3"
+			pkg_file = build_prefix + os.path.sep + pkg_parent + os.path.sep + pak_pakname + "_" + pak_version + ".pk3"
 
-		packer = Packer(output_pk3dir, output_pk3)
+		packer = Packer(test_dir, pkg_file)
 		packer.pack()
-		
+
 
 if __name__ == "__main__":
 	main()

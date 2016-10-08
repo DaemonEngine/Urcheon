@@ -452,7 +452,7 @@ class Bsp():
 			self.lump_dict[lump_name] = None
 
 		return True
-	
+
 	def printLumpList(self):
 		# TODO: check
 
@@ -502,7 +502,7 @@ class Bsp():
 			lump_start += lump_length
 
 			lumps_blob += self.lump_dict[lump_name]
-			
+
 			# Align lump to 4 bytes
 			# For reference, q3map2 does not count these extra bytes in lump length
 			# This happen for entities string for example
@@ -519,7 +519,7 @@ class Bsp():
 		blob += directory_blob
 		blob += metadata_blob
 		blob += lumps_blob
-		
+
 		bsp_file.write(blob)
 		bsp_file.close()
 

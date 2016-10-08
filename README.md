@@ -91,9 +91,9 @@ The `pak_mallet.py` tool relies on [q3map2 from netradiant](https://gitlab.com/x
 
 ```
 $ ./pak_mallet.py -h
-usage: pak_mallet.py [-h] [-D] [-v] [-g GAMENAME] [-id DIRNAME] [-pd DIRNAME]
-                     [-pp DIRNAME] [-od DIRNAME] [-op FILENAME] [-bp PROFILE]
-                     [-ev VERSION] [-u] [-b] [-p]
+usage: pak_mallet.py [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
+                     [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
+                     [-mp PROFILE] [-ev VERSION] [-u] [-b] [-p]
 
 pak_mallet.py is a pak builder for my lovely granger.
 
@@ -103,17 +103,21 @@ optional arguments:
   -v, --verbose         print verbose information
   -g GAMENAME, --game-profile GAMENAME
                         use game profile GAMENAME, default: unvanquished
-  -id DIRNAME, --input-pk3dir DIRNAME
+  -sd DIRNAME, --source-dir DIRNAME
                         build from directory DIRNAME, default: .
-  -pd DIRNAME, --output-prefix-pk3dir DIRNAME
-                        build pk3dir in directory DIRNAME, default: build/test
-  -pp DIRNAME, --output-prefix-pk3 DIRNAME
-                        build pk3 in directory DIRNAME, default: build/pkg
-  -od DIRNAME, --output-pk3dir DIRNAME
-                        build pk3dir as directory DIRNAME
-  -op FILENAME, --output-pk3 FILENAME
-                        build pk3 as file FILENAME
-  -bp PROFILE, --build-profile PROFILE
+  -bp DIRNAME, --build-prefix DIRNAME
+                        build in prefix DIRNAME, default: build
+  -tp DIRNAME, --test-parent DIRNAME
+                        build test pk3dir in parent directory DIRNAME,
+                        default: test
+  -pp DIRNAME, --pkg-parent DIRNAME
+                        build release pk3 in parent directory DIRNAME,
+                        default: pkg
+  -td DIRNAME, --test-dir DIRNAME
+                        build test pk3dir as directory DIRNAME
+  -pf FILENAME, --pkg-file FILENAME
+                        build release pk3 as file FILENAME
+  -mp PROFILE, --map-profile PROFILE
                         build map with profile PROFILE, default: fast
   -ev VERSION, --extra-version VERSION
                         add VERSION to pk3 version string

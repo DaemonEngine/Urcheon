@@ -204,7 +204,7 @@ class Map():
 						in_brush = True
 						# do not continue! this line must be read one more time!
 						# this is brush content!
-			
+
 				# Patch opening
 				if start_patch and not in_patch:
 					if block_opening_pattern.match(line):
@@ -216,7 +216,7 @@ class Map():
 
 				# Brush content
 				if in_brush:
-				
+
 					# Plane content
 					match = plane_pattern.match(line)
 					if match:
@@ -419,7 +419,7 @@ class Map():
 			input_map_file = open(file_name, 'wb')
 			input_map_file.write(str.encode(map_string))
 			input_map_file.close()
-			
+
 	def exportBspEntities(self):
 		if self.entity_list == None:
 			error("No Map loaded")
