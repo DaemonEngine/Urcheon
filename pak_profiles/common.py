@@ -9,7 +9,7 @@
 
 file_common_deps = {
 	"file_base": "DEPS",
-	"description": "Package DEPS file",
+	"description": "Package DEPS File",
 	"action": "copy",
 }
 
@@ -95,7 +95,7 @@ file_common_text = {
 		"txt",
 		"md",
 	],
-	"description": "Common Text file",
+	"description": "Common Text File",
 	"action": "copy",
 }
 
@@ -108,7 +108,7 @@ file_common_sloth = {
 file_common_readme = {
 	"inherit": "file_common_text",
 	"file_base": "README",
-	"description": "Common ReadMe file",
+	"description": "Common ReadMe File",
 }
 
 file_common_nullwav = {
