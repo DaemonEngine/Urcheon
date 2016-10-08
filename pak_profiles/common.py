@@ -99,6 +99,12 @@ file_common_text = {
 	"action": "copy",
 }
 
+file_common_sloth = {
+	"file_ext": "sloth",
+	"description": "Common Sloth Description File",
+	"action": "ignore",
+}
+
 file_common_readme = {
 	"inherit": "file_common_text",
 	"file_base": "README",
