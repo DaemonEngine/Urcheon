@@ -593,7 +593,11 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to lossless webp: " + file_path)
-			subprocess.call(["cwebp", "-v", "-lossless", source_path, "-o", build_path])
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient.png")
+			subprocess.call(["convert", "-verbose", source_path, transient_path])
+			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path])
+			if os.path.isfile(transient_path):
+				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
 
 	# TODO: convertDDS
