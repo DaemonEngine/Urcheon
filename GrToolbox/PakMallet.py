@@ -637,7 +637,7 @@ class PakBuilder():
 			log.print("Convert to crn: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-			subprocess.call(["crunch", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
@@ -656,7 +656,7 @@ class PakBuilder():
 			log.print("Convert to crn: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-			subprocess.call(["crunch", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
