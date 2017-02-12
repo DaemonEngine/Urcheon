@@ -352,6 +352,9 @@ class BspCompiler():
 		self.build_stage_dict["bsp"] = None
 		self.build_stage_dict["vis"] = None
 		self.build_stage_dict["light"] = None
+		self.build_stage_dict["nav"] = None
+		self.build_stage_dict["minimap"] = None
+		self.build_stage_dict["source"] = None
 
 		# TODO: set something else for quiet and verbose mode
 		self.subprocess_stdout = None;
@@ -383,9 +386,10 @@ class BspCompiler():
 						self.build_stage_dict[build_stage] = self.map_config[map_profile][build_stage]
 
 
-	def compileBsp(self, map_path, build_prefix):
+	def compileBsp(self, map_path, build_prefix, stage_list=None):
 		logging.debug("building " + map_path + " to prefix: " + build_prefix)
 
+		# name without .map or .bsp extension
 		map_base = os.path.splitext(os.path.basename(map_path))[0]
 		lightmapdir_path = build_prefix + os.path.sep + map_base
 
@@ -393,24 +397,30 @@ class BspCompiler():
 
 		os.makedirs(build_prefix, exist_ok=True)
 
-		if not os.path.isfile(map_profile_path):
-			logging.debug("map profile not found, will use default: " + map_profile_path)
-		else:
+		if os.path.isfile(map_profile_path):
 			log.print("Customized build profile found: " + map_profile_path)
 			self.readIni(map_profile_path)
+		else:
+			logging.debug("map profile not found: " + map_profile_path)
 
 		prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "prt")
 		srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "srf")
 		bsp_path = build_prefix + os.path.sep + map_base + os.path.extsep + "bsp"
 
-		for build_stage in self.build_stage_dict.keys():
+		if not stage_list:
+			stage_list = self.build_stage_dict.keys()
+
+		for build_stage in stage_list:
 			if self.build_stage_dict[build_stage] == None:
+				continue
+			elif self.build_stage_dict[build_stage] == "none":
 				continue
 
 			log.print("Building " + map_path + ", stage: " + build_stage)
 
+			# TODO: if previous stage failed
 			source_path = map_path
-			extended_option_list = {}
+			extended_option_list = []
 			if build_stage == "bsp":
 				extended_option_list = ["-prtfile", prt_path, "-srffile", srf_path, "-bspfile", bsp_path]
 				source_path = map_path
@@ -420,6 +430,14 @@ class BspCompiler():
 			elif build_stage == "light":
 				extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
 				source_path = map_path
+			elif build_stage == "nav":
+				source_path == bsp_path
+			elif build_stage == "minimap":
+				self.renderMiniMap(map_path, bsp_path)
+				continue
+			elif build_stage == "source":
+				self.copyMap(map_path, build_prefix)
+				continue
 
 			# pakpath_list = ["-fs_pakpath", os.path.abspath(self.source_dir)]
 			pakpath_list = ["-fs_pakpath", self.source_dir]
@@ -429,8 +447,14 @@ class BspCompiler():
 				for pakpath in pakpath_env.split(":"):
 					pakpath_list += ["-fs_pakpath", pakpath]
 
+			stage_option_list = self.build_stage_dict[build_stage].split(" ")
+			print("stage options: " + str(stage_option_list))
+			if stage_option_list == ['']:
+				stage_option_list == []
+
 			# TODO: game independant
-			call_list = ["q3map2", "-game", "unvanquished"] + ["-" + build_stage] + pakpath_list + extended_option_list + self.build_stage_dict[build_stage].split(" ") + [source_path]
+			call_list = ["q3map2", "-game", "unvanquished"] + ["-" + build_stage] + pakpath_list + extended_option_list + stage_option_list + [source_path]
+
 			logging.debug("call list: " + str(call_list))
 			# TODO: verbose?
 			log.print("Build command: " + " ".join(call_list))
@@ -442,6 +466,23 @@ class BspCompiler():
 		if os.path.isfile(srf_path):
 			os.remove(srf_path)
 
+	def renderMiniMap(self, map_path, bsp_path):
+		# TODO: if minimap not newer
+		log.print("Creating MiniMap for: " + map_path)
+#		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper")
+		subprocess.call([q3map2_helper_path, "--minimap", bsp_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
+	def copyMap(self, map_path, build_prefix):
+		# TODO: for all files created
+#		shutil.copystat(source_path, build_path)
+
+		log.print("Copying map source: " + map_path)
+		map_name = os.path.basename(map_path)
+		copy_path = build_prefix + os.path.sep + map_name
+		shutil.copyfile(map_path, copy_path)
+		shutil.copystat(map_path, copy_path)
+
 
 class PakBuilder():
 	def __init__(self, source_dir, build_dir, game_name, map_profile, compute_actions=False):
@@ -451,9 +492,9 @@ class PakBuilder():
 		self.map_profile = map_profile
 		self.pak_list = PakList(source_dir, game_name)
 		self.pak_list.readActions()
+
 		if compute_actions:
 			self.pak_list.computeActions()
-		self.bsp_list = []
 
 		# I want actions executed in this order
 		self.builder_name_dict = OrderedDict()
@@ -517,19 +558,21 @@ class PakBuilder():
 				#TODO: if not source_path
 				source_path = self.getSourcePath(file_path)
 
-				# no need to use multiprocessing to manage task contention, since each task will call its own process
+				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
-				# threading.Thread's args expect an iterable, hence the comma inside parenthesis otherwise the string is passed as is
-				thread = threading.Thread(target = self.builder_name_dict[action], args = (file_path,))
-				while threading.active_count() > multiprocessing.cpu_count():
-					pass
-				thread.start()
+				if action in ["merge_bsp"]:
+					# action that can't be multithreaded
+					# otherwise merge_bsp is called for every file part but must be called once for all files
+					self.builder_name_dict[action](file_path)
+				else:
+					# threading.Thread's args expect an iterable, hence the comma inside parenthesis otherwise the string is passed as is
+					thread = threading.Thread(target = self.builder_name_dict[action], args = (file_path,))
 
-		logging.debug("bsp list: " + str(self.bsp_list))
-		for bsp_path in self.bsp_list:
-			self.createMiniMap(bsp_path)
-			self.createNavMeshes(bsp_path)
+					while threading.active_count() > multiprocessing.cpu_count():
+						pass
+
+					thread.start()
 
 	def ignoreFile(self, file_path):
 		logging.debug("Ignoring: " + file_path)
@@ -556,8 +599,10 @@ class PakBuilder():
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
 		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
+
 		if ext == "bsp":
-			self.bsp_list.append(file_path)
+			bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
+			bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=['nav', 'minimap'])
 
 	def convertJpg(self, file_path):
 		source_path = self.getSourcePath(file_path)
@@ -700,12 +745,13 @@ class PakBuilder():
 	def mergeBsp(self, file_path):
 		source_path = self.getSourcePath(self.getDirBspDirNewName(file_path))
 		build_path = self.getBuildPath(self.getDirBspNewName(file_path))
+
 		self.createSubdirs(build_path)
 		bspdir_path = self.getDirBspDirNewName(file_path)
 		bsp_path = self.getDirBspNewName(file_path)
-		if bspdir_path in self.bsp_list:
-			log.warning("Bsp file already there, will do nothing with: " + build_path)
-			return
+		# TODO if file already there
+		#	log.warning("Bsp file already there, will do nothing with: " + build_path)
+		#	return
 		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
@@ -716,12 +762,14 @@ class PakBuilder():
 				self.pak_list.active_action_dict["merge_bsp"].remove(sub_path)
 			else:
 				logging.debug("file not from same bspdir: " + sub_path)
-		bsp = BspCutter.Bsp()
+		bsp = GrToolbox.BspCutter.Bsp()
 		bsp.readDir(source_path)
 		# TODO: if verbose
 		bsp.writeFile(build_path)
 		shutil.copystat(source_path, build_path)
-		self.bsp_list.append(bsp_path)
+
+		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
+		bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=['nav', 'minimap'])
 
 	def compileBsp(self, file_path):
 		source_path = self.getSourcePath(file_path)
@@ -729,9 +777,9 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileBspNewName(file_path))
 		bsp_path = self.getFileBspNewName(file_path)
 		self.createSubdirs(build_path)
-		if build_path in self.bsp_list:
-			log.warning("Bsp file already there, will only copy: " + source_path)
-			return
+		# TODO if file already there
+		#	log.warning("Bsp file already there, will only copy: " + source_path)
+		#	return
 		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file " + build_path + ", will only copy: " + source_path)
 			return
@@ -740,29 +788,6 @@ class PakBuilder():
 
 		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, os.path.dirname(build_path))
-
-		# TODO: for all files created
-#		shutil.copystat(source_path, build_path)
-
-		log.print("Copying map: " + file_path)
-		shutil.copyfile(source_path, copy_path)
-		shutil.copystat(source_path, copy_path)
-
-		self.bsp_list.append(bsp_path)
-
-	def createMiniMap(self, file_path):
-		build_path = self.getBuildPath(file_path)
-		# TODO: if minimap not newer
-		# TODO: put q3map2 profile in game profile
-		log.print("Creating MiniMap for: " + file_path)
-#		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper")
-		subprocess.call([q3map2_helper_path, "--minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-
-	def createNavMeshes(self, file_path):
-		build_path = self.getBuildPath(file_path)
-		log.print("Creating NavMeshes for: " + file_path)
-		subprocess.call(["q3map2", "-game", "unvanquished", "-nav", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 
 	def getExt(self, file_path):
 		return os.path.splitext(file_path)[1][len(os.path.extsep):].lower()
