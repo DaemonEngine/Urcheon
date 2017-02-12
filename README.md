@@ -86,7 +86,7 @@ optional arguments:
                         write to .map file FILENAME
 ```
 
-The `pak_mallet` tool relies on [q3map2 from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet` to build map packages.
+The `pak_mallet` tool relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet` to build map packages. Other `pak_mallet` dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from Sauerbraten](http://sauerbraten.org/iqm/).
 
 
 ```
