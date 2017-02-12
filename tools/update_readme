@@ -26,7 +26,7 @@ Help
 ----
 
 ```
-$ ./bsp_cutter -h
+$ bsp_cutter -h
 EOF
 
 ./bsp_cutter -h
@@ -37,7 +37,7 @@ cat <<\EOF
 Currently, `map_cutter` does not parse vertex matrices yet, it carbon copies them instead.
 
 ```
-$ ./map_cutter -h
+$ map_cutter -h
 EOF
 
 ./map_cutter -h
@@ -49,7 +49,7 @@ The `pak_mallet` tool relies on [q3map2 from netradiant](https://gitlab.com/xono
 
 
 ```
-$ ./pak_mallet -h
+$ pak_mallet -h
 EOF
 
 ./pak_mallet -h

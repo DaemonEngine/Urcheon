@@ -17,7 +17,7 @@ Help
 ----
 
 ```
-$ ./bsp_cutter -h
+$ bsp_cutter -h
 usage: bsp_cutter [-h] [-D] [-ib FILENAME] [-id DIRNAME] [-ob FILENAME]
                   [-od DIRNAME] [-ie FILENAME] [-oe FILENAME] [-it FILENAME]
                   [-ot FILENAME] [-il DIRNAME] [-ol DIRNAME] [-sl] [-la] [-lL]
@@ -64,7 +64,7 @@ optional arguments:
 Currently, `map_cutter` does not parse vertex matrices yet, it carbon copies them instead.
 
 ```
-$ ./map_cutter -h
+$ map_cutter -h
 usage: map_cutter [-h] [-D] [-im FILENAME] [-ob FILENAME] [-se FILENAME] [-dn]
                   [-om FILENAME]
 
@@ -90,7 +90,7 @@ The `pak_mallet` tool relies on [q3map2 from netradiant](https://gitlab.com/xono
 
 
 ```
-$ ./pak_mallet -h
+$ pak_mallet -h
 usage: pak_mallet [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
                   [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
                   [-mp PROFILE] [-ev VERSION] [-u] [-b] [-p]
