@@ -263,11 +263,11 @@ class PakList():
 						logging.debug("known action: " + action + " for file: " + file_path)
 						self.active_action_dict[action].append(file_path)
 					else:
-						log.print("Disabling action: " + action + " for missing file: " + file_path)
+						log.print("disabling action: " + action + " for missing file: " + file_path)
 						self.computed_inactive_action_dict[action].append(file_path)
 
 		else:
-			log.print("List not found will create: " + self.pak_list_file_name)
+			log.print("List not found: " + self.pak_list_file_name)
 
 	def computeActions(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.file_dir):
@@ -318,6 +318,9 @@ class PakList():
 						action = self.inspector.inspect(file_path)
 						self.computed_active_action_dict[action].append(file_path)
 
+				self.active_action_dict = self.computed_active_action_dict
+				self.active_inaction_dict = self.computed_inactive_action_dict
+
 	def writeActions(self):
 		pak_info_subdir = os.path.dirname(self.pak_list_file_name)
 		if os.path.isdir(pak_info_subdir):
@@ -327,12 +330,12 @@ class PakList():
 			os.makedirs(pak_info_subdir)
 
 		pak_list_file = open(self.pak_list_file_name, "w")
-		for action in self.computed_active_action_dict.keys():
-			for file_path in sorted(self.computed_active_action_dict[action]):
+		for action in self.active_action_dict.keys():
+			for file_path in sorted(self.active_action_dict[action]):
 				line = action + " " + file_path
 				pak_list_file.write(line + "\n")
 		for action in self.computed_inactive_action_dict.keys():
-			for file_path in sorted(self.computed_inactive_action_dict[action]):
+			for file_path in sorted(self.inactive_action_dict[action]):
 				line = "#" + action + " " + file_path
 				pak_list_file.write(line + "\n")
 		pak_list_file.close()
@@ -441,13 +444,15 @@ class BspCompiler():
 
 
 class PakBuilder():
-	def __init__(self, source_dir, build_dir, game_name, map_profile):
+	def __init__(self, source_dir, build_dir, game_name, map_profile, compute_actions=False):
 		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.game_name = game_name
 		self.map_profile = map_profile
 		self.pak_list = PakList(source_dir, game_name)
 		self.pak_list.readActions()
+		if compute_actions:
+			self.pak_list.computeActions()
 		self.bsp_list = []
 
 		# I want actions executed in this order
@@ -876,6 +881,7 @@ def main():
 	args.add_argument("-ev", "--extra-version", dest="extra_version", metavar="VERSION", help="add %(metavar)s to pk3 version string")
 	args.add_argument("-u", "--update", dest="update", help="update paklist", action="store_true")
 	args.add_argument("-b", "--build", dest="build", help="build pak", action="store_true")
+	args.add_argument("-a", "--auto", dest="compute_actions", help="compute actions at build time", action="store_true")
 	args.add_argument("-p", "--package", dest="package", help="compress pak", action="store_true")
 
 	args = args.parse_args()
@@ -937,7 +943,10 @@ def main():
 			test_dir = build_prefix + os.path.sep + test_parent + os.path.sep + pak_pakname + "_test" + os.path.extsep + "pk3dir"
 
 	if args.build:
-		builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile)
+		if args.compute_actions:
+			builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile, compute_actions=True)
+		else:
+			builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile)
 		builder.build()
 
 	if args.package:
