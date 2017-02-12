@@ -21,7 +21,7 @@ import configparser
 import tempfile
 from collections import OrderedDict
 
-import bsp_cutter
+import GrToolbox.BspCutter
 
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
@@ -693,7 +693,7 @@ class PakBuilder():
 				self.pak_list.active_action_dict["merge_bsp"].remove(sub_path)
 			else:
 				logging.debug("file not from same bspdir: " + sub_path)
-		bsp = bsp_cutter.Bsp()
+		bsp = BspCutter.Bsp()
 		bsp.readDir(source_path)
 		# TODO: if verbose
 		bsp.writeFile(build_path)
