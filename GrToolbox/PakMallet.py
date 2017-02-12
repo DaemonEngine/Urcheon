@@ -344,10 +344,15 @@ class BspCompiler():
 		self.source_dir = source_dir
 		self.map_profile = map_profile
 		self.build_stage_dict = OrderedDict()
+
 		# I want compilation in this order:
 		self.build_stage_dict["bsp"] = None
 		self.build_stage_dict["vis"] = None
 		self.build_stage_dict["light"] = None
+
+		# TODO: set something else for quiet and verbose mode
+		self.subprocess_stdout = None;
+		self.subprocess_stderr = None;
 
 		# TODO: check
 		default_ini_file = game_name + os.path.extsep + "ini"
@@ -426,7 +431,7 @@ class BspCompiler():
 			logging.debug("call list: " + str(call_list))
 			# TODO: verbose?
 			log.print("Build command: " + " ".join(call_list))
-			subprocess.call(call_list)
+			subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 
 		if os.path.isfile(prt_path):
 			os.remove(prt_path)
@@ -460,6 +465,10 @@ class PakBuilder():
 		self.builder_name_dict["convert_opus"] =			self.convertOpus
 		self.builder_name_dict["keep"] =					self.keepFile
 		self.builder_name_dict["ignore"] =					self.ignoreFile
+
+		# TODO: set something else in verbose mode
+		self.subprocess_stdout = subprocess.DEVNULL;
+		self.subprocess_stderr = subprocess.DEVNULL;
 
 	def getSourcePath(self, file_path):
 		return self.source_dir + os.path.sep + file_path
@@ -518,7 +527,7 @@ class PakBuilder():
 			self.createNavMeshes(bsp_path)
 
 	def ignoreFile(self, file_path):
-		logging.debug("ignoring: " + file_path)
+		logging.debug("Ignoring: " + file_path)
 
 	def keepFile(self, file_path):
 		source_path = self.getSourcePath(file_path)
@@ -527,7 +536,7 @@ class PakBuilder():
 		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
-		log.print("Keeping: " + file_path)
+		log.print("Keep: " + file_path)
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
 
@@ -538,7 +547,7 @@ class PakBuilder():
 		if not self.isDifferent(source_path, build_path):
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
-		log.print("Copying: " + file_path)
+		log.print("Copy: " + file_path)
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
 		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
@@ -557,7 +566,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to jpg: " + file_path)
-			subprocess.call(["convert", "-verbose", "-quality", "92", source_path, build_path])
+			subprocess.call(["convert", "-verbose", "-quality", "92", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
 	def convertPng(self, file_path):
@@ -572,7 +581,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to png: " + file_path)
-			subprocess.call(["convert", "-verbose", "-quality", "100", source_path, build_path])
+			subprocess.call(["convert", "-verbose", "-quality", "100", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
 	def convertLossyWebp(self, file_path):
@@ -588,8 +597,8 @@ class PakBuilder():
 		else:
 			log.print("Convert to lossy webp: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "png")
-			subprocess.call(["convert", "-verbose", source_path, transient_path])
-			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path])
+			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
@@ -607,8 +616,8 @@ class PakBuilder():
 		else:
 			log.print("Convert to lossless webp: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "png")
-			subprocess.call(["convert", "-verbose", source_path, transient_path])
-			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path])
+			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
@@ -627,8 +636,8 @@ class PakBuilder():
 		else:
 			log.print("Convert to crn: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
-			subprocess.call(["convert", "-verbose", source_path, transient_path])
-			subprocess.call(["crunch", "-file", transient_path, "-quality", "255", "-out", build_path])
+			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			subprocess.call(["crunch", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
@@ -646,8 +655,8 @@ class PakBuilder():
 		else:
 			log.print("Convert to crn: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
-			subprocess.call(["convert", "-verbose", source_path, transient_path])
-			subprocess.call(["crunch", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
+			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			subprocess.call(["crunch", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
@@ -665,7 +674,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to opus: " + file_path)
-			subprocess.call(["opusenc", source_path, build_path])
+			subprocess.call(["opusenc", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
 	def compileIqm(self, file_path):
@@ -680,7 +689,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Compiling to iqm: " + file_path)
-			subprocess.call(["iqm", build_path, source_path])
+			subprocess.call(["iqm", build_path, source_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
 	def mergeBsp(self, file_path):
@@ -741,14 +750,14 @@ class PakBuilder():
 		# TODO: if minimap not newer
 		# TODO: put q3map2 profile in game profile
 		log.print("Creating MiniMap for: " + file_path)
-#		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path])
+#		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper")
-		subprocess.call([q3map2_helper_path, "--minimap", build_path])
+		subprocess.call([q3map2_helper_path, "--minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 
 	def createNavMeshes(self, file_path):
 		build_path = self.getBuildPath(file_path)
 		log.print("Creating NavMeshes for: " + file_path)
-		subprocess.call(["q3map2", "-game", "unvanquished", "-nav", build_path])
+		subprocess.call(["q3map2", "-game", "unvanquished", "-nav", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 
 	def getExt(self, file_path):
 		return os.path.splitext(file_path)[1][len(os.path.extsep):].lower()
