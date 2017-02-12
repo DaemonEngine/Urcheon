@@ -237,7 +237,7 @@ class Lightmaps():
 	def readDir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
 		self.lightmap_list = []
-		file_list = sorted(glob.glob(dir_name + "/lm_*.*"))
+		file_list = sorted(glob.glob(dir_name + os.path.sep + "lm_*" + os.path.extsep + "*"))
 		for file_name in file_list:
 			debug("loading lightmap: " + file_name)
 			image = Image.open(file_name)
@@ -258,10 +258,10 @@ class Lightmaps():
 			os.makedirs(dir_name)
 
 		for i in range(0, len(self.lightmap_list)):
-			file_name = "lm_" + str(i).zfill(4) + ".tga"
+			file_name = "lm_" + str(i).zfill(4) + os.path.extsep + "tga"
 
 			# TODO: os independent:
-			file_path = dir_name + "/" + file_name
+			file_path = dir_name + os.path.sep + file_name
 			# TODO: check
 			lightmap_file = open(file_path, "wb")
 
@@ -373,7 +373,7 @@ class Bsp():
 	def readDir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
 		for lump_name in lump_name_list:
-			file_list = glob.glob(dir_name + "/" + lump_name + ".*")
+			file_list = glob.glob(dir_name + os.path.sep + lump_name + os.path.extsep + "*")
 
 			if len(file_list) > 1:
 				error("more than one " + lump_name + " lump in bspdir")
@@ -384,8 +384,8 @@ class Bsp():
 				continue
 
 			file_path = file_list[0]
-			file_ext = file_path.split(".")[-1]
-			file_name = file_path.split("/")[-1][: -(len(file_ext) +1)]
+			file_ext = os.path.splitext(file_path)[-1][1:]
+			file_name = os.path.splitext(os.path.basename(file_path))[0]
 
 			if file_ext == "bin":
 				if file_name in lump_name_list:
@@ -531,18 +531,17 @@ class Bsp():
 			if entity == "entities":
 				entities = Entities()
 				entities.importLump(self.lump_dict["entities"])
-				# TODO: sanitize '/'
-				entities.writeFile(dir_name + "/entities.txt")
+				entities.writeFile(dir_name + os.path.sep + "entities" + os.path.extsep + "txt")
 			elif entity == "textures":
 				textures = Textures()
 				textures.importLump(self.lump_dict["textures"])
-				textures.writeFile(dir_name + "/textures.csv")
+				textures.writeFile(dir_name + os.path.sep + "textures" + os.path.extsep + "csv")
 			elif entity == "lightmaps":
 				lightmaps = Lightmaps()
 				lightmaps.importLump(self.lump_dict["lightmaps"])
-				lightmaps.writeDir(dir_name + "/lightmaps.d")
+				lightmaps.writeDir(dir_name + os.path.sep + "lightmaps" + os.path.extsep + "d")
 			else:
-				blob_file = open(dir_name + '/' + entity + ".bin", "wb")
+				blob_file = open(dir_name + os.path.sep + entity + os.path.extsep + "bin", "wb")
 				blob_file.write(self.lump_dict[entity])
 				blob_file.close()
 

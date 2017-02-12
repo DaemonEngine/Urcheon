@@ -204,7 +204,7 @@ class Inspector():
 class PakList():
 	def __init__(self, file_dir, game_name):
 		self.file_dir = file_dir
-		self.pak_list_file_name = ".pakinfo/paklist"
+		self.pak_list_file_name = ".pakinfo" + os.path.sep + "paklist"
 
 		self.blacklist = [
 			"Thumbs.db",
@@ -221,7 +221,7 @@ class PakList():
 			"build",
 		]
 
-		pak_ignore_list_file_name = ".pakinfo/pakignore"
+		pak_ignore_list_file_name = ".pakinfo" + os.path.sep + "pakignore"
 		if os.path.isfile(pak_ignore_list_file_name):
 			pak_ignore_list_file = open(pak_ignore_list_file_name, "r")
 			line_list = [line.strip() for line in pak_ignore_list_file]
@@ -389,8 +389,8 @@ class BspCompiler():
 			log.print("Customized build profile found: " + map_profile_path)
 			self.readIni(map_profile_path)
 
-		prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + ".prt")
-		srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + ".srf")
+		prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "prt")
+		srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "srf")
 		bsp_path = build_prefix + os.path.sep + map_base + os.path.extsep + "bsp"
 
 		for build_stage in self.build_stage_dict.keys():
@@ -578,7 +578,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to lossy webp: " + file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient.png")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path])
 			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
@@ -597,7 +597,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to lossless webp: " + file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient.png")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path])
 			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
@@ -617,7 +617,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to crn: " + file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient.tga")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path])
 			subprocess.call(["crunch", "-file", transient_path, "-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_path):
@@ -636,7 +636,7 @@ class PakBuilder():
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to crn: " + file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient.tga")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path])
 			subprocess.call(["crunch", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_path):
@@ -745,31 +745,31 @@ class PakBuilder():
 		return os.path.splitext(file_path)[1][len(os.path.extsep):].lower()
 
 	def getFileJpgNewName(self, file_path):
-		return os.path.splitext(file_path)[0] + ".jpg"
+		return os.path.splitext(file_path)[0] + os.path.extsep + "jpg"
 
 	def getFilePngNewName(self, file_path):
-		return os.path.splitext(file_path)[0] + ".png"
+		return os.path.splitext(file_path)[0] + os.path.extsep + "png"
 
 	def getFileWebpNewName(self, file_path):
-		return os.path.splitext(file_path)[0] + ".webp"
+		return os.path.splitext(file_path)[0] + os.path.extsep + "webp"
 
 	def getFileCrnNewName(self, file_path):
-		return os.path.splitext(file_path)[0] + ".crn"
+		return os.path.splitext(file_path)[0] + os.path.extsep + "crn"
 
 	def getFileOpusNewName(self, file_path):
-		return os.path.splitext(file_path)[0] + ".opus"
+		return os.path.splitext(file_path)[0] + os.path.extsep + "opus"
 
 	def getFileIqmNewName(self, file_path):
-		return os.path.splitext(file_path)[0] + ".iqm"
+		return os.path.splitext(file_path)[0] + os.path.extsep + "iqm"
 
 	def getFileBspNewName(self, file_path):
-		return os.path.splitext(file_path)[0] + ".bsp"
+		return os.path.splitext(file_path)[0] + os.path.extsep + "bsp"
 
 	def getDirBspDirNewName(self, file_path):
-		return file_path.split(".bspdir")[0] + ".bspdir"
+		return file_path.split(os.path.extsep + "bspdir")[0] + os.path.extsep + "bspdir"
 
 	def getDirBspNewName(self, file_path):
-		return file_path.split(".bspdir")[0] + ".bsp"
+		return file_path.split(os.path.extsep + "bspdir")[0] + os.path.extsep + "bsp"
 
 
 class Packer():
@@ -916,7 +916,7 @@ def main():
 			pak_pakname = pak_info.getKey("pakname")
 			if not pak_pakname:
 				return
-			test_dir = build_prefix + os.path.sep + test_parent + os.path.sep + pak_pakname + "_test.pk3dir"
+			test_dir = build_prefix + os.path.sep + test_parent + os.path.sep + pak_pakname + "_test" + os.path.extsep + "pk3dir"
 
 	if args.build:
 		builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile)
@@ -935,7 +935,7 @@ def main():
 				return
 			if args.extra_version:
 				pak_version += args.extra_version
-			pkg_file = build_prefix + os.path.sep + pkg_parent + os.path.sep + pak_pakname + "_" + pak_version + ".pk3"
+			pkg_file = build_prefix + os.path.sep + pkg_parent + os.path.sep + pak_pakname + "_" + pak_version + os.path.extsep + "pk3"
 
 		packer = Packer(test_dir, pkg_file)
 		packer.pack()
