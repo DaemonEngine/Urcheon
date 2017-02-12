@@ -733,7 +733,7 @@ class PakBuilder():
 		# TODO: put q3map2 profile in game profile
 		log.print("Creating MiniMap for: " + file_path)
 #		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path])
-		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper.sh")
+		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper")
 		subprocess.call([q3map2_helper_path, "--minimap", build_path])
 
 	def createNavMeshes(self, file_path):

@@ -26,33 +26,33 @@ Help
 ----
 
 ```
-$ ./bsp_cutter.py -h
+$ ./bsp_cutter -h
 EOF
 
-./bsp_cutter.py -h
+./bsp_cutter -h
 
 cat <<\EOF
 ```
 
-Currently, `map_cutter.py` does not parse vertex matrices yet, it carbon copies them instead.
+Currently, `map_cutter` does not parse vertex matrices yet, it carbon copies them instead.
 
 ```
-$ ./map_cutter.py -h
+$ ./map_cutter -h
 EOF
 
-./map_cutter.py -h
+./map_cutter -h
 
 cat <<\EOF
 ```
 
-The `pak_mallet.py` tool relies on [q3map2 from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet.py` to build map packages.
+The `pak_mallet` tool relies on [q3map2 from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet` to build map packages.
 
 
 ```
-$ ./pak_mallet.py -h
+$ ./pak_mallet -h
 EOF
 
-./pak_mallet.py -h
+./pak_mallet -h
 
 cat <<\EOF
 ```

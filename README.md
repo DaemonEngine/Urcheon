@@ -17,13 +17,13 @@ Help
 ----
 
 ```
-$ ./bsp_cutter.py -h
-usage: bsp_cutter.py [-h] [-D] [-ib FILENAME] [-id DIRNAME] [-ob FILENAME]
-                     [-od DIRNAME] [-ie FILENAME] [-oe FILENAME]
-                     [-it FILENAME] [-ot FILENAME] [-il DIRNAME] [-ol DIRNAME]
-                     [-sl] [-la] [-lL] [-le] [-ls] [-lt] [-ll] [-pe]
+$ ./bsp_cutter -h
+usage: bsp_cutter [-h] [-D] [-ib FILENAME] [-id DIRNAME] [-ob FILENAME]
+                  [-od DIRNAME] [-ie FILENAME] [-oe FILENAME] [-it FILENAME]
+                  [-ot FILENAME] [-il DIRNAME] [-ol DIRNAME] [-sl] [-la] [-lL]
+                  [-le] [-ls] [-lt] [-ll] [-pe]
 
-bsp_cutter.py is a BSP parser for my lovely granger.
+bsp_cutter is a BSP parser for my lovely granger.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -61,14 +61,14 @@ optional arguments:
                         print entities
 ```
 
-Currently, `map_cutter.py` does not parse vertex matrices yet, it carbon copies them instead.
+Currently, `map_cutter` does not parse vertex matrices yet, it carbon copies them instead.
 
 ```
-$ ./map_cutter.py -h
-usage: map_cutter.py [-h] [-D] [-im FILENAME] [-ob FILENAME] [-se FILENAME]
-                     [-dn] [-om FILENAME]
+$ ./map_cutter -h
+usage: map_cutter [-h] [-D] [-im FILENAME] [-ob FILENAME] [-se FILENAME] [-dn]
+                  [-om FILENAME]
 
-map_cutter.py is a map parser for my lovely granger.
+map_cutter is a map parser for my lovely granger.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -86,16 +86,16 @@ optional arguments:
                         write to .map file FILENAME
 ```
 
-The `pak_mallet.py` tool relies on [q3map2 from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet.py` to build map packages.
+The `pak_mallet` tool relies on [q3map2 from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet` to build map packages.
 
 
 ```
-$ ./pak_mallet.py -h
-usage: pak_mallet.py [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
-                     [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
-                     [-mp PROFILE] [-ev VERSION] [-u] [-b] [-p]
+$ ./pak_mallet -h
+usage: pak_mallet [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
+                  [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
+                  [-mp PROFILE] [-ev VERSION] [-u] [-b] [-p]
 
-pak_mallet.py is a pak builder for my lovely granger.
+pak_mallet is a pak builder for my lovely granger.
 
 optional arguments:
   -h, --help            show this help message and exit
