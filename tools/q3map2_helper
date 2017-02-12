@@ -135,12 +135,12 @@ _help () {
 	${TAB}print this help
 
 	EXAMPLES:
-	${0} --arena map-sweet.pk3dir/maps/sweet.bsp "Sweet map for the lovely granger"
-	${TAB}create the file map-sweet.pk3dir/meta/sweep/sweet.arena
-	${0} --minimap map-sweet.pk3dir/maps/sweet.bsp
-	${TAB}create map-sweet.pk3dir/minimaps/sweet.crn and map-sweet.pk3dir/minimaps/sweet.minimap
-	${0} --navmesh map-sweet.pk3dir/maps/sweet.bsp
-	${TAB}create map-sweet.pk3dir/maps/sweet-*.navMesh files
+	${0} --arena map-sweet_version.pk3dir/maps/sweet.bsp "Sweet map for the lovely granger"
+	${TAB}create the file map-sweet_version.pk3dir/meta/sweep/sweet.arena
+	${0} --minimap map-sweet_version.pk3dir/maps/sweet.bsp
+	${TAB}create map-sweet_version.pk3dir/minimaps/sweet.crn and map-sweet_version.pk3dir/minimaps/sweet.minimap
+	${0} --navmesh map-sweet_version.pk3dir/maps/sweet.bsp
+	${TAB}create map-sweet_version.pk3dir/maps/sweet-*.navMesh files
 
 	ENVIRONMENT:
 

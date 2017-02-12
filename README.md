@@ -93,7 +93,7 @@ The `pak_mallet` tool relies on [q3map2 from netradiant](https://gitlab.com/xono
 $ pak_mallet -h
 usage: pak_mallet [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
                   [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
-                  [-mp PROFILE] [-ev VERSION] [-u] [-b] [-p]
+                  [-mp PROFILE] [-ev VERSION] [-u] [-b] [-a] [-p]
 
 pak_mallet is a pak builder for my lovely granger.
 
@@ -108,22 +108,23 @@ optional arguments:
   -bp DIRNAME, --build-prefix DIRNAME
                         build in prefix DIRNAME, default: build
   -tp DIRNAME, --test-parent DIRNAME
-                        build test pk3dir in parent directory DIRNAME,
+                        build test pakdir in parent directory DIRNAME,
                         default: test
   -pp DIRNAME, --pkg-parent DIRNAME
-                        build release pk3 in parent directory DIRNAME,
+                        build release pak in parent directory DIRNAME,
                         default: pkg
   -td DIRNAME, --test-dir DIRNAME
-                        build test pk3dir as directory DIRNAME
+                        build test pakdir as directory DIRNAME
   -pf FILENAME, --pkg-file FILENAME
-                        build release pk3 as file FILENAME
+                        build release pak as file FILENAME
   -mp PROFILE, --map-profile PROFILE
                         build map with profile PROFILE, default: fast
   -ev VERSION, --extra-version VERSION
-                        add VERSION to pk3 version string
-  -u, --update          update paklist
-  -b, --build           build pak
-  -p, --package         compress pak
+                        add VERSION to pak version string
+  -u, --update          update paklist, compute actions
+  -b, --build           build source pakdir
+  -a, --auto            compute actions at build time and do not store paklist
+  -p, --package         compress release pak
 ```
 
 Warning
