@@ -551,7 +551,7 @@ class Bsp():
 	def exportLump(self, lump_name):
 		return self.lump_dict[lump_name]
 
-def main(argv):
+def main():
 	# TODO: check files
 
 	args = argparse.ArgumentParser(description="%(prog)s is a BSP parser for my lovely granger.")
@@ -707,4 +707,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-	main(sys.argv[1:])
+	main()
