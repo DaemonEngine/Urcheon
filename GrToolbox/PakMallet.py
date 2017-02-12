@@ -19,6 +19,8 @@ import fnmatch
 import zipfile
 import configparser
 import tempfile
+import threading
+import multiprocessing
 from collections import OrderedDict
 
 import GrToolbox.BspCutter
@@ -499,9 +501,16 @@ class PakBuilder():
 			for file_path in self.pak_list.active_action_dict[action]:
 
 				#TODO: if not source_path
-
 				source_path = self.getSourcePath(file_path)
-				self.builder_name_dict[action](file_path)
+
+				# no need to use multiprocessing to manage task contention, since each task will call its own process
+				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
+
+				# threading.Thread's args expect an iterable, hence the comma inside parenthesis otherwise the string is passed as is
+				thread = threading.Thread(target = self.builder_name_dict[action], args = (file_path,))
+				while threading.active_count() > multiprocessing.cpu_count():
+					pass
+				thread.start()
 
 		logging.debug("bsp list: " + str(self.bsp_list))
 		for bsp_path in self.bsp_list:
