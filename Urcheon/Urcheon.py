@@ -88,10 +88,10 @@ class ArgStage():
 
 def main():
 	arg_stage = ArgStage()
-	arg_stage.description="urcheon is a tender knight to care for my lovely granger's little flower."
-	arg_stage.addStage("map", help="map cutter")
-	arg_stage.addStage("bsp", help="bsp cutter")
-	arg_stage.addStage("pak", help="pak mallet")
+	arg_stage.description="urcheon is a tender knight who takes care of my lovely granger's little flower."
+	arg_stage.addStage("map", help="map parser")
+	arg_stage.addStage("bsp", help="bsp parser")
+	arg_stage.addStage("pak", help="pak builder")
 
 	arg_stage = arg_stage.parseArgs()
 
