@@ -886,6 +886,16 @@ class Packer():
 		log.print("Package written: " + self.pk3_path)
 
 
+class Cleaner():
+	def __init__(self):
+		None
+
+	def cleanTest(self, test_dir):
+		None
+
+	def cleanPaks(self, pkg_dir, pak_name):
+		None
+
 class PakInfo():
 	def __init__(self, source_dir):
 		pak_info_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pakinfo"
@@ -922,8 +932,8 @@ def main():
 	args.add_argument("-g", "--game-profile", dest="game_profile", metavar="GAMENAME", default="unvanquished", help="use game profile %(metavar)s, default: %(default)s")
 	args.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
 	args.add_argument("-bp", "--build-prefix", dest="build_prefix", metavar="DIRNAME", default="build", help="build in prefix %(metavar)s, default: %(default)s")
-	args.add_argument("-tp", "--test-parent", dest="test_parent", metavar="DIRNAME", default="test", help="build test pakdir in parent directory %(metavar)s, default: %(default)s")
-	args.add_argument("-pp", "--pkg-parent", dest="pkg_parent", metavar="DIRNAME", default="pkg", help="build release pak in parent directory %(metavar)s, default: %(default)s")
+	args.add_argument("-tp", "--test-parent", dest="test_parent_dir", metavar="DIRNAME", default="test", help="build test pakdir in parent directory %(metavar)s, default: %(default)s")
+	args.add_argument("-pp", "--pkg-parent", dest="release_parent_dir", metavar="DIRNAME", default="pkg", help="build release pak in parent directory %(metavar)s, default: %(default)s")
 	args.add_argument("-td", "--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
 	args.add_argument("-pf", "--pkg-file", dest="pkg_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
 	args.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", default="fast", help="build map with profile %(metavar)s, default: %(default)s")
@@ -932,12 +942,13 @@ def main():
 	args.add_argument("-b", "--build", dest="build", help="build source pakdir", action="store_true")
 	args.add_argument("-a", "--auto", dest="compute_actions", help="compute actions at build time and do not store paklist", action="store_true")
 	args.add_argument("-p", "--package", dest="package", help="compress release pak", action="store_true")
+	args.add_argument("-c", "--clean", dest="clean", help="clean previous build", action="store_true")
 
 	args = args.parse_args()
 
 	env_build_prefix = os.getenv("BUILDPREFIX")
-	env_test_parent = os.getenv("TESTPARENT")
-	env_pkg_parent = os.getenv("PKGPARENT")
+	env_test_parent_dir = os.getenv("TESTPARENT")
+	env_release_parent_dir = os.getenv("PKGPARENT")
 
 	if args.debug:
 		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
@@ -951,7 +962,7 @@ def main():
 		pak_list = BuildList(args.source_dir, args.game_profile)
 		pak_list.updateActions()
 
-	if args.package or args.build:
+	if args.package or args.build or args.clean:
 		if args.build_prefix:
 			build_prefix = args.build_prefix
 
@@ -960,21 +971,21 @@ def main():
 				log.warning("build dir “" + build_prefix + "” superseded by env BUILDPREFIX: " + env_build_prefix)
 			build_prefix = env_build_prefix
 
-		if args.test_parent:
-			test_parent = args.test_parent
+		if args.test_parent_dir:
+			test_parent_dir = args.test_parent_dir
 
-		if env_test_parent:
-			if args.test_parent:
-				log.warning("build test dir “" + test_parent + "” superseded by env TESTPARENT: " + env_test_parent)
-			test_parent = env_test_parent
+		if env_test_parent_dir:
+			if args.test_parent_dir:
+				log.warning("build test dir “" + test_parent_dir + "” superseded by env TESTPARENT: " + env_test_parent_dir)
+			test_parent_dir = env_test_parent_dir
 
-		if args.pkg_parent:
-			pkg_parent = args.pkg_parent
+		if args.release_parent_dir:
+			release_parent_dir = args.release_parent_dir
 
-		if env_pkg_parent:
-			if args.pkg_parent:
-				log.warning("build pkg dir “" + pkg_parent + "” superseded by env PKGPARENT: " + env_pkg_parent)
-			pkg_parent = env_pkg_parent
+		if env_release_parent_dir:
+			if args.release_parent_dir:
+				log.warning("build pkg dir “" + release_parent_dir + "” superseded by env PKGPARENT: " + env_release_parent_dir)
+			release_parent_dir = env_release_parent_dir
 
 		if args.test_dir:
 			test_dir = args.test_dir
@@ -984,10 +995,10 @@ def main():
 			except:
 				return
 
-			pak_pakname = pak_info.getKey("pakname")
-			if not pak_pakname:
+			pak_name = pak_info.getKey("pakname")
+			if not pak_name:
 				return
-			test_dir = build_prefix + os.path.sep + test_parent + os.path.sep + pak_pakname + "_test" + os.path.extsep + "pk3dir"
+			test_dir = build_prefix + os.path.sep + test_parent_dir + os.path.sep + pak_name + "_test" + os.path.extsep + "pk3dir"
 
 	if args.build:
 		if args.compute_actions:
@@ -1003,16 +1014,21 @@ def main():
 			pak_info = PakInfo(args.source_dir)
 			if not pak_info:
 				return
-			pak_pakname = pak_info.getKey("pakname")
+			pak_name = pak_info.getKey("pakname")
 			pak_version = pak_info.getKey("version")
-			if not pak_pakname or not pak_version:
+			if not pak_name or not pak_version:
 				return
 			if args.extra_version:
 				pak_version += args.extra_version
-			pkg_file = build_prefix + os.path.sep + pkg_parent + os.path.sep + pak_pakname + "_" + pak_version + os.path.extsep + "pk3"
+			pkg_file = build_prefix + os.path.sep + release_parent_dir + os.path.sep + pak_name + "_" + pak_version + os.path.extsep + "pk3"
 
 		packer = Packer(test_dir, pkg_file)
 		packer.pack()
+
+	if args.clean:
+		cleaner = Cleaner()
+		cleaner.cleanTest(test_dir)
+		cleaner.cleanPaks(release_parent_dir, pak_name)
 
 
 if __name__ == "__main__":
