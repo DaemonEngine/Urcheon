@@ -897,31 +897,36 @@ class Cleaner():
 	def cleanPaks(self, pkg_dir, pak_name):
 		None
 
+
 class PakInfo():
 	def __init__(self, source_dir):
-		pak_info_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pakinfo"
-		logging.debug("reading pakinfo: " + pak_info_path)
+		# TODO: check absolute path (check in map ini too)
+		ini_pak_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pak" + os.path.extsep +  "ini"
+		self.pak_config = configparser.ConfigParser()
+		self.key_dict = None
+		self.readIni(ini_pak_path)
 
-		if not os.path.isfile(pak_info_path):
-			log.error("Missing pakinfo file")
-			raise Exception("pakinfo", "missing")
-			return
+	def readIni(self, ini_pak_path):
+		logging.debug("reading pak ini: " + ini_pak_path)
+		self.pak_config.read(ini_pak_path)
 
-		pak_info_file = open(pak_info_path, "r")
-		line_list = [line.strip() for line in pak_info_file]
-		pak_info_file.close()
+		logging.debug("build profiles: " + str(self.pak_config.sections()))
 
-		self.key_dict = {}
-		for line in line_list:
-			# TODO: regex
-			key, value = line.split(": ")
-			self.key_dict[key] = value
+		if not "config" in self.pak_config.sections():
+			logging.error("missing pak config: " + ini_pak_path)
+			# TODO: better error handling?
+			sys.exit()
+
+		logging.debug("pak config found: " + ini_pak_path)
+
+		self.key_dict = self.pak_config["config"]
 
 	def getKey(self, key_name):
+		# TODO: strip quotes
 		if key_name in self.key_dict.keys():
 			return self.key_dict[key_name]
 		else:
-			log.error("Unknown key in pakinfo file: " + key_name)
+			log.error("Unknown key in pak config: " + key_name)
 			return None
 
 
@@ -1001,10 +1006,12 @@ def main(stage=None):
 			try:
 				pak_info = PakInfo(args.source_dir)
 			except:
+				log.error("can't find pak configuration")
 				return
 
-			pak_name = pak_info.getKey("pakname")
+			pak_name = pak_info.getKey("name")
 			if not pak_name:
+				# TODO: error msg
 				return
 			test_dir = build_prefix + os.path.sep + test_parent_dir + os.path.sep + pak_name + "_test" + os.path.extsep + "pk3dir"
 
@@ -1013,6 +1020,7 @@ def main(stage=None):
 			builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile, compute_actions=True)
 		else:
 			builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile)
+
 		builder.build()
 
 	if args.package:
@@ -1021,10 +1029,13 @@ def main(stage=None):
 		else:
 			pak_info = PakInfo(args.source_dir)
 			if not pak_info:
+				log.error("can't find pak configuration")
 				return
-			pak_name = pak_info.getKey("pakname")
+
+			pak_name = pak_info.getKey("name")
 			pak_version = pak_info.getKey("version")
 			if not pak_name or not pak_version:
+				# TODO: error msg
 				return
 			if args.extra_version:
 				pak_version += args.extra_version
