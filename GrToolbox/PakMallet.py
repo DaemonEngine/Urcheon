@@ -327,7 +327,7 @@ class PakList():
 			logging.debug("found pakinfo subdir: " +  pak_info_subdir)
 		else:
 			logging.debug("create pakinfo subdir: " + pak_info_subdir)
-			os.makedirs(pak_info_subdir)
+			os.makedirs(pak_info_subdir, exist_ok=True)
 
 		pak_list_file = open(self.pak_list_file_name, "w")
 		for action in self.active_action_dict.keys():
@@ -538,7 +538,7 @@ class PakBuilder():
 			logging.debug("found build subdir: " +  build_subdir)
 		else:
 			logging.debug("create build subdir: " + build_subdir)
-			os.makedirs(build_subdir)
+			os.makedirs(build_subdir, exist_ok=True)
 
 	# TODO: buildpack
 	def build(self):
@@ -547,7 +547,7 @@ class PakBuilder():
 			logging.debug("found build dir: " + self.build_dir)
 		else:
 			logging.debug("create build dir: " + self.build_dir)
-			os.makedirs(self.build_dir)
+			os.makedirs(self.build_dir, exist_ok=True)
 
 		logging.debug("reading build list from source dir: " + self.source_dir)
 
@@ -834,7 +834,7 @@ class Packer():
 			logging.debug("found pack subdir: " +  pack_subdir)
 		else:
 			logging.debug("create pack subdir: " + pack_subdir)
-			os.makedirs(pack_subdir)
+			os.makedirs(pack_subdir, exist_ok=True)
 
 	def pack(self):
 		log.print("Packing " + self.pk3dir_path + " to: " + self.pk3_path)

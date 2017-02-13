@@ -255,7 +255,7 @@ class Lightmaps():
 
 	def writeDir(self, dir_name):
 		if not os.path.exists(dir_name):
-			os.makedirs(dir_name)
+			os.makedirs(dir_name, exist_ok=True)
 
 		for i in range(0, len(self.lightmap_list)):
 			file_name = "lm_" + str(i).zfill(4) + os.path.extsep + "tga"
@@ -525,7 +525,7 @@ class Bsp():
 
 	def writeDir(self, dir_name):
 		if not os.path.exists(dir_name):
-			os.makedirs(dir_name)
+			os.makedirs(dir_name, exist_ok=True)
 
 		for entity in lump_name_list:
 			if entity == "entities":
