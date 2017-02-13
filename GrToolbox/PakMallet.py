@@ -721,7 +721,21 @@ class PakBuilder():
 				os.remove(transient_path)
 		shutil.copystat(source_path, build_path)
 
-	# TODO: convertVorbis
+	def convertVorbis(self, file_path):
+		source_path = self.getSourcePath(file_path)
+		build_path = self.getBuildPath(self.getFileOpusNewName(file_path))
+		self.createSubdirs(build_path)
+		if not self.isDifferent(source_path, build_path):
+			log.verbose("Unmodified file, do nothing: " + file_path)
+			return
+		if self.getExt(file_path) == "ogg":
+			log.print("File already in vorbis, copy: " + file_path)
+			shutil.copyfile(source_path, build_path)
+		else:
+			log.print("Convert to vorbis: " + file_path)
+			subprocess.call(["ffmpeg", "-acodec", "libvorbis", "-i", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+		shutil.copystat(source_path, build_path)
+
 	def convertOpus(self, file_path):
 		source_path = self.getSourcePath(file_path)
 		build_path = self.getBuildPath(self.getFileOpusNewName(file_path))
