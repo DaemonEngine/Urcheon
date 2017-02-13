@@ -18,7 +18,7 @@ file_unvanquished_script = {
 }
 
 file_unvanquished_texture = {
-	"inherit": "file_common_texture",
+	"inherit": "file_common_pixmap",
 	"dir_ancestor_name": [
 		"textures",
 		"models",
@@ -65,7 +65,7 @@ file_unvanquished_jpg_skybox = {
 }
 
 file_unvanquished_lightmap = {
-	"inherit": "file_common_texture",
+	"inherit": "file_common_pixmap",
 	"file_prefix": "lm",
 	"dir_ancestor_name": "maps",
 	"dir_grand_father_name": "maps",
@@ -116,7 +116,7 @@ file_unvanquished_minimap = {
 }
 
 file_unvanquished_minimap_image = {
-	"inherit": "file_common_texture",
+	"inherit": "file_common_pixmap",
 	"dir_ancestor_name": "minimaps",
 	"description": "MiniMap image",
 	"action": "convert_crn",
@@ -153,7 +153,7 @@ file_unvanquished_arena = {
 }
 
 file_unvanquished_levelshot = {
-	"inherit": "file_common_texture",
+	"inherit": "file_common_pixmap",
 	"dir_ancestor_name": "meta",
 	"description": "LevelShot",
 	"action": "convert_jpg",
@@ -231,8 +231,7 @@ file_unvanquished_model = {
 }
 
 file_unvanquished_iqe_model = {
-	"inherit": "file_unvanquished_model",
-	"file_ext": "iqe",
+	"inherit": "file_common_iqe_model",
 	"dir_ancestor_name": "models",
 	"description": "IQE Model File",
 	"action": "compile_iqm",

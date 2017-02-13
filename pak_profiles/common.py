@@ -13,14 +13,23 @@ file_common_deps = {
 	"action": "copy",
 }
 
-file_common_external_editor = {
+file_common_pixmap_editor = {
 	"file_ext": [
 		"xcf",
 		"psd",
 		"ora",
 	],
-	"description": "External Editor File",
+	"description": "Pixmap Editor File",
 	"action": "ignore",
+}
+
+file_common_vector_picture = {
+	"file_ext": [
+		"svg",
+		"svgz",
+	],
+	"description": "Vector picture",
+	"action": "ignore"
 }
 
 file_common_metada_sidecar = {
@@ -31,7 +40,7 @@ file_common_metada_sidecar = {
 	"action": "ignore",
 }
 
-file_common_texture = {
+file_common_pixmap = {
 	"file_ext": [
 		"jpg", 
 		"jpeg",
@@ -80,6 +89,13 @@ file_common_model = {
 	],
 	"description": "Common Model File",
 	"action": "copy",
+}
+
+file_common_iqe_model = {
+	"inherit": "file_common_model",
+	"file_ext": "iqe",
+	"description": "Common IQE Model File",
+	"action": "compile_iqm",
 }
 
 file_common_model_source = {
