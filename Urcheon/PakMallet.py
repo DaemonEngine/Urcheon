@@ -7,6 +7,8 @@
 # License: ISC
 # 
 
+import Urcheon.BspCutter
+import __main__ as m
 import os
 import sys
 import shutil
@@ -23,7 +25,6 @@ import threading
 import multiprocessing
 from collections import OrderedDict
 
-import GrToolbox.BspCutter
 
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
@@ -786,7 +787,7 @@ class PakBuilder():
 				self.pak_list.active_action_dict["merge_bsp"].remove(sub_path)
 			else:
 				logging.debug("file not from same bspdir: " + sub_path)
-		bsp = GrToolbox.BspCutter.Bsp()
+		bsp = Urcheon.BspCutter.Bsp()
 		bsp.readDir(source_path)
 		# TODO: if verbose
 		bsp.writeFile(build_path)
@@ -924,9 +925,16 @@ class PakInfo():
 			return None
 
 
-def main():
+def main(stage=None):
 
-	args = argparse.ArgumentParser(description="%(prog)s is a pak builder for my lovely granger.")
+	if stage:
+		prog_name = os.path.basename(m.__file__) + " " + stage
+	else:
+		prog_name = os.path.basename(m.__file__)
+
+	description = "%(prog)s is a pak builder for my lovely granger."
+
+	args = argparse.ArgumentParser(description=description, prog=prog_name)
 	args.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	args.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	args.add_argument("-g", "--game-profile", dest="game_profile", metavar="GAMENAME", default="unvanquished", help="use game profile %(metavar)s, default: %(default)s")

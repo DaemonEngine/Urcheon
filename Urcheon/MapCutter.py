@@ -7,6 +7,8 @@
 # License: ISC
 # 
 
+import __main__ as m
+import os
 import sys
 import re
 import argparse
@@ -532,9 +534,16 @@ class KeyValueSubstitution():
 		return True
 
 
-def main():
+def main(stage=None):
 
-	args = argparse.ArgumentParser(description="%(prog)s is a map parser for my lovely granger.")
+	if stage:
+		prog_name = os.path.basename(m.__file__) + " " + stage
+	else:
+		prog_name = os.path.basename(m.__file__)
+
+	description="%(prog)s is a map parser for my lovely granger."
+
+	args = argparse.ArgumentParser(description=description, prog=prog_name)
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
 	args.add_argument("-ob", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")

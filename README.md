@@ -1,29 +1,31 @@
-Granger's gardening toolbox
-===========================
+Urcheon
+=======
+
+Urcheon is the Middle English term for “hedgehog”, used to refer the related ordinary in heraldry.
 
 ![Cute Granger](doc/cute-granger.512.png)  
-_My lovely granger needs a gardening toolbox to care for his little flower._
+_My lovely granger needs a tender knight to care for his little flower._
 
 Description
 -----------
 
 This is a toolset to modify `.map` and `.bsp` files and to package `.pk3` files.
 
-This toolbox is currently [Unvanquished](http://unvanquished.net)-centric, but could be extended in the future.
+This toolset is currently [Unvanquished](http://unvanquished.net)-centric, but could be extended in the future.
 
-This toolbox was developed for the [Interstellar Oasis](https://github.com/interstellar-oasis/interstellar-oasis) initiative.
+This toolset was initially developed for the [Interstellar Oasis](https://github.com/interstellar-oasis/interstellar-oasis) initiative.
 
 Help
 ----
 
 ```
-$ bsp_cutter -h
-usage: bsp_cutter [-h] [-D] [-ib FILENAME] [-id DIRNAME] [-ob FILENAME]
-                  [-od DIRNAME] [-ie FILENAME] [-oe FILENAME] [-it FILENAME]
-                  [-ot FILENAME] [-il DIRNAME] [-ol DIRNAME] [-sl] [-la] [-lL]
-                  [-le] [-ls] [-lt] [-ll] [-pe]
+$ urcheon bsp -h
+usage: urcheon bsp [-h] [-D] [-ib FILENAME] [-id DIRNAME] [-ob FILENAME]
+                   [-od DIRNAME] [-ie FILENAME] [-oe FILENAME] [-it FILENAME]
+                   [-ot FILENAME] [-il DIRNAME] [-ol DIRNAME] [-sl] [-la]
+                   [-lL] [-le] [-ls] [-lt] [-ll] [-pe]
 
-bsp_cutter is a BSP parser for my lovely granger.
+urcheon bsp is a BSP parser for my lovely granger.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -61,14 +63,14 @@ optional arguments:
                         print entities
 ```
 
-Currently, `map_cutter` does not parse vertex matrices yet, it carbon copies them instead.
+Currently, `urcheon map` does not parse vertex matrices yet, it carbon copies them instead.
 
 ```
-$ map_cutter -h
-usage: map_cutter [-h] [-D] [-im FILENAME] [-ob FILENAME] [-se FILENAME] [-dn]
-                  [-om FILENAME]
+$ urcheon map -h
+usage: urcheon map [-h] [-D] [-im FILENAME] [-ob FILENAME] [-se FILENAME]
+                   [-dn] [-om FILENAME]
 
-map_cutter is a map parser for my lovely granger.
+urcheon map is a map parser for my lovely granger.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -86,16 +88,16 @@ optional arguments:
                         write to .map file FILENAME
 ```
 
-The `pak_mallet` tool relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `pak_mallet` to build map packages. Other `pak_mallet` dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from Sauerbraten](http://sauerbraten.org/iqm/).
+The `urcheon pak` stage relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `urcheon pak` to build map packages. Other `urcheon pak` dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from Sauerbraten](http://sauerbraten.org/iqm/).
 
 
 ```
-$ pak_mallet -h
-usage: pak_mallet [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
-                  [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
-                  [-mp PROFILE] [-ev VERSION] [-u] [-b] [-a] [-p]
+$ urcheon pak -h
+usage: urcheon pak [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
+                   [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
+                   [-mp PROFILE] [-ev VERSION] [-u] [-b] [-a] [-p] [-c]
 
-pak_mallet is a pak builder for my lovely granger.
+urcheon pak is a pak builder for my lovely granger.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -125,6 +127,7 @@ optional arguments:
   -b, --build           build source pakdir
   -a, --auto            compute actions at build time and do not store paklist
   -p, --package         compress release pak
+  -c, --clean           clean previous build
 ```
 
 Warning

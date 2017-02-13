@@ -7,10 +7,11 @@
 # License: ISC
 # 
 
+import __main__ as m
 import os
-import struct
 import sys
 import re
+import struct
 import argparse
 import logging
 import glob
@@ -551,10 +552,17 @@ class Bsp():
 	def exportLump(self, lump_name):
 		return self.lump_dict[lump_name]
 
-def main():
+def main(stage=None):
 	# TODO: check files
 
-	args = argparse.ArgumentParser(description="%(prog)s is a BSP parser for my lovely granger.")
+	if stage:
+		prog_name = os.path.basename(m.__file__) + " " + stage
+	else:
+		prog_name = os.path.basename(m.__file__)
+
+	description="%(prog)s is a BSP parser for my lovely granger."
+	
+	args = argparse.ArgumentParser(description=description, prog=prog_name)
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-ib", "--input-bsp", dest="input_bsp_file", metavar="FILENAME",  help="read from .bsp file %(metavar)s")
 	args.add_argument("-id", "--input-bsp-dir", dest="input_bsp_dir", metavar="DIRNAME", help="read from .bspdir directory %(metavar)s")
