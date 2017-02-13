@@ -622,7 +622,7 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) in ("jpg", "jpeg"):
-			log.print("File already in jpg, copying: " + file_path)
+			log.print("File already in jpg, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to jpg: " + file_path)
@@ -637,7 +637,7 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "png":
-			log.print("File already in png, copying: " + file_path)
+			log.print("File already in png, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to png: " + file_path)
@@ -652,7 +652,7 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "webp":
-			log.print("File already in webp, copying: " + file_path)
+			log.print("File already in webp, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to lossy webp: " + file_path)
@@ -671,7 +671,7 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "webp":
-			log.print("File already in webp, copying: " + file_path)
+			log.print("File already in webp, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to lossless webp: " + file_path)
@@ -691,7 +691,7 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "crn":
-			log.print("File already in crn, copying: " + file_path)
+			log.print("File already in crn, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to crn: " + file_path)
@@ -710,7 +710,7 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "crn":
-			log.print("File already in crn, copying: " + file_path)
+			log.print("File already in crn, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to normalized crn: " + file_path)
@@ -730,7 +730,7 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "opus":
-			log.print("File already in opus, copying: " + file_path)
+			log.print("File already in opus, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			log.print("Convert to opus: " + file_path)
@@ -745,10 +745,10 @@ class PakBuilder():
 			log.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "iqm":
-			log.print("File already in iqm, copying: " + file_path)
+			log.print("File already in iqm, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Compiling to iqm: " + file_path)
+			log.print("Compile to iqm: " + file_path)
 			subprocess.call(["iqm", build_path, source_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
