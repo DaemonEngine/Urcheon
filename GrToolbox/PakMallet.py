@@ -204,9 +204,10 @@ class Inspector():
 
 
 class PakList():
-	def __init__(self, file_dir, game_name):
-		self.file_dir = file_dir
+	def __init__(self, source_dir, game_name):
+		self.source_dir = source_dir
 		self.pak_list_file_name = ".pakinfo" + os.path.sep + "paklist"
+		self.pak_list_file = self.source_dir + os.path.sep + self.pak_list_file_name
 
 		self.blacklist = [
 			"Thumbs.db",
@@ -238,6 +239,7 @@ class PakList():
 		self.inactive_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
 		self.computed_inactive_action_dict = OrderedDict()
+
 		# I want lines printed in this order
 		for action_name in self.inspector.action_name_dict.keys():
 			self.active_action_dict[action_name] = []
@@ -246,31 +248,32 @@ class PakList():
 			self.computed_inactive_action_dict[action_name] = []
 
 	def readActions(self):
-		if os.path.isfile(self.pak_list_file_name):
-			pak_list_file = open(self.pak_list_file_name, "r")
+		if os.path.isfile(self.pak_list_file):
+			pak_list_file = open(self.pak_list_file, "r")
 			line_list = [line.strip() for line in pak_list_file]
 			pak_list_file.close()
 			for line in line_list:
 				# TODO: regex
-				action = line.split(" ")[0]
-				file_path = line[len(action) + 1:]
-				if action[0] == '#':
-					inactive_action = action[1:]
-					logging.debug("known inactive action: " + inactive_action + " for file: " + file_path)
+				read_action = line.split(" ")[0]
+				file_path = line[len(read_action) + 1:]
+
+				if read_action[0] == '#':
+					inactive_action = read_action[1:]
+					log.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[read_action] + " (inactive).")
 					self.inactive_action_dict[inactive_action].append(file_path)
 				else:
 					if os.path.isfile(file_path):
-						logging.debug("known action: " + action + " for file: " + file_path)
-						self.active_action_dict[action].append(file_path)
+						log.print(file_path + ": Known rule, will " + self.inspector.action_name_dict[read_action] + " (predefined).")
+						self.active_action_dict[read_action].append(file_path)
 					else:
-						log.print("disabling action: " + action + " for missing file: " + file_path)
-						self.computed_inactive_action_dict[action].append(file_path)
+						log.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[read_action] + " (missing).")
+						self.computed_inactive_action_dict[read_action].append(file_path)
 
 		else:
 			log.print("List not found: " + self.pak_list_file_name)
 
 	def computeActions(self):
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.file_dir):
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
 			dir_name = dir_name[len(os.path.curdir + os.path.sep):]
 
 			logging.debug("dir_name: " + str(dir_name) + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
@@ -315,21 +318,21 @@ class PakList():
 							self.computed_inactive_action_dict[read_action].append(file_path)
 							unknown_file_path = False
 					if unknown_file_path:
-						action = self.inspector.inspect(file_path)
-						self.computed_active_action_dict[action].append(file_path)
+						computed_action = self.inspector.inspect(file_path)
+						self.computed_active_action_dict[computed_action].append(file_path)
 
-				self.active_action_dict = self.computed_active_action_dict
-				self.active_inaction_dict = self.computed_inactive_action_dict
+		self.active_action_dict = self.computed_active_action_dict
+		self.active_inaction_dict = self.computed_inactive_action_dict
 
 	def writeActions(self):
-		pak_info_subdir = os.path.dirname(self.pak_list_file_name)
+		pak_info_subdir = os.path.dirname(self.pak_list_file)
 		if os.path.isdir(pak_info_subdir):
 			logging.debug("found pakinfo subdir: " +  pak_info_subdir)
 		else:
 			logging.debug("create pakinfo subdir: " + pak_info_subdir)
 			os.makedirs(pak_info_subdir, exist_ok=True)
 
-		pak_list_file = open(self.pak_list_file_name, "w")
+		pak_list_file = open(self.pak_list_file, "w")
 		for action in self.active_action_dict.keys():
 			for file_path in sorted(self.active_action_dict[action]):
 				line = action + " " + file_path
@@ -340,6 +343,10 @@ class PakList():
 				pak_list_file.write(line + "\n")
 		pak_list_file.close()
 
+	def updateActions(self):
+		self.readActions()
+		self.computeActions()
+		self.writeActions()
 
 class BspCompiler():
 	def __init__(self, source_dir, game_name, map_profile):
@@ -382,7 +389,7 @@ class BspCompiler():
 						log.warning("unknown stage in " + ini_path + ": " + build_stage)
 
 					else:
-						logging.debug("add build param for stage " + build_stage + ": " + self.map_config[map_profile][build_stage])
+						logging.debug("add build parameter for stage " + build_stage + ": " + self.map_config[map_profile][build_stage])
 						self.build_stage_dict[build_stage] = self.map_config[map_profile][build_stage]
 
 
@@ -491,8 +498,11 @@ class PakBuilder():
 		self.game_name = game_name
 		self.map_profile = map_profile
 		self.pak_list = PakList(source_dir, game_name)
+
+		# read predefined actions first
 		self.pak_list.readActions()
 
+		# implicit action list
 		if compute_actions:
 			self.pak_list.computeActions()
 
@@ -703,7 +713,7 @@ class PakBuilder():
 			log.print("File already in crn, copying: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to crn: " + file_path)
+			log.print("Convert to normalized crn: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -925,9 +935,7 @@ def main():
 
 	if args.update:
 		pak_list = PakList(args.source_dir, args.game_profile)
-		pak_list.readActions()
-		pak_list.computeActions()
-		pak_list.writeActions()
+		pak_list.updateActions()
 
 	if args.package or args.build:
 		if args.build_prefix:
