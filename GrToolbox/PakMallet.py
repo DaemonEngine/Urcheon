@@ -203,10 +203,10 @@ class Inspector():
 		return action
 
 
-class PakList():
+class BuildList():
 	def __init__(self, source_dir, game_name):
 		self.source_dir = source_dir
-		self.pak_list_file_name = ".pakinfo" + os.path.sep + "paklist"
+		self.pak_list_file_name = ".pakinfo" + os.path.sep + "build.tsv"
 		self.pak_list_file = self.source_dir + os.path.sep + self.pak_list_file_name
 
 		self.blacklist = [
@@ -254,7 +254,7 @@ class PakList():
 			pak_list_file.close()
 			for line in line_list:
 				# TODO: regex
-				read_action = line.split(" ")[0]
+				read_action = line.split('\t')[0]
 				file_path = line[len(read_action) + 1:]
 
 				if read_action[0] == '#':
@@ -497,7 +497,7 @@ class PakBuilder():
 		self.build_dir = build_dir
 		self.game_name = game_name
 		self.map_profile = map_profile
-		self.pak_list = PakList(source_dir, game_name)
+		self.pak_list = BuildList(source_dir, game_name)
 
 		# read predefined actions first
 		self.pak_list.readActions()
@@ -934,7 +934,7 @@ def main():
 		log.verbosely = True
 
 	if args.update:
-		pak_list = PakList(args.source_dir, args.game_profile)
+		pak_list = BuildList(args.source_dir, args.game_profile)
 		pak_list.updateActions()
 
 	if args.package or args.build:
