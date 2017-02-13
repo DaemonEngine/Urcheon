@@ -336,11 +336,11 @@ class BuildList():
 		pak_list_file = open(self.pak_list_file, "w")
 		for action in self.active_action_dict.keys():
 			for file_path in sorted(self.active_action_dict[action]):
-				line = action + " " + file_path
+				line = action + "\t" + file_path
 				pak_list_file.write(line + "\n")
 		for action in self.computed_inactive_action_dict.keys():
 			for file_path in sorted(self.inactive_action_dict[action]):
-				line = "#" + action + " " + file_path
+				line = "#" + action + "\t" + file_path
 				pak_list_file.write(line + "\n")
 		pak_list_file.close()
 
