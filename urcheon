@@ -7,7 +7,7 @@
 # License: ISC
 # 
 
-import Urcheon.Urcheon
+from Urcheon import Urcheon
 
 if __name__ == "__main__":
-	Urcheon.Urcheon.main()
+	Urcheon.main()
