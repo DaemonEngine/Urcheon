@@ -73,12 +73,6 @@ file_unvanquished_lightmap = {
 	"action": "convert_lossless_webp",
 }
 
-file_unvanquished_png_lightmap = {
-	"inherit": "file_unvanquished_lightmap",
-	"file_ext": "png",
-	"action": "copy",
-}
-
 file_unvanquished_preview = {
 	"inherit": "file_unvanquished_texture",
 	"file_suffix": "p",
