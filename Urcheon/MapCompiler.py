@@ -34,7 +34,7 @@ class BspCompiler():
 		self.build_stage_dict["light"] = None
 		self.build_stage_dict["nav"] = None
 		self.build_stage_dict["minimap"] = None
-		self.build_stage_dict["source"] = None
+		self.build_stage_dict["copy"] = None
 
 		# TODO: set something else for quiet and verbose mode
 		self.subprocess_stdout = None;
@@ -111,11 +111,11 @@ class BspCompiler():
 				extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
 				source_path = map_path
 			elif build_stage == "nav":
-				source_path == bsp_path
+				source_path = bsp_path
 			elif build_stage == "minimap":
 				self.renderMiniMap(map_path, bsp_path)
 				continue
-			elif build_stage == "source":
+			elif build_stage == "copy":
 				self.copyMap(map_path, build_prefix)
 				continue
 
@@ -128,9 +128,9 @@ class BspCompiler():
 					pakpath_list += ["-fs_pakpath", pakpath]
 
 			stage_option_list = self.build_stage_dict[build_stage].split(" ")
-			print("stage options: " + str(stage_option_list))
+			logging.debug("stage options: " + str(stage_option_list))
 			if stage_option_list == ['']:
-				stage_option_list == []
+				stage_option_list = []
 
 			# TODO: game independant
 			call_list = ["q3map2", "-game", "unvanquished"] + ["-" + build_stage] + pakpath_list + extended_option_list + stage_option_list + [source_path]
