@@ -7,14 +7,16 @@
 # License: ISC
 # 
 
-import Urcheon.BspCutter
+from Urcheon.Ui import Ui
+from Urcheon.Bsp import Bsp
+from Urcheon.SourceTree import Inspector
+from Urcheon.SourceTree import PakConfig
+from Urcheon.MapCompiler import BspCompiler
 import __main__ as m
 import os
 import sys
 import shutil
 import subprocess
-import operator
-import importlib
 import argparse
 import logging
 import fnmatch
@@ -29,179 +31,8 @@ from collections import OrderedDict
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
 
-class Log():
-	# This is NOT the runtime logging, it's the package build logging
-	def __init__(self):
-		self.verbosely = False
 
-	def print(self, message):
-		# I duplicate print() because I will add color support and verbose/quiet support in the future
-		print(message)
-
-	def verbose(self, message):
-		if self.verbosely:
-			print(message)
-
-	def warning(self, message):
-		print("Warning: " + message)
-
-	def notice(self, message):
-		print("Notice: " + message)
-
-	def error(self, message):
-		print("Error: " + message)
-
-log = Log()
-
-class PakConfig():
-	def __init__(self, game_name):
-		self.game = importlib.import_module("pak_profiles." + game_name)
-		self.config_file_type_dict = [variable for variable in dir(self.game) if variable.startswith("file_")]
-		self.file_type_dict = {}
-		self.file_type_weight_dict = {}
-		self.expandFileTypes()
-
-	def inheritFileType(self, config_file_type_dict):
-		if "inherit" in config_file_type_dict.keys():
-			logging.debug("inherit from file type: " + config_file_type_dict["inherit"])
-			inherited_file_type, weight = self.inheritFileType(getattr(self.game, config_file_type_dict["inherit"]))
-		else:
-			inherited_file_type, weight = {}, 0
-
-		inspector = Inspector(None)
-
-		for keyword in list(inspector.inspector_name_dict.keys()) + [
-			"description",
-			"action",
-		]:
-			if keyword in config_file_type_dict.keys():
-				inherited_file_type[keyword] = config_file_type_dict[keyword]
-			elif keyword not in inherited_file_type.keys():
-				inherited_file_type[keyword] = None
-
-		for keyword in inspector.inspector_name_dict.keys():
-			if isinstance(inherited_file_type[keyword], str):
-				inherited_file_type[keyword] = [ inherited_file_type[keyword] ]
-
-		return inherited_file_type, weight + 1
-
-	def expandFileTypes(self):
-		for file_type in self.config_file_type_dict:
-			logging.debug("expanding file type: " + file_type)
-			self.file_type_dict[file_type] = []
-			self.file_type_dict[file_type], self.file_type_weight_dict[file_type] = self.inheritFileType(getattr(self.game, file_type))
-
-
-class Inspector():
-	def __init__(self, game_name):
-		if game_name:
-			self.config = PakConfig(game_name)
-		else:
-			self.config = None
-		self.inspector_name_dict = {
-			"file_name":			self.inspectFileName,
-			"file_ext":				self.inspectFileExt,
-			"file_base":			self.inspectFileBase,
-			"file_prefix":			self.inspectFilePrefix,
-			"file_suffix":			self.inspectFileSuffix,
-			"dir_ancestor_name":	self.inspectDirAncestorName,
-			"dir_father_name":		self.inspectDirFatherName,
-			"dir_father_ext":		self.inspectDirFatherExt,
-			"dir_grandfather_name":	self.inspectDirGrandFatherName,
-			"dir_grandfather_ext":	self.inspectDirGrandFatherExt,
-		}
-		# I want lines printed in this order
-		self.action_name_dict = OrderedDict()
-		self.action_name_dict["copy"] =						"copy file"
-		self.action_name_dict["merge_bsp"] =				"merge into a bsp file"
-		self.action_name_dict["compile_bsp"] =				"compile to bsp format"
-		self.action_name_dict["compile_iqm"] =				"compile to iqm format"
-		self.action_name_dict["convert_crn"] =				"convert to crn format"
-		self.action_name_dict["convert_normalized_crn"] =	"convert to normalized crn format"
-		self.action_name_dict["convert_jpg"] =				"convert to jpg format"
-		self.action_name_dict["convert_png"] =				"convert to png format"
-		self.action_name_dict["convert_lossy_webp"] =		"convert to lossy webp format"
-		self.action_name_dict["convert_lossless_webp"] =	"convert to lossless format"
-		self.action_name_dict["convert_opus"] =				"convert to opus format"
-		self.action_name_dict["keep"] =						"keep file"
-		self.action_name_dict["ignore"] =				 	"ignore file"
-
-	def inspectFileName(self, file_path, file_name):
-		name = os.path.basename(file_path)
-		return name in file_name
-
-	def inspectFileExt(self, file_path, file_ext):
-		ext = os.path.splitext(file_path)[1][len(os.path.extsep):]
-		return ext in file_ext
-
-	def inspectFileBase(self, file_path, file_base):
-		base = os.path.splitext(os.path.basename(file_path))[0]
-		return base in file_base
-
-	def inspectFilePrefix(self, file_path, file_prefix):
-		suffix = os.path.basename(file_path).split('_')[0]
-		return suffix in file_prefix
-
-	def inspectFileSuffix(self, file_path, file_suffix):
-		suffix = os.path.splitext(os.path.basename(file_path))[0].split('_')[-1]
-		return suffix in file_suffix
-
-	def inspectDirAncestorName(self, file_path, dir_name):
-		previous = file_path
-		while file_path != "":
-			previous = file_path
-			file_path = os.path.split(file_path)[0]
-		return previous in dir_name
-
-	def inspectDirFatherName(self, file_path, dir_name):
-		father = os.path.split(file_path)[0]
-		return father in dir_name
-
-	def inspectDirFatherExt(self, file_path, dir_ext):
-		ext = os.path.splitext(os.path.split(file_path)[0])[1][len(os.path.extsep):]
-		return ext in dir_ext
-
-	def inspectDirGrandFatherName(self, file_path, dir_name):
-		grandfather = os.path.split(os.path.split(file_path)[0])[0]
-		return grandfather in dir_name
-
-	def inspectDirGrandFatherExt(self, file_path, dir_ext):
-		ext = os.path.splitext(os.path.split(os.path.split(file_path)[0])[0])[1][len(os.path.extsep):]
-		return ext in dir_ext
-
-	def inspect(self, file_path):
-		file_type_ordered_list = [x[0] for x in sorted(self.config.file_type_weight_dict.items(), key=operator.itemgetter(1), reverse=True)]
-		logging.debug("looking for file path:" + file_path)
-#		logging.debug("will try file types in this order: ", str(file_type_ordered_list))
-
-		action = "keep"
-		for file_type_name in file_type_ordered_list:
-			logging.debug("trying file type:" + file_type_name)
-			criteria_dict = self.config.file_type_dict[file_type_name].copy()
-			file_type_action = criteria_dict.pop("action")
-			file_type_description = criteria_dict.pop("description")
-
-			matched_file_type = True
-			for criteria in criteria_dict.keys():
-				logging.debug("trying criteria: " + criteria + ", value: " + str(criteria_dict[criteria]))
-				if criteria_dict[criteria] != None:
-					matched_criteria = self.inspector_name_dict[criteria](file_path, criteria_dict[criteria])
-					logging.debug("matched criteria: " + str(matched_criteria))
-					if not matched_criteria:
-						matched_file_type = False
-						break
-
-			if matched_file_type:
-				action = file_type_action
-				description  = file_type_description
-				break
-
-		if action == "keep":
-			log.warning(file_path + ": unknown file found, will " + self.action_name_dict[action] + ".")
-		else:
-			log.print(file_path + ": " + description + " found, will " + self.action_name_dict[action] + ".")
-
-		return action
+ui = Ui()
 
 
 class BuildList():
@@ -260,18 +91,18 @@ class BuildList():
 
 				if read_action[0] == '#':
 					inactive_action = read_action[1:]
-					log.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[read_action] + " (inactive).")
+					ui.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[read_action] + " (inactive).")
 					self.inactive_action_dict[inactive_action].append(file_path)
 				else:
 					if os.path.isfile(file_path):
-						log.print(file_path + ": Known rule, will " + self.inspector.action_name_dict[read_action] + " (predefined).")
+						ui.print(file_path + ": Known rule, will " + self.inspector.action_name_dict[read_action] + " (predefined).")
 						self.active_action_dict[read_action].append(file_path)
 					else:
-						log.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[read_action] + " (missing).")
+						ui.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[read_action] + " (missing).")
 						self.computed_inactive_action_dict[read_action].append(file_path)
 
 		else:
-			log.print("List not found: " + self.pak_list_file_name)
+			ui.print("List not found: " + self.pak_list_file_name)
 
 	def computeActions(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
@@ -311,11 +142,11 @@ class BuildList():
 					logging.debug("inactive actions:" + str(self.inactive_action_dict))
 					for read_action in self.active_action_dict.keys():
 						if file_path in self.active_action_dict[read_action]:
-							log.print(file_path + ": Known file, will " + self.inspector.action_name_dict[read_action] + ".")
+							ui.print(file_path + ": Known file, will " + self.inspector.action_name_dict[read_action] + ".")
 							self.computed_active_action_dict[read_action].append(file_path)
 							unknown_file_path = False
 						elif file_path in self.inactive_action_dict[read_action]:
-							log.print(file_path + ": Disabled known file, will ignore it.")
+							ui.print(file_path + ": Disabled known file, will ignore it.")
 							self.computed_inactive_action_dict[read_action].append(file_path)
 							unknown_file_path = False
 					if unknown_file_path:
@@ -326,12 +157,12 @@ class BuildList():
 		self.active_inaction_dict = self.computed_inactive_action_dict
 
 	def writeActions(self):
-		pak_info_subdir = os.path.dirname(self.pak_list_file)
-		if os.path.isdir(pak_info_subdir):
-			logging.debug("found pakinfo subdir: " +  pak_info_subdir)
+		pak_config_subdir = os.path.dirname(self.pak_list_file)
+		if os.path.isdir(pak_config_subdir):
+			logging.debug("found pakinfo subdir: " +  pak_config_subdir)
 		else:
-			logging.debug("create pakinfo subdir: " + pak_info_subdir)
-			os.makedirs(pak_info_subdir, exist_ok=True)
+			logging.debug("create pakinfo subdir: " + pak_config_subdir)
+			os.makedirs(pak_config_subdir, exist_ok=True)
 
 		pak_list_file = open(self.pak_list_file, "w")
 		for action in self.active_action_dict.keys():
@@ -349,150 +180,8 @@ class BuildList():
 		self.computeActions()
 		self.writeActions()
 
-class BspCompiler():
-	def __init__(self, source_dir, game_name, map_profile):
-		self.map_config = configparser.ConfigParser()
-		self.source_dir = source_dir
-		self.map_profile = map_profile
-		self.build_stage_dict = OrderedDict()
 
-		# I want compilation in this order:
-		self.build_stage_dict["bsp"] = None
-		self.build_stage_dict["vis"] = None
-		self.build_stage_dict["light"] = None
-		self.build_stage_dict["nav"] = None
-		self.build_stage_dict["minimap"] = None
-		self.build_stage_dict["source"] = None
-
-		# TODO: set something else for quiet and verbose mode
-		self.subprocess_stdout = None;
-		self.subprocess_stderr = None;
-
-		# TODO: check
-		default_ini_file = game_name + os.path.extsep + "ini"
-		default_ini_path = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0]))) + os.path.sep + "map_profiles" + os.path.sep + default_ini_file
-
-		self.readIni(default_ini_path)
-
-	def readIni(self, ini_path):
-		logging.debug("reading map profile: " + ini_path)
-		self.map_config.read(ini_path)
-
-		logging.debug("build profiles: " + str(self.map_config.sections()))
-		for map_profile in self.map_config.sections():
-			logging.debug("build profile found: " + map_profile)
-
-			if map_profile == self.map_profile:
-				logging.debug("will use profile: " + map_profile)
-
-				for build_stage in self.map_config[map_profile].keys():
-					if not build_stage in self.build_stage_dict.keys():
-						log.warning("unknown stage in " + ini_path + ": " + build_stage)
-
-					else:
-						logging.debug("add build parameter for stage " + build_stage + ": " + self.map_config[map_profile][build_stage])
-						self.build_stage_dict[build_stage] = self.map_config[map_profile][build_stage]
-
-
-	def compileBsp(self, map_path, build_prefix, stage_list=None):
-		logging.debug("building " + map_path + " to prefix: " + build_prefix)
-
-		# name without .map or .bsp extension
-		map_base = os.path.splitext(os.path.basename(map_path))[0]
-		lightmapdir_path = build_prefix + os.path.sep + map_base
-
-		map_profile_path =  self.source_dir + os.path.sep + ".pakinfo" + os.path.sep + "maps" + os.path.sep + map_base + os.path.extsep + "ini"
-
-		os.makedirs(build_prefix, exist_ok=True)
-
-		if os.path.isfile(map_profile_path):
-			log.print("Customized build profile found: " + map_profile_path)
-			self.readIni(map_profile_path)
-		else:
-			logging.debug("map profile not found: " + map_profile_path)
-
-		prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "prt")
-		srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "srf")
-		bsp_path = build_prefix + os.path.sep + map_base + os.path.extsep + "bsp"
-
-		if not stage_list:
-			stage_list = self.build_stage_dict.keys()
-
-		for build_stage in stage_list:
-			if self.build_stage_dict[build_stage] == None:
-				continue
-			elif self.build_stage_dict[build_stage] == "none":
-				continue
-
-			log.print("Building " + map_path + ", stage: " + build_stage)
-
-			# TODO: if previous stage failed
-			source_path = map_path
-			extended_option_list = []
-			if build_stage == "bsp":
-				extended_option_list = ["-prtfile", prt_path, "-srffile", srf_path, "-bspfile", bsp_path]
-				source_path = map_path
-			elif build_stage == "vis":
-				extended_option_list = ["-prtfile", prt_path]
-				source_path = bsp_path
-			elif build_stage == "light":
-				extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
-				source_path = map_path
-			elif build_stage == "nav":
-				source_path == bsp_path
-			elif build_stage == "minimap":
-				self.renderMiniMap(map_path, bsp_path)
-				continue
-			elif build_stage == "source":
-				self.copyMap(map_path, build_prefix)
-				continue
-
-			# pakpath_list = ["-fs_pakpath", os.path.abspath(self.source_dir)]
-			pakpath_list = ["-fs_pakpath", self.source_dir]
-
-			pakpath_env = os.getenv("PAKPATH")
-			if pakpath_env:
-				for pakpath in pakpath_env.split(":"):
-					pakpath_list += ["-fs_pakpath", pakpath]
-
-			stage_option_list = self.build_stage_dict[build_stage].split(" ")
-			print("stage options: " + str(stage_option_list))
-			if stage_option_list == ['']:
-				stage_option_list == []
-
-			# TODO: game independant
-			call_list = ["q3map2", "-game", "unvanquished"] + ["-" + build_stage] + pakpath_list + extended_option_list + stage_option_list + [source_path]
-
-			logging.debug("call list: " + str(call_list))
-			# TODO: verbose?
-			log.print("Build command: " + " ".join(call_list))
-			subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-
-		if os.path.isfile(prt_path):
-			os.remove(prt_path)
-
-		if os.path.isfile(srf_path):
-			os.remove(srf_path)
-
-	def renderMiniMap(self, map_path, bsp_path):
-		# TODO: if minimap not newer
-		log.print("Creating MiniMap for: " + map_path)
-#		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper")
-		subprocess.call([q3map2_helper_path, "--minimap", bsp_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-
-	def copyMap(self, map_path, build_prefix):
-		# TODO: for all files created
-#		shutil.copystat(source_path, build_path)
-
-		log.print("Copying map source: " + map_path)
-		map_name = os.path.basename(map_path)
-		copy_path = build_prefix + os.path.sep + map_name
-		shutil.copyfile(map_path, copy_path)
-		shutil.copystat(map_path, copy_path)
-
-
-class PakBuilder():
+class Builder():
 	def __init__(self, source_dir, build_dir, game_name, map_profile, compute_actions=False):
 		self.source_dir = source_dir
 		self.build_dir = build_dir
@@ -593,9 +282,9 @@ class PakBuilder():
 		build_path = self.getBuildPath(file_path)
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
-		log.print("Keep: " + file_path)
+		ui.print("Keep: " + file_path)
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
 
@@ -604,13 +293,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(file_path)
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
-		log.print("Copy: " + file_path)
+		ui.print("Copy: " + file_path)
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
-		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
 
+		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
 		if ext == "bsp":
 			bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
 			bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=['nav', 'minimap'])
@@ -620,13 +309,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileJpgNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) in ("jpg", "jpeg"):
-			log.print("File already in jpg, copy: " + file_path)
+			ui.print("File already in jpg, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to jpg: " + file_path)
+			ui.print("Convert to jpg: " + file_path)
 			subprocess.call(["convert", "-verbose", "-quality", "92", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -635,13 +324,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFilePngNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "png":
-			log.print("File already in png, copy: " + file_path)
+			ui.print("File already in png, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to png: " + file_path)
+			ui.print("Convert to png: " + file_path)
 			subprocess.call(["convert", "-verbose", "-quality", "100", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -650,13 +339,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileWebpNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "webp":
-			log.print("File already in webp, copy: " + file_path)
+			ui.print("File already in webp, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to lossy webp: " + file_path)
+			ui.print("Convert to lossy webp: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -669,13 +358,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileWebpNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "webp":
-			log.print("File already in webp, copy: " + file_path)
+			ui.print("File already in webp, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to lossless webp: " + file_path)
+			ui.print("Convert to lossless webp: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -689,13 +378,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileCrnNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "crn":
-			log.print("File already in crn, copy: " + file_path)
+			ui.print("File already in crn, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to crn: " + file_path)
+			ui.print("Convert to crn: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -708,13 +397,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileCrnNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "crn":
-			log.print("File already in crn, copy: " + file_path)
+			ui.print("File already in crn, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to normalized crn: " + file_path)
+			ui.print("Convert to normalized crn: " + file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -727,13 +416,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileOpusNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "ogg":
-			log.print("File already in vorbis, copy: " + file_path)
+			ui.print("File already in vorbis, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to vorbis: " + file_path)
+			ui.print("Convert to vorbis: " + file_path)
 			subprocess.call(["ffmpeg", "-acodec", "libvorbis", "-i", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -742,13 +431,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileOpusNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "opus":
-			log.print("File already in opus, copy: " + file_path)
+			ui.print("File already in opus, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Convert to opus: " + file_path)
+			ui.print("Convert to opus: " + file_path)
 			subprocess.call(["opusenc", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -757,13 +446,13 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileIqmNewName(file_path))
 		self.createSubdirs(build_path)
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		if self.getExt(file_path) == "iqm":
-			log.print("File already in iqm, copy: " + file_path)
+			ui.print("File already in iqm, copy: " + file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			log.print("Compile to iqm: " + file_path)
+			ui.print("Compile to iqm: " + file_path)
 			subprocess.call(["iqm", build_path, source_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -774,20 +463,23 @@ class PakBuilder():
 		self.createSubdirs(build_path)
 		bspdir_path = self.getDirBspDirNewName(file_path)
 		bsp_path = self.getDirBspNewName(file_path)
+
 		# TODO if file already there
-		#	log.warning("Bsp file already there, will do nothing with: " + build_path)
+		#   see below for multithreading issues
+		#	ui.warning("Bsp file already there, will do nothing with: " + build_path)
 		#	return
+
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file, do nothing: " + file_path)
+			ui.verbose("Unmodified file, do nothing: " + file_path)
 			return
 		logging.debug("looking for file in same bspdir than: " + file_path)
 		for sub_path in self.pak_list.active_action_dict["merge_bsp"]:
 			if sub_path.startswith(bspdir_path):
-				log.print("Merge to bsp: " + sub_path)
+				ui.print("Merge to bsp: " + sub_path)
 				self.pak_list.active_action_dict["merge_bsp"].remove(sub_path)
 			else:
 				logging.debug("file not from same bspdir: " + sub_path)
-		bsp = Urcheon.BspCutter.Bsp()
+		bsp = Bsp()
 		bsp.readDir(source_path)
 		# TODO: if verbose
 		bsp.writeFile(build_path)
@@ -802,14 +494,18 @@ class PakBuilder():
 		build_path = self.getBuildPath(self.getFileBspNewName(file_path))
 		bsp_path = self.getFileBspNewName(file_path)
 		self.createSubdirs(build_path)
+
 		# TODO if file already there
-		#	log.warning("Bsp file already there, will only copy: " + source_path)
+		#   you must ensure merge bsp and copy bsp are made before,
+		#   beware of multithreading
+		#	ui.warning("Bsp file already there, will only copy: " + source_path)
 		#	return
+
 		if not self.isDifferent(source_path, build_path):
-			log.verbose("Unmodified file " + build_path + ", will only copy: " + source_path)
+			ui.verbose("Unmodified file " + build_path + ", will only copy: " + source_path)
 			return
 
-		log.print("Compiling to bsp: " + file_path)
+		ui.print("Compiling to bsp: " + file_path)
 
 		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, os.path.dirname(build_path))
@@ -862,7 +558,7 @@ class Packer():
 			os.makedirs(pack_subdir, exist_ok=True)
 
 	def pack(self):
-		log.print("Packing " + self.pk3dir_path + " to: " + self.pk3_path)
+		ui.print("Packing " + self.pk3dir_path + " to: " + self.pk3_path)
 		self.createSubdirs(self.pk3_path)
 		logging.debug("opening: " + self.pk3_path)
 
@@ -878,13 +574,13 @@ class Packer():
 		for dirname, subdirname_list, file_name_list in os.walk('.'):
 			for file_name in file_name_list:
 				file_path = os.path.join(dirname, file_name)[len(os.path.curdir + os.path.sep):]
-				log.print("adding file to archive: " + file_path)
+				ui.print("adding file to archive: " + file_path)
 				pk3.write(file_path)
 
 		logging.debug("closing: " + self.pk3_path)
 		pk3.close()
 
-		log.print("Package written: " + self.pk3_path)
+		ui.print("Package written: " + self.pk3_path)
 
 
 class Cleaner():
@@ -896,38 +592,6 @@ class Cleaner():
 
 	def cleanPaks(self, pkg_dir, pak_name):
 		None
-
-
-class PakInfo():
-	def __init__(self, source_dir):
-		# TODO: check absolute path (check in map ini too)
-		ini_pak_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pak" + os.path.extsep +  "ini"
-		self.pak_config = configparser.ConfigParser()
-		self.key_dict = None
-		self.readIni(ini_pak_path)
-
-	def readIni(self, ini_pak_path):
-		logging.debug("reading pak ini: " + ini_pak_path)
-		self.pak_config.read(ini_pak_path)
-
-		logging.debug("build profiles: " + str(self.pak_config.sections()))
-
-		if not "config" in self.pak_config.sections():
-			logging.error("missing pak config: " + ini_pak_path)
-			# TODO: better error handling?
-			sys.exit()
-
-		logging.debug("pak config found: " + ini_pak_path)
-
-		self.key_dict = self.pak_config["config"]
-
-	def getKey(self, key_name):
-		# TODO: strip quotes
-		if key_name in self.key_dict.keys():
-			return self.key_dict[key_name]
-		else:
-			log.error("Unknown key in pak config: " + key_name)
-			return None
 
 
 def main(stage=None):
@@ -969,7 +633,7 @@ def main(stage=None):
 		logging.debug("args: " + str(args))
 
 	if args.verbose:
-		log.verbosely = True
+		ui.verbosely = True
 
 	if args.update:
 		pak_list = BuildList(args.source_dir, args.game_profile)
@@ -981,7 +645,7 @@ def main(stage=None):
 
 		if env_build_prefix:
 			if args.build_prefix:
-				log.warning("build dir “" + build_prefix + "” superseded by env BUILDPREFIX: " + env_build_prefix)
+				ui.warning("build dir “" + build_prefix + "” superseded by env BUILDPREFIX: " + env_build_prefix)
 			build_prefix = env_build_prefix
 
 		if args.test_parent_dir:
@@ -989,7 +653,7 @@ def main(stage=None):
 
 		if env_test_parent_dir:
 			if args.test_parent_dir:
-				log.warning("build test dir “" + test_parent_dir + "” superseded by env TESTPARENT: " + env_test_parent_dir)
+				ui.warning("build test dir “" + test_parent_dir + "” superseded by env TESTPARENT: " + env_test_parent_dir)
 			test_parent_dir = env_test_parent_dir
 
 		if args.release_parent_dir:
@@ -997,19 +661,18 @@ def main(stage=None):
 
 		if env_release_parent_dir:
 			if args.release_parent_dir:
-				log.warning("build pkg dir “" + release_parent_dir + "” superseded by env PKGPARENT: " + env_release_parent_dir)
+				ui.warning("build pkg dir “" + release_parent_dir + "” superseded by env PKGPARENT: " + env_release_parent_dir)
 			release_parent_dir = env_release_parent_dir
 
 		if args.test_dir:
 			test_dir = args.test_dir
 		else:
-			try:
-				pak_info = PakInfo(args.source_dir)
-			except:
-				log.error("can't find pak configuration")
+			pak_config = PakConfig(args.source_dir)
+			if not pak_config:
+				ui.error("can't find pak configuration")
 				return
 
-			pak_name = pak_info.getKey("name")
+			pak_name = pak_config.getKey("name")
 			if not pak_name:
 				# TODO: error msg
 				return
@@ -1017,9 +680,9 @@ def main(stage=None):
 
 	if args.build:
 		if args.compute_actions:
-			builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile, compute_actions=True)
+			builder = Builder(args.source_dir, test_dir, args.game_profile, args.map_profile, compute_actions=True)
 		else:
-			builder = PakBuilder(args.source_dir, test_dir, args.game_profile, args.map_profile)
+			builder = Builder(args.source_dir, test_dir, args.game_profile, args.map_profile)
 
 		builder.build()
 
@@ -1027,13 +690,13 @@ def main(stage=None):
 		if args.pkg_file:
 			pkg_file = args.pkg_file
 		else:
-			pak_info = PakInfo(args.source_dir)
-			if not pak_info:
-				log.error("can't find pak configuration")
+			pak_config = PakConfig(args.source_dir)
+			if not pak_config:
+				ui.error("can't find pak configuration")
 				return
 
-			pak_name = pak_info.getKey("name")
-			pak_version = pak_info.getKey("version")
+			pak_name = pak_config.getKey("name")
+			pak_version = pak_config.getKey("version")
 			if not pak_name or not pak_version:
 				# TODO: error msg
 				return

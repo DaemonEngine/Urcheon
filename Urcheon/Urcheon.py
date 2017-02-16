@@ -8,9 +8,9 @@
 # 
 
 from Urcheon.StageParse import StageParse
-from Urcheon import MapCutter
-from Urcheon import BspCutter
-from Urcheon import PakMallet
+from Urcheon import Map
+from Urcheon import Bsp
+from Urcheon import Pak
 import sys
 
 def main():
@@ -24,13 +24,13 @@ def main():
 	stage = None
 
 	if arg_stage.map:
-		stage = MapCutter
+		stage = Map
 
 	if arg_stage.bsp:
-		stage = BspCutter
+		stage = Bsp
 
 	if arg_stage.pak:
-		stage = PakMallet
+		stage = Pak
 
 	if stage:
 		del sys.argv[1]

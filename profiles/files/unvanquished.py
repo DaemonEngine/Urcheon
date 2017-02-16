@@ -7,7 +7,7 @@
 # License: ISC
 # 
 
-from pak_profiles.common import *
+from profiles.files.common import *
 
 # TODO: navmeshes
 
