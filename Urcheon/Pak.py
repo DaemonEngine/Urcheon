@@ -668,14 +668,7 @@ def main(stage=None):
 			test_dir = args.test_dir
 		else:
 			pak_config = PakConfig(args.source_dir)
-			if not pak_config:
-				ui.error("can't find pak configuration")
-				return
-
-			pak_name = pak_config.getKey("name")
-			if not pak_name:
-				# TODO: error msg
-				return
+			pak_name = pak_config.requireKey("name")
 			test_dir = build_prefix + os.path.sep + test_parent_dir + os.path.sep + pak_name + "_test" + os.path.extsep + "pk3dir"
 
 	if args.build:
@@ -691,15 +684,9 @@ def main(stage=None):
 			pkg_file = args.pkg_file
 		else:
 			pak_config = PakConfig(args.source_dir)
-			if not pak_config:
-				ui.error("can't find pak configuration")
-				return
+			pak_name = pak_config.requireKey("name")
+			pak_version = pak_config.requireKey("version")
 
-			pak_name = pak_config.getKey("name")
-			pak_version = pak_config.getKey("version")
-			if not pak_name or not pak_version:
-				# TODO: error msg
-				return
 			if args.extra_version:
 				pak_version += args.extra_version
 			pkg_file = build_prefix + os.path.sep + release_parent_dir + os.path.sep + pak_name + "_" + pak_version + os.path.extsep + "pk3"

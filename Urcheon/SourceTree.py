@@ -23,32 +23,43 @@ ui = Ui()
 class PakConfig():
 	def __init__(self, source_dir):
 		# TODO: check absolute path (check in map ini too)
-		ini_pak_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pak" + os.path.extsep +  "ini"
+		config_pak_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pak" + os.path.extsep +  "ini"
 		self.pak_config = configparser.ConfigParser()
 		self.key_dict = None
-		self.readIni(ini_pak_path)
+		self.loaded = False
 
-	def readIni(self, ini_pak_path):
-		logging.debug("reading pak ini: " + ini_pak_path)
-		self.pak_config.read(ini_pak_path)
+		if os.path.isfile(config_pak_path):
+			self.readConfig(config_pak_path)
+		else:
+			logging.debug("pak config file not found: " + config_pak_path)
 
-		logging.debug("build profiles: " + str(self.pak_config.sections()))
+	def readConfig(self, config_pak_path):
+		logging.debug("reading pak config file " + config_pak_path)
+
+		if not self.pak_config.read(config_pak_path):
+			ui.error("error reading pak config file: " + config_pak_path)
+
+		logging.debug("config sections: " + str(self.pak_config.sections()))
 
 		if not "config" in self.pak_config.sections():
-			logging.error("missing pak config: " + ini_pak_path)
-			# TODO: better error handling?
-			sys.exit()
+			ui.error("can't find config section in pak config file: " + config_pak_path)
 
-		logging.debug("pak config found: " + ini_pak_path)
+		logging.debug("config found in pak config file: " + config_pak_path)
 
 		self.key_dict = self.pak_config["config"]
+
+	def requireKey(self, key_name):
+		# TODO: strip quotes
+		if key_name in self.key_dict.keys():
+			return self.key_dict[key_name]
+		else:
+			ui.error("key not found in pak config: " + key_name)
 
 	def getKey(self, key_name):
 		# TODO: strip quotes
 		if key_name in self.key_dict.keys():
 			return self.key_dict[key_name]
 		else:
-			ui.error("Unknown key in pak config: " + key_name)
 			return None
 
 

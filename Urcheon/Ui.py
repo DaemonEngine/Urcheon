@@ -7,13 +7,14 @@
 # License: ISC
 # 
 
+import sys
+
 class Ui():
-	# This is NOT the runtime logging, it's the package build logging
 	def __init__(self):
 		self.verbosely = False
 
 	def print(self, message):
-		# I duplicate print() because I will add color support and verbose/quiet support in the future
+		# I duplicate print() because I will add colouring support and verbose/quiet support in the future
 		print(message)
 
 	def verbose(self, message):
@@ -28,4 +29,5 @@ class Ui():
 
 	def error(self, message):
 		print("Error: " + message)
+		sys.exit()
 
