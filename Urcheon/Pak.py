@@ -29,35 +29,47 @@ from collections import OrderedDict
 
 
 class Builder():
-	def __init__(self, source_dir, build_dir, game_name=None, map_profile=None, auto_actions=False):
+	def __init__(self, source_dir, build_dir, game_name=None, map_profile=None, transient_dir=None, auto_actions=False):
 		if not game_name:
 			pak_config = SourceTree.Config(source_dir)
 			game_name = pak_config.requireKey("game")
 
 		self.game_name = game_name
+		self.parallel = True
 
 		if not map_profile:
-			map_config = MapCompiler.Config(source_dir)
+			map_config = MapCompiler.Config(source_dir, game_name=self.game_name)
 			map_profile = map_config.requireDefaultProfile()
 			self.map_profile = map_profile
 
+		# always compute actions from source_dir, even in transient dir
 		self.action_list = Action.List(source_dir, game_name)
 
-		# implicit action list
-		if auto_actions:
+		if transient_dir:
+			# do not work in parallel in recursion
+			self.parallel = False
+			# we are working in a transient dir of generated files, not in the source dir
+			self.action_list.computeActions(transient_dir=transient_dir)
+		elif auto_actions:
+			# automatic action list
 			self.action_list.computeActions()
 
-		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.game_name = game_name
 		self.map_profile = map_profile
 
-		# read predefined actions first
-		self.action_list.readActions()
+		if transient_dir:
+			# we are working in a transient dir of generated files, not in the source dir
+			self.source_dir = transient_dir
+			# do not read predefined actions, they can't exist for these files
+		else:
+			self.source_dir = source_dir
+			# read predefined actions
+			self.action_list.readActions()
 
 
 	# TODO: buildpack
-	def build(self):
+	def build(self, transient_dir=None):
 		# TODO: check if not a directory
 		if os.path.isdir(self.build_dir):
 			logging.debug("found build dir: " + self.build_dir)
@@ -72,20 +84,23 @@ class Builder():
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
-				a = action(self.source_dir, self.build_dir, file_path, game_name=self.game_name, map_profile=self.map_profile)
+				# the transient_dir is just there to tell the action to not do specific stuff because recursion
+				a = action(self.source_dir, self.build_dir, file_path, game_name=self.game_name, map_profile=self.map_profile, transient_dir=transient_dir)
 
-				if not action.parallel:
-					# action that can't be multithreaded
+				if not self.parallel:
+					# explicitely requested (like in recursion)
 					a.run()
 				else:
-					# args expect an iterable, hence the comma inside parenthesis otherwise the string is passed as is
-					# since we call a foreign function, we must pass itself
-					thread = threading.Thread(target=a.run)
+					if not action.parallel:
+						# action that can't be multithreaded
+						a.run()
+					else:
+						thread = threading.Thread(target=a.run)
 
-					while threading.active_count() > multiprocessing.cpu_count():
-						pass
+						while threading.active_count() > multiprocessing.cpu_count():
+							pass
 
-					thread.start()
+						thread.start()
 
 
 class Packer():

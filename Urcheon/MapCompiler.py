@@ -252,8 +252,9 @@ class Bsp():
 		build_stage_dict = map_config.map_config[self.map_profile]
 
 		for build_stage in stage_list:
-			if build_stage_dict[build_stage] == None:
+			if build_stage not in build_stage_dict.keys():
 				continue
+			# TODO: :none: ?
 			elif build_stage_dict[build_stage] == "none":
 				continue
 
@@ -313,10 +314,9 @@ class Bsp():
 		subprocess.call([q3map2_helper_path, "--minimap", bsp_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 
 	def copyMap(self, map_path, build_prefix):
-		# TODO: for all files created
-#		shutil.copystat(source_path, build_path)
 
 		Ui.print("Copying map source: " + map_path)
+		return
 		map_name = os.path.basename(map_path)
 		copy_path = build_prefix + os.path.sep + map_name
 		shutil.copyfile(map_path, copy_path)

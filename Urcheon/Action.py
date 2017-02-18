@@ -10,6 +10,8 @@
 from Urcheon import MapCompiler
 from Urcheon import SourceTree
 from Urcheon import Ui
+from Urcheon import Pak
+from Urcheon import Bsp
 import fnmatch
 import logging
 import os
@@ -26,7 +28,7 @@ from collections import OrderedDict
 
 
 class List():
-	def __init__(self, source_dir, game_name = None):
+	def __init__(self, source_dir, game_name=None):
 		if not game_name:
 			pak_config = SourceTree.Config(source_dir)
 			game_name = pak_config.requireKey("game")
@@ -108,9 +110,18 @@ class List():
 		else:
 			Ui.print("List not found: " + self.action_list_file_name)
 
-	def computeActions(self):
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
-			dir_name = dir_name[len(os.path.curdir + os.path.sep):]
+	def computeActions(self, transient_dir=None):
+		if transient_dir:
+			# for actions in generated files
+			work_dir = transient_dir + os.path.sep + "."
+		else:
+			work_dir = self.source_dir
+
+		saved_dir = os.getcwd()
+		os.chdir(work_dir)
+		for dir_name, subdir_name_list, file_name_list in os.walk(os.path.curdir):
+			curdir = os.path.curdir + os.path.sep
+			dir_name = dir_name[len(curdir):]
 
 			logging.debug("dir_name: " + str(dir_name) + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
 
@@ -156,6 +167,8 @@ class List():
 					if unknown_file_path:
 						computed_action = self.inspector.inspect(file_path)
 						self.computed_active_action_dict[computed_action].append(file_path)
+
+		os.chdir(saved_dir)
 
 		self.active_action_dict = self.computed_active_action_dict
 		self.active_inaction_dict = self.computed_disabled_action_dict
@@ -216,12 +229,13 @@ class Action():
 	subprocess_stdout = subprocess.DEVNULL;
 	subprocess_stderr = subprocess.DEVNULL;
 
-	def __init__(self, source_dir, build_dir, file_path, game_name=None, map_profile=None):
+	def __init__(self, source_dir, build_dir, file_path, game_name=None, map_profile=None, transient_dir=None):
 		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.file_path = file_path
 		self.game_name = game_name
 		self.map_profile = map_profile
+		self.transient_dir = transient_dir
 
 	def run(self):
 		Ui.print("Dumb action: " + self.file_path)
@@ -307,8 +321,10 @@ class Copy(Action):
 		# TODO: add specific rule for that
 		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
 		if ext == "bsp":
-			bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
-			bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=['nav', 'minimap'])
+			if not self.transient_dir:
+				# not in recursion
+				bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
+				bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=["nav", "minimap"])
 
 	def getFileNewName(self):
 		return self.file_path
@@ -379,7 +395,7 @@ class ConvertLossyWebp(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to lossy webp: " + self.file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "png")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
@@ -406,7 +422,7 @@ class ConvertLosslessWebp(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to lossless webp: " + self.file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "png")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
@@ -436,7 +452,7 @@ class ConvertCrn(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to crn: " + self.file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "tga")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
@@ -464,7 +480,7 @@ class ConvertNormalCrn(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to normalized crn: " + self.file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "tga")
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
@@ -554,32 +570,49 @@ class MergeBsp(Action):
 
 	def run(self):
 		# TODO: ensure bsp is already copied/compiled if modifying copied/compiled bsp
+		# TODO: this is not yet possible to merge over something built
 
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
-
 		self.createSubdirs()
-		bspdir_path = self.getBspDirNewName(self.file_path)
-		bsp_path = self.getFileNewName(self.file_path)
+
+		transient_path = tempfile.mkdtemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "dir")
+		transient_maps_path = transient_path + os.path.sep + "maps"
+		os.makedirs(transient_maps_path, exist_ok=True)
+
+		bspdir_path = self.getBspDirNewName()
+		bsp_path = self.getFileNewName()
 
 		if not self.isDifferent(source_path, build_path):
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		logging.debug("looking for file in same bspdir than: " + self.file_path)
-		for sub_path in self.action_list.active_action_dict["merge_bsp"]:
-			if sub_path.startswith(bspdir_path):
-				Ui.print("Merge to bsp: " + sub_path)
-				self.action_list.active_action_dict["merge_bsp"].remove(sub_path)
-			else:
-				logging.debug("file not from same bspdir: " + sub_path)
+#		for sub_path in self.action_list.active_action_dict["merge_bsp"]:
+#			if sub_path.startswith(bspdir_path):
+#				Ui.print("Merge to bsp: " + sub_path)
+#				self.action_list.active_action_dict["merge_bsp"].remove(sub_path)
+#			else:
+#				logging.debug("file not from same bspdir: " + sub_path)
+
 		bsp = Bsp.File()
 		bsp.readDir(source_path)
 		# TODO: if verbose
+		bsp_transient_path = transient_path + os.path.sep + bsp_path
+		# in the future, we will be able to merge in place
 		bsp.writeFile(build_path)
+
+		# lucky unthought workaround: since the produced bsp will receive the date of the original file
+		# other call for other files of same bspdir will be ignored
 		shutil.copystat(source_path, build_path)
 
+		shutil.copyfile(build_path, bsp_transient_path)
+		shutil.copystat(source_path, bsp_transient_path)
+
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
-		bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=['nav', 'minimap'])
+		bsp_compiler.compileBsp(bsp_transient_path, transient_maps_path, stage_list=["nav", "minimap"])
+		builder = Pak.Builder(self.source_dir, self.build_dir, game_name=self.game_name, transient_dir=transient_path)
+		builder.build(transient_dir=transient_path)
+		shutil.rmtree(transient_path)
 
 	def getSourcePath(self):
 		return self.source_dir + os.path.sep + self.getBspDirNewName()
@@ -603,6 +636,10 @@ class CompileBsp(Action):
 		bsp_path = self.getFileNewName()
 		self.createSubdirs()
 
+		transient_path = tempfile.mkdtemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "dir")
+		transient_maps_path = transient_path + os.path.sep + "maps"
+		os.makedirs(transient_maps_path, exist_ok=True)
+
 		# TODO if file already there
 		#   you must ensure merge bsp and copy bsp are made before
 		#   beware of multithreading
@@ -616,7 +653,10 @@ class CompileBsp(Action):
 		Ui.print("Compiling to bsp: " + self.file_path)
 
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
-		bsp_compiler.compileBsp(source_path, os.path.dirname(build_path))
+		bsp_compiler.compileBsp(source_path, transient_maps_path)
+		builder = Pak.Builder(self.source_dir, self.build_dir, game_name=self.game_name, transient_dir=transient_path)
+		builder.build(transient_dir=transient_path)
+		shutil.rmtree(transient_path)
 
 	def getFileNewName(self):
 		return os.path.splitext(self.file_path)[0] + os.path.extsep + "bsp"
