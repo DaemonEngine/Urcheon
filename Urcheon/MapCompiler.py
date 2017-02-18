@@ -8,7 +8,7 @@
 # 
 
 from Urcheon import Defaults
-from Urcheon.SourceTree import PakConfig
+from Urcheon import SourceTree
 from Urcheon.Ui import Ui
 import configparser
 import logging
@@ -23,10 +23,11 @@ from collections import OrderedDict
 ui = Ui()
 
 
-class MapConfig():
+class Config():
 	def __init__(self, source_dir, game_name=None, map_path=None):
 		self.map_config = OrderedDict()
 
+		self.default_profile = None
 		self.copy_map = True
 
 		# I want compilation in this order
@@ -41,7 +42,7 @@ class MapConfig():
 		self.map_config = OrderedDict()
 
 		if not game_name:
-			pak_config = PakConfig(source_dir)
+			pak_config = SourceTree.Config(source_dir)
 			game_name = pak_config.getKey("game")
 
 		map_config_loaded = False
@@ -92,6 +93,11 @@ class MapConfig():
 				game_config_path = Defaults.getGameMapConfigPath(game_name)
 				self.readConfig(game_config_path, is_parent=True)
 
+			if "default" in config[":config:"].keys():
+				default = config[":config:"]["default"]
+				logging.debug("found “default” instruction in “:config:” section: " + default)
+				self.default_profile = default
+
 			if "copy" in config[":config:"].keys():
 				copy = config[":config:"]["copy"]
 				logging.debug("found “copy” instruction in “:config:” section: " + copy)
@@ -123,10 +129,8 @@ class MapConfig():
 				arguments = config[build_profile][build_stage].split(" ")
 				self.map_config[build_profile][build_stage] = arguments
 
-
 		if is_parent:
 			return
-
 
 		# reordered empty map_config without "all" stuff
 		temp_map_config = OrderedDict()
@@ -183,6 +187,12 @@ class MapConfig():
 		self.map_config = temp_map_config
 
 
+	def requireDefaultProfile(self):
+		if not self.default_profile:
+			ui.error("no default map profile found, cannot compile map")
+		return self.default_profile
+
+
 	def printConfig(self):
 		first_line = True
 		for build_profile in self.map_config.keys():
@@ -199,13 +209,24 @@ class MapConfig():
 					ui.print(build_stage + " = " + " ".join(self.map_config[build_profile][build_stage]))
 
 
-class BspCompiler():
-	def __init__(self, source_dir, game_name, map_profile):
+class Bsp():
+	def __init__(self, source_dir, game_name=None, map_profile=None):
 		self.source_dir = source_dir
 		self.map_profile = map_profile
 
-		# TODO: optional
+		if game_name == None:
+			pak_config = SourceTree.Config(source_dir)
+			game_name = pak_config.requireKey("game")
+
 		self.game_name = game_name
+
+		# TODO: read config
+		if not map_profile:
+			map_config = MapCompiler.Config(source_dir)
+			map_profile = map_config.requireDefaultProfile()
+
+		self.map_profile = map_profile
+
 
 		# TODO: set something else for quiet and verbose mode
 		self.subprocess_stdout = None;
@@ -233,7 +254,7 @@ class BspCompiler():
 		srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "srf")
 		bsp_path = build_prefix + os.path.sep + map_base + os.path.extsep + "bsp"
 
-		map_config = MapConfig(self.source_dir, game_name=self.game_name, map_path=map_path)
+		map_config = Config(self.source_dir, game_name=self.game_name, map_path=map_path)
 
 		if not stage_list:
 			if self.map_profile not in map_config.map_config.keys():

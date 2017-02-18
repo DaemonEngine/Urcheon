@@ -7,11 +7,10 @@
 # License: ISC
 # 
 
+from Urcheon import MapCompiler
+from Urcheon import SourceTree
 from Urcheon.Ui import Ui
 from Urcheon.Bsp import Bsp
-from Urcheon.SourceTree import Inspector
-from Urcheon.SourceTree import PakConfig
-from Urcheon.MapCompiler import BspCompiler
 import fnmatch
 import logging
 import os
@@ -61,7 +60,7 @@ class List():
 
 		logging.debug("blacklist: " + str(self.blacklist))
 
-		self.inspector = Inspector(game_name)
+		self.inspector = SourceTree.Inspector(game_name)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
@@ -217,7 +216,7 @@ class Action():
 	subprocess_stdout = subprocess.DEVNULL;
 	subprocess_stderr = subprocess.DEVNULL;
 
-	def __init__(self, source_dir, build_dir, file_path, game_name = None, map_profile = None):
+	def __init__(self, source_dir, build_dir, file_path, game_name=None, map_profile=None):
 		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.file_path = file_path
@@ -308,7 +307,7 @@ class Copy(Action):
 		# TODO: add specific rule for that
 		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
 		if ext == "bsp":
-			bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
+			bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 			bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=['nav', 'minimap'])
 
 	def getFileNewName(self):
@@ -579,7 +578,7 @@ class MergeBsp(Action):
 		bsp.writeFile(build_path)
 		shutil.copystat(source_path, build_path)
 
-		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
+		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=['nav', 'minimap'])
 
 	def getSourcePath(self):
@@ -616,7 +615,7 @@ class CompileBsp(Action):
 
 		ui.print("Compiling to bsp: " + self.file_path)
 
-		bsp_compiler = BspCompiler(self.source_dir, self.game_name, self.map_profile)
+		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, os.path.dirname(build_path))
 
 	def getFileNewName(self):

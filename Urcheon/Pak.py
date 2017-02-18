@@ -8,11 +8,10 @@
 # 
 
 from Urcheon import Action
+from Urcheon import MapCompiler
+from Urcheon import SourceTree
 from Urcheon.Ui import Ui
 from Urcheon.Bsp import Bsp
-from Urcheon.SourceTree import Inspector
-from Urcheon.SourceTree import PakConfig
-from Urcheon.MapCompiler import BspCompiler
 import __main__ as m
 import argparse
 import logging
@@ -33,7 +32,7 @@ ui = Ui()
 
 
 class Builder():
-	def __init__(self, source_dir, build_dir, game_name, map_profile, auto_actions=False):
+	def __init__(self, source_dir, build_dir, game_name=None, map_profile=None, auto_actions=False):
 		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.game_name = game_name
@@ -46,6 +45,18 @@ class Builder():
 		# implicit action list
 		if auto_actions:
 			self.action_list.computeActions()
+
+		if game_name == None:
+			pak_config = SourceTree.Config(source_dir)
+			game_name = pak_config.requireKey("game")
+
+		self.game_name = game_name
+
+		# TODO: read config
+		if not map_profile:
+			map_config = MapCompiler.Config(source_dir)
+			map_profile = map_config.requireDefaultProfile()
+			self.map_profile = map_profile
 
 
 	# TODO: buildpack
@@ -78,7 +89,6 @@ class Builder():
 						pass
 
 					thread.start()
-
 
 
 class Packer():
@@ -146,14 +156,14 @@ def main(stage=None):
 	args = argparse.ArgumentParser(description=description, prog=prog_name)
 	args.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	args.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
-	args.add_argument("-g", "--game-profile", dest="game_profile", metavar="GAMENAME", default="unvanquished", help="use game profile %(metavar)s, default: %(default)s")
+	args.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s, default: %(default)s")
 	args.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
 	args.add_argument("-bp", "--build-prefix", dest="build_prefix", metavar="DIRNAME", default="build", help="build in prefix %(metavar)s, default: %(default)s")
 	args.add_argument("-tp", "--test-parent", dest="test_parent_dir", metavar="DIRNAME", default="test", help="build test pakdir in parent directory %(metavar)s, default: %(default)s")
 	args.add_argument("-pp", "--pkg-parent", dest="release_parent_dir", metavar="DIRNAME", default="pkg", help="build release pak in parent directory %(metavar)s, default: %(default)s")
 	args.add_argument("-td", "--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
 	args.add_argument("-pf", "--pkg-file", dest="pkg_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
-	args.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", default="fast", help="build map with profile %(metavar)s, default: %(default)s")
+	args.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with profile %(metavar)s, default: %(default)s")
 	args.add_argument("-ev", "--extra-version", dest="extra_version", metavar="VERSION", help="add %(metavar)s to pak version string")
 	args.add_argument("-u", "--update-actions", dest="update", help="compute actions, write down list", action="store_true")
 	args.add_argument("-b", "--build", dest="build", help="build source pakdir", action="store_true")
@@ -176,7 +186,7 @@ def main(stage=None):
 		ui.verbosely = True
 
 	if args.update:
-		action_list = Action.List(args.source_dir, args.game_profile)
+		action_list = Action.List(args.source_dir, args.game_name)
 		action_list.updateActions()
 
 	if args.package or args.build or args.clean:
@@ -207,15 +217,15 @@ def main(stage=None):
 		if args.test_dir:
 			test_dir = args.test_dir
 		else:
-			pak_config = PakConfig(args.source_dir)
+			pak_config = SourceTree.Config(args.source_dir)
 			pak_name = pak_config.requireKey("name")
 			test_dir = build_prefix + os.path.sep + test_parent_dir + os.path.sep + pak_name + "_test" + os.path.extsep + "pk3dir"
 
 	if args.build:
 		if args.auto_actions:
-			builder = Builder(args.source_dir, test_dir, args.game_profile, args.map_profile, auto_actions=True)
+			builder = Builder(args.source_dir, test_dir, game_name=args.game_name, map_profile=args.map_profile, auto_actions=True)
 		else:
-			builder = Builder(args.source_dir, test_dir, args.game_profile, args.map_profile)
+			builder = Builder(args.source_dir, test_dir, game_name=args.game_name, map_profile=args.map_profile)
 
 		builder.build()
 
@@ -223,7 +233,7 @@ def main(stage=None):
 		if args.pkg_file:
 			pkg_file = args.pkg_file
 		else:
-			pak_config = PakConfig(args.source_dir)
+			pak_config = SourceTree.Config(args.source_dir)
 			pak_name = pak_config.requireKey("name")
 			pak_version = pak_config.requireKey("version")
 

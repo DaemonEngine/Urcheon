@@ -21,7 +21,7 @@ import os
 ui = Ui()
 
 
-class PakConfig():
+class Config():
 	def __init__(self, source_dir):
 		# TODO: check absolute path (check in map ini too)
 		config_pak_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pak" + os.path.extsep +  "ini"
