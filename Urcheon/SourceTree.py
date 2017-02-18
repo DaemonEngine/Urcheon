@@ -123,6 +123,9 @@ class Inspector():
 		for action in Action.Directory().directory:
 			self.action_name_dict[action.keyword] = action.description
 
+		# TODO read from config
+		self.default_action = "keep"
+
 	def inspectFileName(self, file_path, file_name):
 		name = os.path.basename(file_path)
 		return name in file_name
@@ -171,7 +174,7 @@ class Inspector():
 		logging.debug("looking for file path:" + file_path)
 #		logging.debug("will try file types in this order: ", str(file_type_ordered_list))
 
-		action = "keep"
+		action = self.default_action
 		for file_type_name in file_type_ordered_list:
 			logging.debug("trying file type:" + file_type_name)
 			criteria_dict = self.file_profile.file_type_dict[file_type_name].copy()
@@ -193,7 +196,8 @@ class Inspector():
 				description  = file_type_description
 				break
 
-		if action == "keep":
+		# TODO read from config
+		if action == self.default_action:
 			Ui.warning(file_path + ": unknown file found, will " + self.action_name_dict[action] + ".")
 		else:
 			Ui.print(file_path + ": " + description + " found, will " + self.action_name_dict[action] + ".")

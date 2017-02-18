@@ -10,7 +10,6 @@
 from Urcheon import MapCompiler
 from Urcheon import SourceTree
 from Urcheon import Ui
-from Urcheon.Bsp import Bsp
 import fnmatch
 import logging
 import os
@@ -27,7 +26,11 @@ from collections import OrderedDict
 
 
 class List():
-	def __init__(self, source_dir, game_name):
+	def __init__(self, source_dir, game_name = None):
+		if not game_name:
+			pak_config = SourceTree.Config(source_dir)
+			game_name = pak_config.requireKey("game")
+
 		self.source_dir = source_dir
 		self.action_list_file_name = ".pakinfo" + os.path.sep + "actions.txt"
 		self.action_list_file = self.source_dir + os.path.sep + self.action_list_file_name
@@ -569,7 +572,7 @@ class MergeBsp(Action):
 				self.action_list.active_action_dict["merge_bsp"].remove(sub_path)
 			else:
 				logging.debug("file not from same bspdir: " + sub_path)
-		bsp = Bsp()
+		bsp = Bsp.File()
 		bsp.readDir(source_path)
 		# TODO: if verbose
 		bsp.writeFile(build_path)

@@ -323,7 +323,7 @@ class Lightmaps():
 
 		return blob
 
-class Bsp():
+class File():
 	def __init__(self):
 		self.bsp_file = None
 		self.bsp_file_name = None
@@ -595,7 +595,7 @@ def main(stage=None):
 	lightmaps = None
 
 	if args.input_bsp_file:
-		bsp = Bsp()
+		bsp = File()
 		bsp.readFile(args.input_bsp_file)
 		entities = Entities()
 		entities.importLump(bsp.exportLump("entities"))
@@ -605,7 +605,7 @@ def main(stage=None):
 		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_bsp_dir:
-		bsp = Bsp()
+		bsp = File()
 		bsp.readDir(args.input_bsp_dir)
 
 	if args.input_entities_file:

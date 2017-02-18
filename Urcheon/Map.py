@@ -19,7 +19,7 @@ from collections import OrderedDict
 
 # see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
 
-class Map():
+class File():
 	def __init__(self):
 		self.entity_list = None
 		# write entity numbers or not
@@ -329,7 +329,7 @@ class Map():
 		return True
 
 
-	def exportMap(self):
+	def exportFile(self):
 		if self.entity_list == None:
 			error("No Map loaded")
 			return False
@@ -416,7 +416,7 @@ class Map():
 		return map_string
 
 	def writeFile(self, file_name):
-		map_string = self.exportMap()
+		map_string = self.exportFile()
 		if map_string:
 			input_map_file = open(file_name, 'wb')
 			input_map_file.write(str.encode(map_string))
@@ -558,7 +558,7 @@ def main(stage=None):
 		debug("args: " + str(args))
 
 	if args.input_map_file:
-		map = Map()
+		map = File()
 		if not map.readFile(args.input_map_file):
 			error("Failed to read " + args.input_map_file)
 			return False

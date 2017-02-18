@@ -12,7 +12,6 @@ from Urcheon import Action
 from Urcheon import MapCompiler
 from Urcheon import SourceTree
 from Urcheon import Ui
-from Urcheon.Bsp import Bsp
 import __main__ as m
 import argparse
 import logging
@@ -31,30 +30,30 @@ from collections import OrderedDict
 
 class Builder():
 	def __init__(self, source_dir, build_dir, game_name=None, map_profile=None, auto_actions=False):
-		self.source_dir = source_dir
-		self.build_dir = build_dir
-		self.game_name = game_name
-		self.map_profile = map_profile
-		self.action_list = Action.List(source_dir, game_name)
-
-		# read predefined actions first
-		self.action_list.readActions()
-
-		# implicit action list
-		if auto_actions:
-			self.action_list.computeActions()
-
-		if game_name == None:
+		if not game_name:
 			pak_config = SourceTree.Config(source_dir)
 			game_name = pak_config.requireKey("game")
 
 		self.game_name = game_name
 
-		# TODO: read config
 		if not map_profile:
 			map_config = MapCompiler.Config(source_dir)
 			map_profile = map_config.requireDefaultProfile()
 			self.map_profile = map_profile
+
+		self.action_list = Action.List(source_dir, game_name)
+
+		# implicit action list
+		if auto_actions:
+			self.action_list.computeActions()
+
+		self.source_dir = source_dir
+		self.build_dir = build_dir
+		self.game_name = game_name
+		self.map_profile = map_profile
+
+		# read predefined actions first
+		self.action_list.readActions()
 
 
 	# TODO: buildpack

@@ -212,13 +212,12 @@ class Bsp():
 		self.source_dir = source_dir
 		self.map_profile = map_profile
 
-		if game_name == None:
+		if not game_name:
 			pak_config = SourceTree.Config(source_dir)
 			game_name = pak_config.requireKey("game")
 
 		self.game_name = game_name
 
-		# TODO: read config
 		if not map_profile:
 			map_config = MapCompiler.Config(source_dir)
 			map_profile = map_config.requireDefaultProfile()
@@ -229,15 +228,6 @@ class Bsp():
 		# TODO: set something else for quiet and verbose mode
 		self.subprocess_stdout = None;
 		self.subprocess_stderr = None;
-
-
-		"""
-			if map_profile == self.map_profile:
-				logging.debug("will use profile: " + map_profile)
-			else
-				Ui.error("profile not found: " + map_profile)
-				sys.exit()
-		"""
 
 	def compileBsp(self, map_path, build_prefix, stage_list=None):
 		logging.debug("building " + map_path + " to prefix: " + build_prefix)
