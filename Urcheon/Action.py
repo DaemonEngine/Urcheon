@@ -108,7 +108,7 @@ class List():
 						self.computed_disabled_action_dict[action_name].append(file_path)
 
 		else:
-			Ui.print("List not found: " + self.action_list_file_name)
+			Ui.verbose("List not found: " + self.action_list_file_name)
 
 	def computeActions(self, transient_dir=None):
 		if transient_dir:
