@@ -105,7 +105,7 @@ file_unvanquished_crn_normalmap = {
 file_unvanquished_minimap = {
 	"file_ext": "minimap",
 	"dir_ancestor_name": "minimaps",
-	"description": "MiniMap",
+	"description": "MiniMap sidecar",
 	"action": "copy",
 }
 
@@ -229,4 +229,11 @@ file_unvanquished_iqe_model = {
 	"dir_ancestor_name": "models",
 	"description": "IQE Model File",
 	"action": "compile_iqm",
+}
+
+file_unvanquished_navmesh = {
+	"dir_ancestor_name": "maps",
+	"file_ext": "navMesh",
+	"description": "Navigation Mesh",
+	"action": "copy",
 }
