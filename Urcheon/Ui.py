@@ -30,4 +30,4 @@ def notice(message):
 
 def error(message):
 	_print("Error: " + message)
-	sys.exit()
+	raise ValueError(message)

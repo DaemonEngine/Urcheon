@@ -7,16 +7,17 @@
 # License: ISC
 # 
 
+from Urcheon import Ui
 import __main__ as m
+import argparse
+import glob
+import logging
 import os
-import sys
 import re
 import struct
-import argparse
-import logging
-import glob
-from logging import debug, error
+import sys
 from collections import OrderedDict
+from logging import debug
 from PIL import Image
 
 
@@ -250,7 +251,7 @@ class Lightmaps():
 			# 384: Lightmap line size (128x3 bytes)
 
 			if int(len(lightmap) != 49152):
-				error("bad file, must be a 128x128x3 picture")
+				Ui.error("bad file, must be a 128x128x3 picture")
 
 			self.lightmap_list.append(lightmap)
 
@@ -346,27 +347,23 @@ class File():
 		self.bsp_file = open(self.bsp_file_name, 'rb')
 
 		if self.bsp_file.read(4) != bsp_magic_number:
-			print("ERR: bad file format")
+			Ui.error(": bad file format")
 			self.bsp_file.close()
 			self.bsp_file = None
-			return False
 
 		self.bsp_file.seek(4)
 		self.bsp_version, = struct.unpack('<I', self.bsp_file.read(4))
 		if self.bsp_version != bsp_version:
-			print("ERR: Unknown BSP version")
+			Ui.error(": Unknown BSP version")
 			self.bsp_file.close()
 			self.bsp_file = None
-			return False
 
 		if not self.readLumpList():
-			print("ERR: Can't read lump list")
-			return False
+			Ui.error(": Can't read lump list")
 
 		for lump_name in lump_name_list:
 			if not self.readLump(lump_name):
-				print("ERR: Can't read lump: " + lump_name)
-				return False
+				Ui.error(": Can't read lump: " + lump_name)
 
 		self.bsp_file.close()
 		return True
@@ -377,9 +374,8 @@ class File():
 			file_list = glob.glob(dir_name + os.path.sep + lump_name + os.path.extsep + "*")
 
 			if len(file_list) > 1:
-				error("more than one " + lump_name + " lump in bspdir")
 				# TODO: handling
-				return
+				Ui.error("more than one " + lump_name + " lump in bspdir")
 			if len(file_list) == 0:
 				# TODO: warning?
 				continue
@@ -393,8 +389,7 @@ class File():
 					lump_file = open(file_path, "rb")
 					self.lump_dict[file_name] = lump_file.read()
 				else:
-					error("unknown lump format: " + filename)
-					return
+					Ui.error("unknown lump format: " + filename)
 
 			elif file_ext == "csv":
 				if file_name == "textures":
@@ -402,8 +397,7 @@ class File():
 					textures.readFile(file_path)
 					self.lump_dict[file_name] = textures.exportLump()
 				else:
-					error("unknown lump format: " + file_path)
-					return
+					Ui.error("unknown lump format: " + file_path)
 
 			elif file_ext == "txt":
 				if file_name == "entities":
@@ -411,8 +405,7 @@ class File():
 					entities.readFile(file_path)
 					self.lump_dict[file_name] = entities.exportLump()
 				else:
-					error("unknown lump format: " + file_path)
-					return
+					Ui.error("unknown lump format: " + file_path)
 
 			elif file_ext == "d":
 				if file_name == "lightmaps":
@@ -420,12 +413,10 @@ class File():
 					lightmaps.readDir(file_path)
 					self.lump_dict[file_name] = lightmaps.exportLump()
 				else:
-					error("unknown lump format: " + file_path)
-					return
+					Ui.error("unknown lump format: " + file_path)
 
 			else:
-				error("unknown lump format: " + file_path)
-				return
+				Ui.error("unknown lump format: " + file_path)
 
 	def printFileName(self):
 		print("*** File:")
@@ -681,37 +672,37 @@ def main(stage=None):
 		if bsp:
 			bsp.printLumpList()
 		else:
-			error("BSP file missing")
+			Ui.error("BSP file missing")
 
 	if args.list_entities:
 		if entities:
 			entities.printList()
 		else:
-			error("Entities lump missing")
+			Ui.error("Entities lump missing")
 
 	if args.list_textures:
 		if textures:
 			textures.printList()
 		else:
-			error("Textures lump missing")
+			Ui.error("Textures lump missing")
 
 	if args.list_lightmaps:
 		if lightmaps:
 			lightmaps.printList()
 		else:
-			error("Lightmaps lump missing")
+			Ui.error("Lightmaps lump missing")
 
 	if args.list_sounds:
 		if entities:
 			entities.printSoundList()
 		else:
-			error("Entities lump missing")
+			Ui.error("Entities lump missing")
 
 	if args.print_entities:
 		if entities:
 			entities.printString()
 		else:
-			error("Entities lump missing")
+			Ui.error("Entities lump missing")
 
 
 if __name__ == "__main__":

@@ -7,14 +7,15 @@
 # License: ISC
 # 
 
+from Urcheon import Ui
 import __main__ as m
-import os
-import sys
-import re
 import argparse
 import logging
-from logging import debug, error
+import os
+import re
+import sys
 from collections import OrderedDict
+from logging import debug
 
 
 # see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
@@ -318,21 +319,15 @@ class File():
 					continue
 
 			# No match
-			error("Unknown line: " + line)
-			return False
+			Ui.error("Unknown line: " + line)
 
 		if len(self.entity_list) == 0:
-			error("Empty file")
-			self.entity_list = None
-			return False
-
-		return True
+			Ui.error("Empty file")
 
 
 	def exportFile(self):
 		if self.entity_list == None:
-			error("No Map loaded")
-			return False
+			Ui.error("No map loaded")
 
 		map_string = ""
 
@@ -406,7 +401,7 @@ class File():
 						map_string += "}\n"
 
 					else:
-						error("This Shape is not a Brush and not a Patch")
+						Ui.error("This Shape is not a Brush and not a Patch")
 						return False
 
 					map_string += "}\n"
@@ -424,8 +419,7 @@ class File():
 
 	def exportBspEntities(self):
 		if self.entity_list == None:
-			error("No Map loaded")
-			return False
+			Ui.error("No map loaded")
 
 		map_string = ""
 
@@ -447,14 +441,15 @@ class File():
 
 	def substituteEntities(self, substitution):
 		if not self.entity_list:
-			error("No Map loaded")
-			return False
+			Ui.error("No map loaded")
 
 		for entity in self.entity_list:
 			if not entity.substituteKeys(substitution):
+				# TODO: what is it?
 				return False
 
 			if not entity.substituteValues(substitution):
+				# TODO: what is it?
 				return False
 
 		return True
@@ -501,8 +496,7 @@ class KeyValueSubstitution():
 		substitution_file = open(file_name, "rb")
 
 		if not substitution_file:
-			error("failed to open file: " + file_name)
-			return False
+			Ui.error("failed to open file: " + file_name)
 
 		substitution_bstring = substitution_file.read()
 		substitution_file.close()
@@ -531,8 +525,6 @@ class KeyValueSubstitution():
 					debug("Add Value Substitution [ " + old_value + ", " + new_value + " ]")
 					self.value_dict[old_value] = new_value
 
-		return True
-
 
 def main(stage=None):
 
@@ -557,11 +549,10 @@ def main(stage=None):
 		debug("Debug logging activated")
 		debug("args: " + str(args))
 
+	map = File()
+
 	if args.input_map_file:
-		map = File()
-		if not map.readFile(args.input_map_file):
-			error("Failed to read " + args.input_map_file)
-			return False
+		map.readFile(args.input_map_file)
 
 		debug("File " + args.input_map_file + " read")
 
