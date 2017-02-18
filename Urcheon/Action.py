@@ -9,7 +9,7 @@
 
 from Urcheon import MapCompiler
 from Urcheon import SourceTree
-from Urcheon.Ui import Ui
+from Urcheon import Ui
 from Urcheon.Bsp import Bsp
 import fnmatch
 import logging
@@ -24,9 +24,6 @@ from collections import OrderedDict
 
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
-
-
-ui = Ui()
 
 
 class List():
@@ -95,18 +92,18 @@ class List():
 				disabled_action_match = disabled_action_pattern.match(action_name)
 				if disabled_action_match:
 					disabled_action = disabled_action_match.group("action_name")
-					ui.print(file_path + ": Known rule, will not " + disabled_action + " (disabled action).")
+					Ui.print(file_path + ": Known rule, will not " + disabled_action + " (disabled action).")
 					self.disabled_action_dict[disabled_action].append(file_path)
 				else:
 					if os.path.isfile(file_path):
-						ui.print(file_path + ": Known rule, will " + self.inspector.action_name_dict[action_name] + " (predefined action).")
+						Ui.print(file_path + ": Known rule, will " + self.inspector.action_name_dict[action_name] + " (predefined action).")
 						self.active_action_dict[action_name].append(file_path)
 					else:
-						ui.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[action_name] + " (missing file).")
+						Ui.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[action_name] + " (missing file).")
 						self.computed_disabled_action_dict[action_name].append(file_path)
 
 		else:
-			ui.print("List not found: " + self.action_list_file_name)
+			Ui.print("List not found: " + self.action_list_file_name)
 
 	def computeActions(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
@@ -146,11 +143,11 @@ class List():
 					logging.debug("inactive actions:" + str(self.disabled_action_dict))
 					for read_action in self.active_action_dict.keys():
 						if file_path in self.active_action_dict[read_action]:
-							ui.print(file_path + ": Known file, will " + self.inspector.action_name_dict[read_action] + ".")
+							Ui.print(file_path + ": Known file, will " + self.inspector.action_name_dict[read_action] + ".")
 							self.computed_active_action_dict[read_action].append(file_path)
 							unknown_file_path = False
 						elif file_path in self.disabled_action_dict[read_action]:
-							ui.print(file_path + ": Disabled known file, will ignore it.")
+							Ui.print(file_path + ": Disabled known file, will ignore it.")
 							self.computed_disabled_action_dict[read_action].append(file_path)
 							unknown_file_path = False
 					if unknown_file_path:
@@ -224,7 +221,7 @@ class Action():
 		self.map_profile = map_profile
 
 	def run(self):
-		ui.print("Dumb action: " + self.file_path)
+		Ui.print("Dumb action: " + self.file_path)
 
 	def getFileNewName(self):
 		return self.file_path
@@ -263,7 +260,7 @@ class Ignore(Action):
 	parallel = True
 
 	def run(self):
-		ui.print("Ignoring: " + self.file_path)
+		Ui.print("Ignoring: " + self.file_path)
 
 	def getFileNewName(self):
 		return self.file_path
@@ -279,9 +276,9 @@ class Keep(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
-		ui.print("Keep: " + self.file_path)
+		Ui.print("Keep: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
 
@@ -298,9 +295,9 @@ class Copy(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
-		ui.print("Copy: " + self.file_path)
+		Ui.print("Copy: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
 
@@ -324,13 +321,13 @@ class ConvertJpg(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() in ("jpg", "jpeg"):
-			ui.print("File already in jpg, copy: " + self.file_path)
+			Ui.print("File already in jpg, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to jpg: " + self.file_path)
+			Ui.print("Convert to jpg: " + self.file_path)
 			subprocess.call(["convert", "-verbose", "-quality", "92", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -348,13 +345,13 @@ class ConvertPng(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "png":
-			ui.print("File already in png, copy: " + self.file_path)
+			Ui.print("File already in png, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to png: " + self.file_path)
+			Ui.print("Convert to png: " + self.file_path)
 			subprocess.call(["convert", "-verbose", "-quality", "100", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -372,13 +369,13 @@ class ConvertLossyWebp(Action):
 		build_path = self.getBuildPath(self.geteNewName(self.file_path))
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "webp":
-			ui.print("File already in webp, copy: " + self.file_path)
+			Ui.print("File already in webp, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to lossy webp: " + self.file_path)
+			Ui.print("Convert to lossy webp: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -399,13 +396,13 @@ class ConvertLosslessWebp(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "webp":
-			ui.print("File already in webp, copy: " + self.file_path)
+			Ui.print("File already in webp, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to lossless webp: " + self.file_path)
+			Ui.print("Convert to lossless webp: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "png")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -429,13 +426,13 @@ class ConvertCrn(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "crn":
-			ui.print("File already in crn, copy: " + self.file_path)
+			Ui.print("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to crn: " + self.file_path)
+			Ui.print("Convert to crn: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -457,13 +454,13 @@ class ConvertNormalCrn(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "crn":
-			ui.print("File already in crn, copy: " + self.file_path)
+			Ui.print("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to normalized crn: " + self.file_path)
+			Ui.print("Convert to normalized crn: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(self.file_path) + "_transient" + os.path.extsep + "tga")
 			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -485,13 +482,13 @@ class ConvertVorbis(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "ogg":
-			ui.print("File already in vorbis, copy: " + self.file_path)
+			Ui.print("File already in vorbis, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to vorbis: " + self.file_path)
+			Ui.print("Convert to vorbis: " + self.file_path)
 			subprocess.call(["ffmpeg", "-acodec", "libvorbis", "-i", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -509,13 +506,13 @@ class ConvertOpus(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "opus":
-			ui.print("File already in opus, copy: " + self.file_path)
+			Ui.print("File already in opus, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Convert to opus: " + self.file_path)
+			Ui.print("Convert to opus: " + self.file_path)
 			subprocess.call(["opusenc", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -533,13 +530,13 @@ class CompileIqm(Action):
 		build_path = self.getBuildPath()
 		self.createSubdirs()
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		if self.getExt() == "iqm":
-			ui.print("File already in iqm, copy: " + self.file_path)
+			Ui.print("File already in iqm, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			ui.print("Compile to iqm: " + self.file_path)
+			Ui.print("Compile to iqm: " + self.file_path)
 			subprocess.call(["iqm", build_path, source_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		shutil.copystat(source_path, build_path)
 
@@ -563,12 +560,12 @@ class MergeBsp(Action):
 		bsp_path = self.getFileNewName(self.file_path)
 
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		logging.debug("looking for file in same bspdir than: " + self.file_path)
 		for sub_path in self.action_list.active_action_dict["merge_bsp"]:
 			if sub_path.startswith(bspdir_path):
-				ui.print("Merge to bsp: " + sub_path)
+				Ui.print("Merge to bsp: " + sub_path)
 				self.action_list.active_action_dict["merge_bsp"].remove(sub_path)
 			else:
 				logging.debug("file not from same bspdir: " + sub_path)
@@ -606,14 +603,14 @@ class CompileBsp(Action):
 		# TODO if file already there
 		#   you must ensure merge bsp and copy bsp are made before
 		#   beware of multithreading
-		#	ui.warning("Bsp file already there, will reuse: " + source_path)
+		#	Ui.warning("Bsp file already there, will reuse: " + source_path)
 		#	return
 
 		if not self.isDifferent(source_path, build_path):
-			ui.verbose("Unmodified file " + build_path + ", will reuse: " + source_path)
+			Ui.verbose("Unmodified file " + build_path + ", will reuse: " + source_path)
 			return
 
-		ui.print("Compiling to bsp: " + self.file_path)
+		Ui.print("Compiling to bsp: " + self.file_path)
 
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, os.path.dirname(build_path))

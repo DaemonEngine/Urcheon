@@ -9,25 +9,25 @@
 
 import sys
 
-class Ui():
-	def __init__(self):
-		self.verbosely = False
+# keep an eye on the default Python's print function
+_print = print
 
-	def print(self, message):
-		# I duplicate print() because I will add colouring support and verbose/quiet support in the future
-		print(message)
+verbosely = False
 
-	def verbose(self, message):
-		if self.verbosely:
-			print(message)
+def print(message):
+	# I duplicate print() because I will add colouring support and verbose/quiet support in the future
+	_print(message)
 
-	def warning(self, message):
-		print("Warning: " + message)
+def verbose(message):
+	if verbosely:
+		_print(message)
 
-	def notice(self, message):
-		print("Notice: " + message)
+def warning(message):
+	_print("Warning: " + message)
 
-	def error(self, message):
-		print("Error: " + message)
-		sys.exit()
+def notice(message):
+	_print("Notice: " + message)
 
+def error(message):
+	_print("Error: " + message)
+	sys.exit()

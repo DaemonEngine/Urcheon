@@ -9,16 +9,13 @@
 
 
 from Urcheon import Action
-from Urcheon.Ui import Ui
+from Urcheon import Ui
 from collections import OrderedDict
 import configparser
 import importlib
 import logging
 import operator
 import os
-
-
-ui = Ui()
 
 
 class Config():
@@ -38,12 +35,12 @@ class Config():
 		logging.debug("reading pak config file " + config_pak_path)
 
 		if not self.pak_config.read(config_pak_path):
-			ui.error("error reading pak config file: " + config_pak_path)
+			Ui.error("error reading pak config file: " + config_pak_path)
 
 		logging.debug("config sections: " + str(self.pak_config.sections()))
 
 		if not "config" in self.pak_config.sections():
-			ui.error("can't find config section in pak config file: " + config_pak_path)
+			Ui.error("can't find config section in pak config file: " + config_pak_path)
 
 		logging.debug("config found in pak config file: " + config_pak_path)
 
@@ -54,7 +51,7 @@ class Config():
 		if key_name in self.key_dict.keys():
 			return self.key_dict[key_name]
 		else:
-			ui.error("key not found in pak config: " + key_name)
+			Ui.error("key not found in pak config: " + key_name)
 
 	def getKey(self, key_name):
 		# TODO: strip quotes
@@ -197,9 +194,9 @@ class Inspector():
 				break
 
 		if action == "keep":
-			ui.warning(file_path + ": unknown file found, will " + self.action_name_dict[action] + ".")
+			Ui.warning(file_path + ": unknown file found, will " + self.action_name_dict[action] + ".")
 		else:
-			ui.print(file_path + ": " + description + " found, will " + self.action_name_dict[action] + ".")
+			Ui.print(file_path + ": " + description + " found, will " + self.action_name_dict[action] + ".")
 
 		return action
 

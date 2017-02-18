@@ -7,9 +7,10 @@
 # License: ISC
 # 
 
+
 from Urcheon import Defaults
 from Urcheon import SourceTree
-from Urcheon.Ui import Ui
+from Urcheon import Ui
 import configparser
 import logging
 import shutil
@@ -18,9 +19,6 @@ import sys
 import tempfile
 import os
 from collections import OrderedDict
-
-
-ui = Ui()
 
 
 class Config():
@@ -71,18 +69,18 @@ class Config():
 
 		# well, it must never occurs, previous errors raise before
 		if not map_config_loaded:
-			ui.error("was not able to load any map config")
+			Ui.error("was not able to load any map config")
 
 
 	def readConfig(self, config_path, is_parent=False):
 		config = configparser.ConfigParser()
 
 		if not config_path:
-			ui.error("not a map config path")
+			Ui.error("not a map config path")
 
 		logging.debug("reading map config: " + config_path)
 		if not config.read(config_path):
-			ui.error("failed to load map config: ", config_path)
+			Ui.error("failed to load map config: ", config_path)
 
 		if ":config:" in config.sections():
 			logging.debug("found extend section in map profile: " + config_path)
@@ -107,7 +105,7 @@ class Config():
 				elif copy == "no":
 					self.copy_map = False
 				else:
-					ui.error("unknown “copy” value in config section, must be “yes” or “no”: " + config_path)
+					Ui.error("unknown “copy” value in config section, must be “yes” or “no”: " + config_path)
 
 			del config[":config:"]
 
@@ -122,7 +120,7 @@ class Config():
 			for build_stage in config[build_profile].keys():
 				logging.debug("found build stage in “" + build_profile + "” profile: " + build_stage)
 				if build_stage not in self.build_stages + [ "all" ]:
-					ui.warning("unknown stage in “" + config_path + "”: " + build_stage)
+					Ui.warning("unknown stage in “" + config_path + "”: " + build_stage)
 					continue
 
 				logging.debug("add build parameters for “" + build_stage + "” stage: " + config[build_profile][build_stage])
@@ -189,7 +187,7 @@ class Config():
 
 	def requireDefaultProfile(self):
 		if not self.default_profile:
-			ui.error("no default map profile found, cannot compile map")
+			Ui.error("no default map profile found, cannot compile map")
 		return self.default_profile
 
 
@@ -199,14 +197,14 @@ class Config():
 			if first_line:
 				first_line = False
 			else:
-				ui.print("")
+				Ui.print("")
 
-			ui.print("[" + build_profile + "]")
+			Ui.print("[" + build_profile + "]")
 
 			if self.map_config[build_profile]:
 				for build_stage in self.map_config[build_profile].keys():
 					logging.debug("parameters for “" + build_stage + "” stage: " + str(self.map_config[build_profile][build_stage]))
-					ui.print(build_stage + " = " + " ".join(self.map_config[build_profile][build_stage]))
+					Ui.print(build_stage + " = " + " ".join(self.map_config[build_profile][build_stage]))
 
 
 class Bsp():
@@ -237,7 +235,7 @@ class Bsp():
 			if map_profile == self.map_profile:
 				logging.debug("will use profile: " + map_profile)
 			else
-				ui.error("profile not found: " + map_profile)
+				Ui.error("profile not found: " + map_profile)
 				sys.exit()
 		"""
 
@@ -258,7 +256,7 @@ class Bsp():
 
 		if not stage_list:
 			if self.map_profile not in map_config.map_config.keys():
-				ui.error("unknown map profile: " + self.map_profile)
+				Ui.error("unknown map profile: " + self.map_profile)
 			stage_list = map_config.map_config[self.map_profile].keys()
 
 		build_stage_dict = map_config.map_config[self.map_profile]
@@ -269,7 +267,7 @@ class Bsp():
 			elif build_stage_dict[build_stage] == "none":
 				continue
 
-			ui.print("Building " + map_path + ", stage: " + build_stage)
+			Ui.print("Building " + map_path + ", stage: " + build_stage)
 
 			# TODO: if previous stage failed
 			source_path = map_path
@@ -305,7 +303,7 @@ class Bsp():
 
 			logging.debug("call list: " + str(call_list))
 			# TODO: verbose?
-			ui.print("Build command: " + " ".join(call_list))
+			Ui.print("Build command: " + " ".join(call_list))
 			subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 
 		if map_config.copy_map:
@@ -319,7 +317,7 @@ class Bsp():
 
 	def renderMiniMap(self, map_path, bsp_path):
 		# TODO: if minimap not newer
-		ui.print("Creating MiniMap for: " + map_path)
+		Ui.print("Creating MiniMap for: " + map_path)
 #		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper")
 		subprocess.call([q3map2_helper_path, "--minimap", bsp_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
@@ -328,7 +326,7 @@ class Bsp():
 		# TODO: for all files created
 #		shutil.copystat(source_path, build_path)
 
-		ui.print("Copying map source: " + map_path)
+		Ui.print("Copying map source: " + map_path)
 		map_name = os.path.basename(map_path)
 		copy_path = build_prefix + os.path.sep + map_name
 		shutil.copyfile(map_path, copy_path)

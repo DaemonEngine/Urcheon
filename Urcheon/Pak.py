@@ -7,10 +7,11 @@
 # License: ISC
 # 
 
+
 from Urcheon import Action
 from Urcheon import MapCompiler
 from Urcheon import SourceTree
-from Urcheon.Ui import Ui
+from Urcheon import Ui
 from Urcheon.Bsp import Bsp
 import __main__ as m
 import argparse
@@ -26,9 +27,6 @@ from collections import OrderedDict
 
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
-
-
-ui = Ui()
 
 
 class Builder():
@@ -108,7 +106,7 @@ class Packer():
 			os.makedirs(pack_subdir, exist_ok=True)
 
 	def pack(self):
-		ui.print("Packing " + self.pk3dir_path + " to: " + self.pk3_path)
+		Ui.print("Packing " + self.pk3dir_path + " to: " + self.pk3_path)
 		self.createSubdirs(self.pk3_path)
 		logging.debug("opening: " + self.pk3_path)
 
@@ -124,13 +122,13 @@ class Packer():
 		for dirname, subdirname_list, file_name_list in os.walk('.'):
 			for file_name in file_name_list:
 				file_path = os.path.join(dirname, file_name)[len(os.path.curdir + os.path.sep):]
-				ui.print("adding file to archive: " + file_path)
+				Ui.print("adding file to archive: " + file_path)
 				pk3.write(file_path)
 
 		logging.debug("closing: " + self.pk3_path)
 		pk3.close()
 
-		ui.print("Package written: " + self.pk3_path)
+		Ui.print("Package written: " + self.pk3_path)
 
 
 class Cleaner():
@@ -183,7 +181,7 @@ def main(stage=None):
 		logging.debug("args: " + str(args))
 
 	if args.verbose:
-		ui.verbosely = True
+		Ui.verbosely = True
 
 	if args.update:
 		action_list = Action.List(args.source_dir, args.game_name)
@@ -195,7 +193,7 @@ def main(stage=None):
 
 		if env_build_prefix:
 			if args.build_prefix:
-				ui.warning("build dir “" + build_prefix + "” superseded by env BUILDPREFIX: " + env_build_prefix)
+				Ui.warning("build dir “" + build_prefix + "” superseded by env BUILDPREFIX: " + env_build_prefix)
 			build_prefix = env_build_prefix
 
 		if args.test_parent_dir:
@@ -203,7 +201,7 @@ def main(stage=None):
 
 		if env_test_parent_dir:
 			if args.test_parent_dir:
-				ui.warning("build test dir “" + test_parent_dir + "” superseded by env TESTPARENT: " + env_test_parent_dir)
+				Ui.warning("build test dir “" + test_parent_dir + "” superseded by env TESTPARENT: " + env_test_parent_dir)
 			test_parent_dir = env_test_parent_dir
 
 		if args.release_parent_dir:
@@ -211,7 +209,7 @@ def main(stage=None):
 
 		if env_release_parent_dir:
 			if args.release_parent_dir:
-				ui.warning("build pkg dir “" + release_parent_dir + "” superseded by env PKGPARENT: " + env_release_parent_dir)
+				Ui.warning("build pkg dir “" + release_parent_dir + "” superseded by env PKGPARENT: " + env_release_parent_dir)
 			release_parent_dir = env_release_parent_dir
 
 		if args.test_dir:
