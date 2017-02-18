@@ -252,14 +252,16 @@ class Action():
 	def getExt(self):
 		return os.path.splitext(self.file_path)[1][len(os.path.extsep):].lower()
 	
-	def isDifferent(self, source_path, build_path):
-		if not os.path.isfile(build_path):
-			logging.debug("build file not found: " + build_path)
+	def isDifferent(self):
+		source_path = self.source_dir + os.path.sep + self.file_path
+		built_path = self.build_dir + os.path.sep + self.getFileNewName()
+		if not os.path.isfile(built_path):
+			logging.debug("built file not found: " + built_path)
 			return True
-		if os.stat(build_path).st_mtime != os.stat(source_path).st_mtime:
-			logging.debug("build file has a different modification time than source file: " + build_path)
+		if os.stat(built_path).st_mtime != os.stat(source_path).st_mtime:
+			logging.debug("built file has a different modification time than source file: " + built_path)
 			return True
-		logging.debug("build file has same modification time than source file: " + build_path)
+		logging.debug("built file has same modification time than source file: " + built_path)
 		return False
 
 	def createSubdirs(self):
@@ -292,7 +294,7 @@ class Keep(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
 		Ui.print("Keep: " + self.file_path)
@@ -311,9 +313,11 @@ class Copy(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		Ui.print("Copy: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		shutil.copystat(source_path, build_path)
@@ -339,15 +343,18 @@ class ConvertJpg(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() in ("jpg", "jpeg"):
 			Ui.print("File already in jpg, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to jpg: " + self.file_path)
 			subprocess.call(["convert", "-verbose", "-quality", "92", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -363,15 +370,18 @@ class ConvertPng(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "png":
 			Ui.print("File already in png, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to png: " + self.file_path)
 			subprocess.call(["convert", "-verbose", "-quality", "100", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -387,9 +397,11 @@ class ConvertLossyWebp(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath(self.geteNewName(self.file_path))
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -400,6 +412,7 @@ class ConvertLossyWebp(Action):
 			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -414,9 +427,11 @@ class ConvertLosslessWebp(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -427,6 +442,7 @@ class ConvertLosslessWebp(Action):
 			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -444,9 +460,11 @@ class ConvertCrn(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -457,6 +475,7 @@ class ConvertCrn(Action):
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -472,9 +491,11 @@ class ConvertNormalCrn(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -485,6 +506,7 @@ class ConvertNormalCrn(Action):
 			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -500,15 +522,18 @@ class ConvertVorbis(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "ogg":
 			Ui.print("File already in vorbis, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to vorbis: " + self.file_path)
 			subprocess.call(["ffmpeg", "-acodec", "libvorbis", "-i", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -524,15 +549,18 @@ class ConvertOpus(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "opus":
 			Ui.print("File already in opus, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to opus: " + self.file_path)
 			subprocess.call(["opusenc", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -548,15 +576,18 @@ class CompileIqm(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
-		if not self.isDifferent(source_path, build_path):
+
+		if not self.isDifferent():
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return
+
 		if self.getExt() == "iqm":
 			Ui.print("File already in iqm, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Compile to iqm: " + self.file_path)
 			subprocess.call(["iqm", build_path, source_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
 		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
@@ -571,10 +602,15 @@ class MergeBsp(Action):
 	def run(self):
 		# TODO: ensure bsp is already copied/compiled if modifying copied/compiled bsp
 		# TODO: this is not yet possible to merge over something built
+		#	Ui.warning("Bsp file already there, will reuse: " + source_path)
 
 		source_path = self.getSourcePath()
 		build_path = self.getBuildPath()
 		self.createSubdirs()
+
+		if not self.isDifferent():
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			return
 
 		transient_path = tempfile.mkdtemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "dir")
 		transient_maps_path = transient_path + os.path.sep + "maps"
@@ -583,9 +619,6 @@ class MergeBsp(Action):
 		bspdir_path = self.getBspDirNewName()
 		bsp_path = self.getFileNewName()
 
-		if not self.isDifferent(source_path, build_path):
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return
 		logging.debug("looking for file in same bspdir than: " + self.file_path)
 #		for sub_path in self.action_list.active_action_dict["merge_bsp"]:
 #			if sub_path.startswith(bspdir_path):
@@ -601,10 +634,6 @@ class MergeBsp(Action):
 		# in the future, we will be able to merge in place
 		bsp.writeFile(build_path)
 
-		# lucky unthought workaround: since the produced bsp will receive the date of the original file
-		# other call for other files of same bspdir will be ignored
-		shutil.copystat(source_path, build_path)
-
 		shutil.copyfile(build_path, bsp_transient_path)
 		shutil.copystat(source_path, bsp_transient_path)
 
@@ -614,14 +643,32 @@ class MergeBsp(Action):
 		builder.build(transient_dir=transient_path)
 		shutil.rmtree(transient_path)
 
+		# lucky unthought workaround: since the produced bsp will receive the date of the original file
+		# other call for other files of same bspdir will be ignored
+		shutil.copystat(bspdir_path, bsp_path)
+
 	def getSourcePath(self):
 		return self.source_dir + os.path.sep + self.getBspDirNewName()
 
 	def getBspDirNewName(self):
+		# cut everything after ".bspdir" (including file paths)
 		return self.file_path.split(os.path.extsep + "bspdir")[0] + os.path.extsep + "bspdir"
 
 	def getFileNewName(self):
 		return self.file_path.split(os.path.extsep + "bspdir")[0] + os.path.extsep + "bsp"
+
+	# lucky workaround
+	def isDifferent(self):
+		source_path = self.source_dir + os.path.sep + self.getBspDirNewName()
+		built_path = self.build_dir + os.path.sep + self.getFileNewName()
+		if not os.path.isfile(built_path):
+			logging.debug("built file not found: " + built_path)
+			return True
+		if os.stat(built_path).st_mtime != os.stat(source_path).st_mtime:
+			logging.debug("built file has a different modification time than source file: " + built_path)
+			return True
+		logging.debug("built file has same modification time than source file: " + built_path)
+		return False
 
 
 class CompileBsp(Action):
@@ -636,6 +683,10 @@ class CompileBsp(Action):
 		bsp_path = self.getFileNewName()
 		self.createSubdirs()
 
+		if not self.isDifferent():
+			Ui.verbose("Unmodified file " + build_path + ", will reuse: " + source_path)
+			return
+
 		transient_path = tempfile.mkdtemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "dir")
 		transient_maps_path = transient_path + os.path.sep + "maps"
 		os.makedirs(transient_maps_path, exist_ok=True)
@@ -643,12 +694,6 @@ class CompileBsp(Action):
 		# TODO if file already there
 		#   you must ensure merge bsp and copy bsp are made before
 		#   beware of multithreading
-		#	Ui.warning("Bsp file already there, will reuse: " + source_path)
-		#	return
-
-		if not self.isDifferent(source_path, build_path):
-			Ui.verbose("Unmodified file " + build_path + ", will reuse: " + source_path)
-			return
 
 		Ui.print("Compiling to bsp: " + self.file_path)
 
@@ -657,6 +702,8 @@ class CompileBsp(Action):
 		builder = Pak.Builder(self.source_dir, self.build_dir, game_name=self.game_name, transient_dir=transient_path)
 		builder.build(transient_dir=transient_path)
 		shutil.rmtree(transient_path)
+
+		shutil.copystat(source_path, build_path)
 
 	def getFileNewName(self):
 		return os.path.splitext(self.file_path)[0] + os.path.extsep + "bsp"
