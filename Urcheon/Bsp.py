@@ -598,6 +598,12 @@ def main(stage=None):
 	if args.input_bsp_dir:
 		bsp = File()
 		bsp.readDir(args.input_bsp_dir)
+		entities = Entities()
+		entities.importLump(bsp.exportLump("entities"))
+		textures = Textures()
+		textures.importLump(bsp.exportLump("textures"))
+		lightmaps = Lightmaps()
+		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_entities_file:
 		entities = Entities()
