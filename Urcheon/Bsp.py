@@ -333,7 +333,7 @@ class File():
 		self.bsp_version = bsp_version
 
 		# metadata for printing purpose
-		self.lump_directory = None
+		self.lump_directory = {}
 		self.sound_list = None
 
 		# lumps are stored here
@@ -358,15 +358,12 @@ class File():
 			self.bsp_file.close()
 			self.bsp_file = None
 
-		if not self.readLumpList():
-			Ui.error(": Can't read lump list")
+		self.readLumpList()
 
 		for lump_name in lump_name_list:
-			if not self.readLump(lump_name):
-				Ui.error(": Can't read lump: " + lump_name)
+			self.readLump(lump_name)
 
 		self.bsp_file.close()
-		return True
 
 	def readDir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
@@ -418,15 +415,16 @@ class File():
 			else:
 				Ui.error("unknown lump format: " + file_path)
 
+			self.lump_directory[lump_name] = {}
+			self.lump_directory[lump_name]["offset"] = None
+			self.lump_directory[lump_name]["length"] = None
+
 	def printFileName(self):
 		print("*** File:")
 		print(self.bsp_file_name)
 		print("")
 
 	def readLumpList(self):
-		if (self.lump_directory != None):
-			return False
-
 		self.lump_directory = {}
 
 		# TODO: check
@@ -443,15 +441,17 @@ class File():
 			self.lump_directory[lump_name]["offset"], self.lump_directory[lump_name]["length"] = struct.unpack('<II', self.bsp_file.read(8))
 			self.lump_dict[lump_name] = None
 
-		return True
-
 	def printLumpList(self):
 		# TODO: check
 
 		print("*** Lumps:")
 		for i in range(0, len(lump_name_list)):
 			lump_name = lump_name_list[i]
-			print(str(i) + ": " + lump_name + " [" + str(self.lump_directory[lump_name]["offset"]) + ", " + str(self.lump_directory[lump_name]["length"]) + "]")
+			if not self.lump_directory[lump_name]["offset"]:
+				# bspdir, length is also unknown
+				print(str(i) + ": " + lump_name )
+			else:
+				print(str(i) + ": " + lump_name + " [" + str(self.lump_directory[lump_name]["offset"]) + ", " + str(self.lump_directory[lump_name]["length"]) + "]")
 		print("")
 
 	def readLump(self, lump_name):
@@ -466,8 +466,6 @@ class File():
 
 		self.bsp_file.seek(offset)
 		self.lump_dict[lump_name] = self.bsp_file.read(length)
-
-		return True
 
 
 	def writeFile(self, bsp_file_name):
