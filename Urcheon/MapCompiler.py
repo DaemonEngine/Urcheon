@@ -13,6 +13,7 @@ from Urcheon import SourceTree
 from Urcheon import Ui
 import configparser
 import logging
+import re
 import shutil
 import subprocess
 import sys
@@ -275,8 +276,7 @@ class Bsp():
 			elif build_stage == "nav":
 				source_path = bsp_path
 			elif build_stage == "minimap":
-				self.renderMiniMap(map_path, bsp_path)
-				continue
+				source_path = bsp_path
 
 			# pakpath_list = ["-fs_pakpath", os.path.abspath(self.source_dir)]
 			pakpath_list = ["-fs_pakpath", self.source_dir]
@@ -289,13 +289,17 @@ class Bsp():
 			stage_option_list = build_stage_dict[build_stage]
 			logging.debug("stage options: " + str(stage_option_list))
 
-			# TODO: game independant
-			call_list = ["q3map2", "-game", "unvanquished"] + ["-" + build_stage] + pakpath_list + extended_option_list + stage_option_list + [source_path]
+			call_list = ["q3map2", "-" + build_stage] + pakpath_list + extended_option_list + stage_option_list + [source_path]
 
 			logging.debug("call list: " + str(call_list))
-			# TODO: verbose?
-			Ui.print("Build command: " + " ".join(call_list))
-			subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
+			Ui.verbose("Build command: " + " ".join(call_list))
+
+			# TODO: remove that ugly workaround
+			if build_stage == "minimap" and self.game_name == "unvanquished":
+				self.renderMiniMap(map_path, source_path, build_prefix, call_list)
+			else:
+				subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
 
 		if map_config.copy_map:
 			self.copyMap(map_path, build_prefix)
@@ -306,12 +310,38 @@ class Bsp():
 		if os.path.isfile(srf_path):
 			os.remove(srf_path)
 
-	def renderMiniMap(self, map_path, bsp_path):
+	def renderMiniMap(self, map_path, bsp_path, build_prefix, call_list):
 		# TODO: if minimap not newer
 		Ui.print("Creating MiniMap for: " + map_path)
-#		subprocess.call(["q3map2", "-game", "unvanquished", "-minimap", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-		q3map2_helper_path = os.path.join(sys.path[0], "tools", "q3map2_helper")
-		subprocess.call([q3map2_helper_path, "--minimap", bsp_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
+		tex_coords_pattern = re.compile(r"^size_texcoords (?P<c1>[0-9.-]*) (?P<c2>[0-9.-]*) [0-9.-]* (?P<c3>[0-9.-]*) (?P<c4>[0-9.-]*) [0-9.-]*$")
+
+		tex_coords = None
+		proc = subprocess.Popen(call_list, stdout=subprocess.PIPE, stderr=self.subprocess_stderr)
+		with proc.stdout as stdout:
+			for line in stdout:
+				line = line.decode()
+				match = tex_coords_pattern.match(line)
+				if match:
+					tex_coords = " ".join([match.group("c1"), match.group("c2"), match.group("c3"), match.group("c4")])
+
+		if not tex_coords:
+			Ui.error("failed to get coords from minimap generation")
+
+		minimap_image_path = "minimaps" + os.path.sep + os.path.splitext(os.path.basename(bsp_path))[0]
+		minimap_sidecar_path = build_prefix[:-5] + os.path.sep + minimap_image_path + os.path.extsep + "minimap"
+		minimap_sidecar_str = "{\n"
+		minimap_sidecar_str += "\tbackgroundColor 0.0 0.0 0.0 0.333\n"
+		minimap_sidecar_str += "\tzone {\n"
+		minimap_sidecar_str += "\t\tbounds 0 0 0 0 0 0\n"
+		minimap_sidecar_str += "\t\timage \"" + minimap_image_path + "\" " + tex_coords + "\n"
+		minimap_sidecar_str += "\t}\n"
+		minimap_sidecar_str += "}\n"
+		
+		os.makedirs(os.path.dirname(minimap_sidecar_path), exist_ok=True)
+		minimap_sidecar_file = open(minimap_sidecar_path, "w")
+		minimap_sidecar_file.write(minimap_sidecar_str)
+		minimap_sidecar_file.close()
 
 	def copyMap(self, map_path, build_prefix):
 
