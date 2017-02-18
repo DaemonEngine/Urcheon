@@ -132,6 +132,7 @@ class Inspector():
 		self.action_name_dict["convert_png"] =				"convert to png format"
 		self.action_name_dict["convert_lossy_webp"] =		"convert to lossy webp format"
 		self.action_name_dict["convert_lossless_webp"] =	"convert to lossless format"
+		self.action_name_dict["convert_vorbis"] =			"convert to vorbis format"
 		self.action_name_dict["convert_opus"] =				"convert to opus format"
 		self.action_name_dict["keep"] =						"keep file"
 		self.action_name_dict["ignore"] =				 	"ignore file"

@@ -220,6 +220,7 @@ class Builder():
 		self.builder_name_dict["convert_lossless_webp"] =	self.convertLosslessWebp
 		self.builder_name_dict["convert_crn"] =				self.convertCrn
 		self.builder_name_dict["convert_normalized_crn"] =	self.convertNormalCrn
+		self.builder_name_dict["convert_vorbis"] =			self.convertVorbis
 		self.builder_name_dict["convert_opus"] =			self.convertOpus
 		self.builder_name_dict["keep"] =					self.keepFile
 		self.builder_name_dict["ignore"] =					self.ignoreFile
