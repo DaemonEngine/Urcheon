@@ -645,7 +645,9 @@ class MergeBsp(Action):
 
 		# lucky unthought workaround: since the produced bsp will receive the date of the original file
 		# other call for other files of same bspdir will be ignored
-		shutil.copystat(bspdir_path, bsp_path)
+		source_path = self.source_dir + os.path.sep + self.getBspDirNewName()
+		built_path = self.build_dir + os.path.sep + self.getFileNewName()
+		shutil.copystat(source_path, built_path)
 
 	def getSourcePath(self):
 		return self.source_dir + os.path.sep + self.getBspDirNewName()
