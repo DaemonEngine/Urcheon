@@ -8,13 +8,14 @@
 # 
 
 
+from Urcheon import Action
 from Urcheon.Ui import Ui
+from collections import OrderedDict
 import configparser
 import importlib
 import logging
 import operator
 import os
-from collections import OrderedDict
 
 
 ui = Ui()
@@ -120,22 +121,10 @@ class Inspector():
 			"dir_grandfather_name":	self.inspectDirGrandFatherName,
 			"dir_grandfather_ext":	self.inspectDirGrandFatherExt,
 		}
-		# I want lines printed in this order
+
 		self.action_name_dict = OrderedDict()
-		self.action_name_dict["copy"] =						"copy file"
-		self.action_name_dict["merge_bsp"] =				"merge into a bsp file"
-		self.action_name_dict["compile_bsp"] =				"compile to bsp format"
-		self.action_name_dict["compile_iqm"] =				"compile to iqm format"
-		self.action_name_dict["convert_crn"] =				"convert to crn format"
-		self.action_name_dict["convert_normalized_crn"] =	"convert to normalized crn format"
-		self.action_name_dict["convert_jpg"] =				"convert to jpg format"
-		self.action_name_dict["convert_png"] =				"convert to png format"
-		self.action_name_dict["convert_lossy_webp"] =		"convert to lossy webp format"
-		self.action_name_dict["convert_lossless_webp"] =	"convert to lossless format"
-		self.action_name_dict["convert_vorbis"] =			"convert to vorbis format"
-		self.action_name_dict["convert_opus"] =				"convert to opus format"
-		self.action_name_dict["keep"] =						"keep file"
-		self.action_name_dict["ignore"] =				 	"ignore file"
+		for action in Action.Directory().directory:
+			self.action_name_dict[action.keyword] = action.description
 
 	def inspectFileName(self, file_path, file_name):
 		name = os.path.basename(file_path)
