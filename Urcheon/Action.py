@@ -550,7 +550,7 @@ class CompileIqm(Action):
 class MergeBsp(Action):
 	keyword = "merge_bsp"
 	description = "merge into a bsp file"
-	parallel = True
+	parallel = False
 
 	def run(self):
 		# TODO: ensure bsp is already copied/compiled if modifying copied/compiled bsp
