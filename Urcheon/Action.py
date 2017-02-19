@@ -74,6 +74,9 @@ class List():
 					Ui.print(file_path + ": Known rule, will not " + disabled_action + " (disabled action).")
 					self.disabled_action_dict[disabled_action].append(file_path)
 				else:
+					if action_name == "":
+						# empty line
+						continue
 					if os.path.isfile(file_path):
 						Ui.print(file_path + ": Known rule, will " + self.inspector.action_name_dict[action_name] + " (predefined action).")
 						self.active_action_dict[action_name].append(file_path)
