@@ -64,6 +64,7 @@ class Config():
 		if not build_prefix:
 			env_build_prefix = os.getenv("BUILDPREFIX")
 			if env_build_prefix:
+				Ui.notice("BUILDPREFIX set, will use: " + env_build_prefix)
 				build_prefix = env_build_prefix
 			else:
 				build_prefix = self.source_dir + os.path.sep + "build"
@@ -74,6 +75,7 @@ class Config():
 		if not test_prefix:
 			env_test_prefix= os.getenv("TESTPREFIX")
 			if env_test_prefix:
+				Ui.notice("TESTPREFIX set, will use: " + env_test_prefix)
 				test_prefix = env_test_prefix
 			else:
 				build_prefix = self.getBuildPrefix(build_prefix=build_prefix)
@@ -85,6 +87,7 @@ class Config():
 		if not pak_prefix:
 			env_pak_prefix = os.getenv("PAKPREFIX")
 			if env_pak_prefix:
+				Ui.notice("PAKPREFIX set, will use: " + env_pak_prefix)
 				pak_prefix = env_pak_prefix
 			else:
 				build_prefix = self.getBuildPrefix(build_prefix=build_prefix)

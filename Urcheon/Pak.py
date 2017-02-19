@@ -217,9 +217,9 @@ def main(stage=None):
 	args.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	args.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
 	args.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
-	args.add_argument("-bp", "--build-prefix", dest="build_prefix", metavar="DIRNAME", default="build", help="build in prefix %(metavar)s, default: %(default)s")
-	args.add_argument("-tp", "--test-prefix", dest="test_prefix", metavar="DIRNAME", default="test", help="build test pakdir in prefix %(metavar)s, default: " + args.get_default("build_prefix") + os.path.sep + "%(default)s")
-	args.add_argument("-pp", "--pak-prefix", dest="pak_prefix", metavar="DIRNAME", default="pak", help="build release pak in prefix %(metavar)s, default: " + args.get_default("build_prefix") + os.path.sep + "%(default)s")
+	args.add_argument("-bp", "--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in prefix %(metavar)s, example: build")
+	args.add_argument("-tp", "--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in prefix %(metavar)s, example: build/test")
+	args.add_argument("-pp", "--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in prefix %(metavar)s, example: build/pkg")
 	args.add_argument("-td", "--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
 	args.add_argument("-pf", "--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
 	args.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with profile %(metavar)s, default: %(default)s")
@@ -227,7 +227,7 @@ def main(stage=None):
 	args.add_argument("-a", "--auto-actions", dest="auto_actions", help="compute actions at build time and do not store the list", action="store_true")
 
 	group = args.add_mutually_exclusive_group()
-	args.add_argument("-ca", "--clean_all", dest="clean_all", help="clean all previous build", action="store_true")
+	args.add_argument("-c", "--clean", dest="clean", help="clean all previous build", action="store_true")
 	args.add_argument("-cm", "--clean_map", dest="clean_map", help="clean previous map build", action="store_true")
 	args.add_argument("-ct", "--clean_test", dest="clean_test", help="clean previous test build", action="store_true")
 	args.add_argument("-cp", "--clean_pak", dest="clean_pak", help="clean previous pak build", action="store_true")
@@ -235,9 +235,6 @@ def main(stage=None):
 	group.add_argument("-p", "--package", dest="package", help="compress release pak", action="store_true")
 
 	args = args.parse_args()
-
-	args.test_prefix = args.build_prefix + os.path.sep + args.test_prefix
-	args.pak_prefix = args.build_prefix + os.path.sep + args.pak_prefix
 
 	if args.debug:
 		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
@@ -263,7 +260,7 @@ def main(stage=None):
 		packer = Packer(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
 		packer.pack()
 
-	if args.clean_all:
+	if args.clean:
 		cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
 		cleaner.cleanTest()
 		cleaner.cleanPak()
