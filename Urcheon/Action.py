@@ -562,7 +562,7 @@ class ConvertOpus(Action):
 
 
 class CompileIqm(Action):
-	keyword = "complile_iqm"
+	keyword = "compile_iqm"
 	description = "compile to iqm format"
 	parallel = True
 
