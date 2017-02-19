@@ -29,7 +29,7 @@ class Config():
 		if os.path.isfile(config_pak_path):
 			self.readConfig(config_pak_path)
 		else:
-			logging.debug("pak config file not found: " + config_pak_path)
+			Ui.error("pak config file not found: " + config_pak_path)
 
 	def readConfig(self, config_pak_path):
 		logging.debug("reading pak config file " + config_pak_path)
