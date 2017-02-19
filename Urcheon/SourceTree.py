@@ -114,6 +114,11 @@ class Config():
 				pak_prefix = self.getPakPrefix(build_prefix=build_prefix)
 			pak_name = self.requireKey("name")
 			pak_version = self.requireKey("version")
+
+			if pak_version == "@ref":
+				file_repo = Git(self.source_dir)
+				pak_version = file_repo.getVersion()
+
 			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + os.path.extsep + "pk3"
 
 		return os.path.abspath(pak_file)
@@ -364,15 +369,75 @@ class Git():
 		else:
 			return False
 
+	def getVersion(self):
+		tag_name = self.getLastTag()
+		commit_id = self.getLastCommitId()
+
+		append = ""
+		compute_append = True
+		if tag_name:
+			version = tag_name
+			if version.startswith("v"):
+				# v9.0 → 9.0
+				version = version[1:]
+
+			tag_commit = self.getCommitIdByTag(tag_name)
+			if tag_commit != commit_id:
+				compute_append = True
+
+		else:
+			version = "0"
+			compte_append = True
+
+		if compute_append:
+			short_id = commit_id[:7]
+			commit_date = self.getLastCommitDate()
+			time_stamp = "0" + hex(int(commit_date))[2:]
+			append = "+" + time_stamp + "~" + short_id
+
+		version += append
+
+		return version
+
 	def getLastTag(self):
-		tag = ""
+		tag_name = None
 		proc = subprocess.Popen(self.git + ["describe", "--abbrev=0", "--tags"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		with proc.stdout as stdout:
-			for tag in stdout:
-				tag = tag.decode()
-				if tag.endswith("\n"):
-					tag = tag[:-1]
-		return tag
+			for tag_name in stdout:
+				tag_name = tag_name.decode()
+				if tag_name.endswith("\n"):
+					tag_name = tag_name[:-1]
+		return tag_name
+	
+	def getCommitIdByTag(self, tag_name):
+		commit_id = None
+		proc = subprocess.Popen(self.git + ["rev-list", "-n", "1", tag_name], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		with proc.stdout as stdout:
+			for commit_id in stdout:
+				commit_id = commit_id.decode()
+				if commit_id.endswith("\n"):
+					commit_id = commit_id[:-1]
+		return commit_id
+
+	def getLastCommitId(self):
+		commit_id = None
+		proc = subprocess.Popen(self.git + ["rev-parse", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		with proc.stdout as stdout:
+			for commit_id in stdout:
+				commit_id = commit_id.decode()
+				if commit_id.endswith("\n"):
+					commit_id = commit_id[:-1]
+		return commit_id
+
+	def getLastCommitDate(self):
+		commit_date = None
+		proc = subprocess.Popen(self.git + ["log", "-1", "--pretty=format:%ct"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		with proc.stdout as stdout:
+			for commit_date in stdout:
+				commit_date = commit_date.decode()
+				if commit_date.endswith("\n"):
+					commit_date = commit_date[:-1]
+		return commit_date
 
 	def listFiles(self):
 		file_list = []
