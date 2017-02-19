@@ -12,6 +12,7 @@ from Urcheon import Action
 from Urcheon import Ui
 from collections import OrderedDict
 import configparser
+import fnmatch
 import importlib
 import logging
 import operator
@@ -261,15 +262,102 @@ class Inspector():
 		return action
 
 
+class BlackList():
+	def __init__(self, source_dir):
+		self.blacklist = [
+			"Thumbs.db",
+			"Makefile",
+			"CMakeLists.txt",
+			"__MACOSX",
+			"*.DS_Store",
+			"*.autosave",
+			"*.bak",
+			"*~",
+			".*.swp",
+			".git*",
+			".pakinfo",
+			"build",
+		]
+		pass
+
+		pakignore_path = os.path.join(".pakinfo", "pakignore")
+		pakignore_path = os.path.join(source_dir, pakignore_path)
+
+		if os.path.isfile(pakignore_path):
+			pakignore_file = open(pakignore_path, "r")
+			line_list = [line.strip() for line in pakignore_file]
+			pakignore_file.close()
+
+			for pattern in line_list:
+				self.blacklist.append(pattern)
+
+		logging.debug("blacklist: " + str(self.blacklist))
+
+	def filter(self, file_list):
+		filtered_list = []
+		for file_path in file_list:
+			path_list = self.splitPath(file_path)
+
+			logging.debug("checking file path for blacklist: " + file_path)
+			blacklisted_file = False
+			for path_part in path_list:
+				for pattern in self.blacklist:
+					logging.debug("comparing path part “" + path_part + "” with blacklist pattern: " + pattern)
+					if fnmatch.fnmatch(path_part, pattern):
+						logging.debug("found blacklisted file because of pattern “" + pattern +  "”: " + file_path)
+						blacklisted_file = True
+						break
+
+			if not blacklisted_file:
+				filtered_list.append(file_path)
+
+		return filtered_list
+
+	def splitPath(self, path):
+		path_list = []
+		while True:
+			pair = os.path.split(path)
+			if pair[0] == path:
+				# if absolute
+				path_list.insert(0, pair[0])
+				break
+			elif pair[1] == path:
+				# if relative
+				path_list.insert(0, pair[1])
+				break
+			else:
+				path = pair[0]
+				path_list.insert(0, pair[1])
+		return path_list
+
+class Tree():
+	def __init__(self, source_dir):
+		self.source_dir = source_dir
+
+	def listFiles(self):
+		file_list = []
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
+			dir_name = os.path.relpath(dir_name, self.source_dir)
+
+			logging.debug("dir_name: " + str(dir_name) + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
+
+			for file_name in file_name_list:
+				file_path = os.path.join(dir_name, file_name)
+				file_list.append(file_path)
+
+		blacklist = BlackList(self.source_dir)
+		file_list = blacklist.filter(file_list)
+
+		return file_list
+
 class Git():
 	def __init__(self, source_dir):
 		self.source_dir = source_dir
 		self.git = ["git", "-C", self.source_dir]
 		self.subprocess_stdout = subprocess.DEVNULL
 		self.subprocess_stderr = subprocess.DEVNULL
-		pass
 
-	def checkGit(self):
+	def check(self):
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		if proc.numerator == 0:
 			return True
@@ -277,33 +365,41 @@ class Git():
 			return False
 
 	def getLastTag(self):
-		line = ""
+		tag = ""
 		proc = subprocess.Popen(self.git + ["describe", "--abbrev=0", "--tags"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		with proc.stdout as stdout:
-			for line in stdout:
-				line = line.decode()
-				if line.endswith("\n"):
-					line = line[:-1]
-		return line
+			for tag in stdout:
+				tag = tag.decode()
+				if tag.endswith("\n"):
+					tag = tag[:-1]
+		return tag
 
 	def listFiles(self):
-		lines = []
+		file_list = []
 		proc = subprocess.Popen(self.git + ["ls-files"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		with proc.stdout as stdout:
-			for line in stdout:
-				line = line.decode()
-				if line.endswith("\n"):
-					line = line[:-1]
-				lines.append(line)
-		return lines
+			for file in stdout:
+				file = file.decode()
+				if file.endswith("\n"):
+					file = file[:-1]
+				file_list.append(file)
+
+		blacklist = BlackList(self.source_dir)
+		file_list = blacklist.filter(file_list)
+
+		return file_list
 
 	def listModifiedFiles(self, reference):
-		lines = []
+		file_list = []
 		proc = subprocess.Popen(self.git + ["diff", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		with proc.stdout as stdout:
-			for line in stdout:
-				line = line.decode()
-				if line.endswith("\n"):
-					line = line[:-1]
-				lines.append(line)
-		return lines
+			for file in stdout:
+				file = file.decode()
+				if file.endswith("\n"):
+					file = file[:-1]
+				file_list.append(file)
+
+		blacklist = BlackList(self.source_dir)
+		file_list = blacklist.filter(file_list)
+
+		return file_list

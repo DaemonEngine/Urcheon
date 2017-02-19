@@ -31,7 +31,7 @@ from collections import OrderedDict
 
 class Builder():
 	# testdir is the pk3dir, so the target here
-	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, auto_actions=False, transient_dir=None, is_nested=False, parallel=True):
+	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, transient_dir=None, is_nested=False, parallel=True):
 		self.source_dir = source_dir
 		self.action_list = action_list
 		self.is_nested = is_nested
@@ -132,9 +132,7 @@ class Packer():
 		for dirname, subdirname_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
 				full_path = os.path.join(dirname, file_name)
-				file_path = full_path[len(self.test_dir):]
-				if file_path.startswith(os.path.sep):
-					file_path = file_path[1:]
+				file_path = os.path.relpath(full_path, self.test_dir)
 				Ui.print("adding file to package: " + file_path)
 				pak.write(full_path, arcname=file_path)
 
@@ -250,22 +248,6 @@ def main(stage=None):
 	if args.verbose:
 		Ui.verbosely = True
 
-	action_list = None
-	if args.update:
-		action_list = Action.List(args.source_dir, args.game_name)
-		action_list.updateActions()
-
-	if args.build:
-		if not action_list:
-			action_list = Action.List(args.source_dir, args.game_name)
-			action_list.readActions(auto_actions=args.auto_actions)
-		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, auto_actions=args.auto_actions)
-		builder.build()
-
-	if args.package:
-		packer = Packer(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-		packer.pack()
-
 	if args.clean:
 		if args.clean not in ["map", "test", "pak", "all"]:
 			Ui.warning("clean keyword must be map, test, pak or all")
@@ -282,6 +264,29 @@ def main(stage=None):
 		if args.clean == "pak" or args.clean == "all":
 			cleaner.cleanPak()
 
+	action_list = None
+	if args.update:
+		file_tree = SourceTree.Tree(args.source_dir)
+		file_list = file_tree.listFiles()
+		action_list = Action.List(args.source_dir, args.game_name)
+		action_list.updateActions(action_list)
+
+	if args.build:
+		if not action_list:
+			action_list = Action.List(args.source_dir, args.game_name)
+			action_list.readActions()
+
+		if args.auto_actions:
+			file_tree = SourceTree.Tree(args.source_dir)
+			file_list = file_tree.listFiles()
+			action_list.computeActions(file_list)
+
+		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile)
+		builder.build()
+
+	if args.package:
+		packer = Packer(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
+		packer.pack()
 
 if __name__ == "__main__":
 	main()

@@ -12,7 +12,6 @@ from Urcheon import SourceTree
 from Urcheon import Ui
 from Urcheon import Pak
 from Urcheon import Bsp
-import fnmatch
 import logging
 import os
 import re
@@ -34,33 +33,8 @@ class List():
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
-		self.action_list_file_name = ".pakinfo" + os.path.sep + "actions.txt"
-		self.action_list_file = self.source_dir + os.path.sep + self.action_list_file_name
-
-		self.blacklist = [
-			"Thumbs.db",
-			"Makefile",
-			"CMakeLists.txt",
-			"__MACOSX",
-			"*.DS_Store",
-			"*.autosave",
-			"*.bak",
-			"*~",
-			".*.swp",
-			".git*",
-			".pakinfo",
-			"build",
-		]
-
-		pak_ignore_list_file_name = ".pakinfo" + os.path.sep + "pakignore"
-		if os.path.isfile(pak_ignore_list_file_name):
-			pak_ignore_list_file = open(pak_ignore_list_file_name, "r")
-			line_list = [line.strip() for line in pak_ignore_list_file]
-			pak_ignore_list_file.close()
-			for pattern in line_list:
-				self.blacklist.append(pattern)
-
-		logging.debug("blacklist: " + str(self.blacklist))
+		self.action_list_file_name = os.path.join(".pakinfo", "actions.txt")
+		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_name)
 
 		self.inspector = SourceTree.Inspector(game_name)
 		self.active_action_dict = OrderedDict()
@@ -75,9 +49,9 @@ class List():
 			self.computed_active_action_dict[action_name] = []
 			self.computed_disabled_action_dict[action_name] = []
 
-	def readActions(self, auto_actions=False):
-		if os.path.isfile(self.action_list_file):
-			action_list_file = open(self.action_list_file, "r")
+	def readActions(self):
+		if os.path.isfile(self.action_list_path):
+			action_list_file = open(self.action_list_path, "r")
 			line_list = [line.strip() for line in action_list_file]
 			action_list_file.close()
 			action_line_pattern = re.compile(r"^[ \t]*(?P<action_name>[^ \t]*)[ \t]*(?P<file_path>.*)$")
@@ -110,44 +84,8 @@ class List():
 		else:
 			Ui.verbose("List not found: " + self.action_list_file_name)
 
-		if auto_actions:
-			self.computeActions()
-
-	def computeActions(self):
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
-			dir_name = dir_name[len(self.source_dir):]
-			while dir_name.startswith("/"):
-				dir_name = dir_name[1:]
-
-			logging.debug("dir_name: " + str(dir_name) + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
-
-			blacklisted_dir = False
-			for subdir_name in dir_name.split(os.path.sep):
-				for pattern in self.blacklist:
-					logging.debug("comparing subdir path: " + subdir_name + " from dir path: " + dir_name + " with blacklist pattern: " + pattern)
-					if fnmatch.fnmatch(subdir_name, pattern):
-						logging.debug("found blacklisted directory: " + subdir_name)
-						blacklisted_dir = True
-						break
-				if blacklisted_dir == True:
-					break
-
-			if blacklisted_dir == True:
-				continue
-
-			for file_name in file_name_list:
-				file_path = os.path.join(dir_name, file_name)
-
-				blacklisted_file = False
-				for pattern in self.blacklist:
-					base_path = os.path.basename(file_path)
-					logging.debug("comparing file path: " + base_path + " with blacklist pattern: " + pattern)
-					if fnmatch.fnmatch(base_path, pattern):
-						logging.debug("found blacklisted file: " + file_path)
-						blacklisted_file = True
-						break
-
-				if not blacklisted_file:
+	def computeActions(self, file_list):
+		for file_path in file_list:
 					unknown_file_path = True
 					logging.debug("active actions: " + str(self.active_action_dict))
 					logging.debug("inactive actions:" + str(self.disabled_action_dict))
@@ -168,14 +106,14 @@ class List():
 		self.active_inaction_dict = self.computed_disabled_action_dict
 
 	def writeActions(self):
-		pak_config_subdir = os.path.dirname(self.action_list_file)
+		pak_config_subdir = os.path.dirname(self.action_list_path)
 		if os.path.isdir(pak_config_subdir):
 			logging.debug("found pakinfo subdir: " +  pak_config_subdir)
 		else:
 			logging.debug("create pakinfo subdir: " + pak_config_subdir)
 			os.makedirs(pak_config_subdir, exist_ok=True)
 
-		action_list_file = open(self.action_list_file, "w")
+		action_list_file = open(self.action_list_path, "w")
 		for action in self.active_action_dict.keys():
 			for file_path in sorted(self.active_action_dict[action]):
 				line = action + " " + file_path
@@ -186,9 +124,13 @@ class List():
 				action_list_file.write(line + "\n")
 		action_list_file.close()
 
-	def updateActions(self):
+	def updateActions(self, action_list):
 		self.readActions()
-		self.computeActions()
+
+		file_tree = SourceTree.Tree(self.source_dir)
+		file_list = file_tree.listFiles()
+		self.computeActions(file_list)
+
 		self.writeActions()
 
 
@@ -633,8 +575,13 @@ class MergeBsp(Action):
 
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(bsp_transient_path, transient_maps_path, stage_list=["nav", "minimap"])
+
+		file_tree = SourceTree.Tree(transient_path)
+		file_list = file_tree.listFiles()
+
 		action_list = List(transient_path, self.game_name)
-		action_list.readActions(auto_actions=True)
+		action_list.computeActions(file_list)
+
 		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
 		builder.build(transient_dir=transient_path)
 		shutil.rmtree(transient_path)
@@ -697,8 +644,13 @@ class CompileBsp(Action):
 
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, transient_maps_path)
+
+		file_tree = SourceTree.Tree(transient_path)
+		file_list = file_tree.listFiles()
+
 		action_list = List(transient_path, self.game_name)
-		action_list.readActions(auto_actions=True)
+		action_list.computeActions(file_list)
+
 		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
 		builder.build()
 		shutil.rmtree(transient_path)
