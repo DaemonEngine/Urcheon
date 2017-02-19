@@ -60,6 +60,57 @@ class Config():
 		else:
 			return None
 
+	def getBuildPrefix(self, build_prefix=None):
+		if not build_prefix:
+			env_build_prefix = os.getenv("BUILDPREFIX")
+			if env_build_prefix:
+				build_prefix = env_build_prefix
+			else:
+				build_prefix = self.source_dir + os.path.sep + "build"
+
+		return os.path.abspath(build_prefix)
+
+	def getTestPrefix(self, build_prefix=None, test_prefix=None):
+		if not test_prefix:
+			env_test_prefix= os.getenv("TESTPREFIX")
+			if env_test_prefix:
+				test_prefix = env_test_prefix
+			else:
+				build_prefix = self.getBuildPrefix(build_prefix=build_prefix)
+				test_prefix = build_prefix + os.path.sep + "test"
+
+		return os.path.abspath(test_prefix)
+
+	def getPakPrefix(self, build_prefix=None, pak_prefix=None):
+		if not pak_prefix:
+			env_pak_prefix = os.getenv("PAKPREFIX")
+			if env_pak_prefix:
+				pak_prefix = env_pak_prefix
+			else:
+				build_prefix = self.getBuildPrefix(build_prefix=build_prefix)
+				pak_prefix = build_prefix + os.path.sep + "pkg"
+
+		return os.path.abspath(pak_prefix)
+
+
+	def getTestDir(self, build_prefix=None, test_prefix=None, test_dir=None, pak_name=None):
+		if not test_dir:
+			if not test_prefix:
+				test_prefix = self.getTestPrefix(build_prefix=build_prefix)
+			pak_name = self.requireKey("name")
+			test_dir = test_prefix + os.path.sep + pak_name + "_test" + os.path.extsep + "pk3dir"
+
+		return os.path.abspath(test_dir)
+
+	def getPakFile(self, build_prefix=None, pak_prefix=None, pak_file=None, pak_name=None):
+		if not pak_file:
+			if not pak_prefix:
+				pak_prefix = self.getPakPrefix(self, build_prefix=build_prefix)
+			pak_name = self.requireKey("name")
+			pak_version = self.requireKey("version")
+			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + os.path.extsep + "pk3"
+
+		return os.path.abspath(pak_file)
 
 class FileProfile():
 	def __init__(self, game_name):

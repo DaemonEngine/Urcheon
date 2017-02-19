@@ -40,8 +40,9 @@ def notice(message):
 	_print(message)
 
 def error(message):
+	_message = message
 	message = "Error: " + message
 	if sys.stdout.isatty():
 		message = Fore.RED + message + Style.RESET_ALL
 	_print(message)
-	raise ValueError(message)
+	raise ValueError(_message)

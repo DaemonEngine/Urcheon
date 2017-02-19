@@ -75,7 +75,7 @@ class List():
 			self.computed_active_action_dict[action_name] = []
 			self.computed_disabled_action_dict[action_name] = []
 
-	def readActions(self):
+	def readActions(self, auto_actions=False):
 		if os.path.isfile(self.action_list_file):
 			action_list_file = open(self.action_list_file, "r")
 			line_list = [line.strip() for line in action_list_file]
@@ -110,18 +110,14 @@ class List():
 		else:
 			Ui.verbose("List not found: " + self.action_list_file_name)
 
-	def computeActions(self, transient_dir=None):
-		if transient_dir:
-			# for actions in generated files
-			work_dir = transient_dir + os.path.sep + "."
-		else:
-			work_dir = self.source_dir
+		if auto_actions:
+			self.computeActions()
 
-		saved_dir = os.getcwd()
-		os.chdir(work_dir)
-		for dir_name, subdir_name_list, file_name_list in os.walk(os.path.curdir):
-			curdir = os.path.curdir + os.path.sep
-			dir_name = dir_name[len(curdir):]
+	def computeActions(self):
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
+			dir_name = dir_name[len(self.source_dir):]
+			while dir_name.startswith("/"):
+				dir_name = dir_name[1:]
 
 			logging.debug("dir_name: " + str(dir_name) + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
 
@@ -167,8 +163,6 @@ class List():
 					if unknown_file_path:
 						computed_action = self.inspector.inspect(file_path)
 						self.computed_active_action_dict[computed_action].append(file_path)
-
-		os.chdir(saved_dir)
 
 		self.active_action_dict = self.computed_active_action_dict
 		self.active_inaction_dict = self.computed_disabled_action_dict
@@ -229,13 +223,13 @@ class Action():
 	subprocess_stdout = subprocess.DEVNULL;
 	subprocess_stderr = subprocess.DEVNULL;
 
-	def __init__(self, source_dir, build_dir, file_path, game_name=None, map_profile=None, transient_dir=None):
+	def __init__(self, source_dir, test_dir, file_path, game_name=None, map_profile=None, is_recursion=False):
 		self.source_dir = source_dir
-		self.build_dir = build_dir
+		self.test_dir = test_dir
 		self.file_path = file_path
 		self.game_name = game_name
 		self.map_profile = map_profile
-		self.transient_dir = transient_dir
+		self.is_recursion = is_recursion
 
 	def run(self):
 		Ui.print("Dumb action: " + self.file_path)
@@ -247,14 +241,14 @@ class Action():
 		return self.source_dir + os.path.sep + self.file_path
 
 	def getBuildPath(self):
-		return self.build_dir + os.path.sep + self.getFileNewName()
+		return self.test_dir + os.path.sep + self.getFileNewName()
 
 	def getExt(self):
 		return os.path.splitext(self.file_path)[1][len(os.path.extsep):].lower()
 	
 	def isDifferent(self):
 		source_path = self.source_dir + os.path.sep + self.file_path
-		built_path = self.build_dir + os.path.sep + self.getFileNewName()
+		built_path = self.test_dir + os.path.sep + self.getFileNewName()
 		if not os.path.isfile(built_path):
 			logging.debug("built file not found: " + built_path)
 			return True
@@ -325,8 +319,8 @@ class Copy(Action):
 		# TODO: add specific rule for that
 		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
 		if ext == "bsp":
-			if not self.transient_dir:
-				# not in recursion
+			if not self.is_recursion:
+				# do not do that in recursion
 				bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 				bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=["nav", "minimap"])
 
@@ -619,7 +613,7 @@ class MergeBsp(Action):
 		bspdir_path = self.getBspDirNewName()
 		bsp_path = self.getFileNewName()
 
-		logging.debug("looking for file in same bspdir than: " + self.file_path)
+#		logging.debug("looking for file in same bspdir than: " + self.file_path)
 #		for sub_path in self.action_list.active_action_dict["merge_bsp"]:
 #			if sub_path.startswith(bspdir_path):
 #				Ui.print("Merge to bsp: " + sub_path)
@@ -639,14 +633,16 @@ class MergeBsp(Action):
 
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(bsp_transient_path, transient_maps_path, stage_list=["nav", "minimap"])
-		builder = Pak.Builder(self.source_dir, self.build_dir, game_name=self.game_name, transient_dir=transient_path)
+		action_list = List(transient_path, self.game_name)
+		action_list.readActions(auto_actions=True)
+		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_recursion=True, parallel=False)
 		builder.build(transient_dir=transient_path)
 		shutil.rmtree(transient_path)
 
 		# lucky unthought workaround: since the produced bsp will receive the date of the original file
 		# other call for other files of same bspdir will be ignored
 		source_path = self.source_dir + os.path.sep + self.getBspDirNewName()
-		built_path = self.build_dir + os.path.sep + self.getFileNewName()
+		built_path = self.test_dir + os.path.sep + self.getFileNewName()
 		shutil.copystat(source_path, built_path)
 
 	def getSourcePath(self):
@@ -662,7 +658,7 @@ class MergeBsp(Action):
 	# lucky workaround
 	def isDifferent(self):
 		source_path = self.source_dir + os.path.sep + self.getBspDirNewName()
-		built_path = self.build_dir + os.path.sep + self.getFileNewName()
+		built_path = self.test_dir + os.path.sep + self.getFileNewName()
 		if not os.path.isfile(built_path):
 			logging.debug("built file not found: " + built_path)
 			return True
@@ -701,8 +697,10 @@ class CompileBsp(Action):
 
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, transient_maps_path)
-		builder = Pak.Builder(self.source_dir, self.build_dir, game_name=self.game_name, transient_dir=transient_path)
-		builder.build(transient_dir=transient_path)
+		action_list = List(transient_path, self.game_name)
+		action_list.readActions(auto_actions=True)
+		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_recursion=True, parallel=False)
+		builder.build()
 		shutil.rmtree(transient_path)
 
 		shutil.copystat(source_path, build_path)
