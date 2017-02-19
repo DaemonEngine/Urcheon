@@ -95,7 +95,7 @@ The `urcheon pak` stage relies on [`q3map2` from netradiant](https://gitlab.com/
 $ urcheon pak -h
 usage: urcheon pak [-h] [-D] [-v] [-g GAMENAME] [-sd DIRNAME] [-bp DIRNAME]
                    [-tp DIRNAME] [-pp DIRNAME] [-td DIRNAME] [-pf FILENAME]
-                   [-mp PROFILE] [-ev VERSION] [-u] [-b] [-a] [-p] [-c]
+                   [-mp PROFILE] [-u] [-a] [-ca] [-cm] [-ct] [-cp] [-b | -p]
 
 urcheon pak is a pak builder for my lovely granger.
 
@@ -103,31 +103,33 @@ optional arguments:
   -h, --help            show this help message and exit
   -D, --debug           print debug information
   -v, --verbose         print verbose information
-  -g GAMENAME, --game-profile GAMENAME
-                        use game profile GAMENAME, default: unvanquished
+  -g GAMENAME, --game GAMENAME
+                        use game profile GAMENAME
   -sd DIRNAME, --source-dir DIRNAME
                         build from directory DIRNAME, default: .
   -bp DIRNAME, --build-prefix DIRNAME
                         build in prefix DIRNAME, default: build
-  -tp DIRNAME, --test-parent DIRNAME
-                        build test pakdir in parent directory DIRNAME,
-                        default: test
-  -pp DIRNAME, --pkg-parent DIRNAME
-                        build release pak in parent directory DIRNAME,
-                        default: pkg
+  -tp DIRNAME, --test-prefix DIRNAME
+                        build test pakdir in prefix DIRNAME, default:
+                        build/test
+  -pp DIRNAME, --pak-prefix DIRNAME
+                        build release pak in prefix DIRNAME, default:
+                        build/pak
   -td DIRNAME, --test-dir DIRNAME
                         build test pakdir as directory DIRNAME
-  -pf FILENAME, --pkg-file FILENAME
+  -pf FILENAME, --pak-file FILENAME
                         build release pak as file FILENAME
   -mp PROFILE, --map-profile PROFILE
-                        build map with profile PROFILE, default: fast
-  -ev VERSION, --extra-version VERSION
-                        add VERSION to pak version string
-  -u, --update          update paklist, compute actions
+                        build map with profile PROFILE, default: None
+  -u, --update-actions  compute actions, write down list
+  -a, --auto-actions    compute actions at build time and do not store the
+                        list
+  -ca, --clean_all      clean all previous build
+  -cm, --clean_map      clean previous map build
+  -ct, --clean_test     clean previous test build
+  -cp, --clean_pak      clean previous pak build
   -b, --build           build source pakdir
-  -a, --auto            compute actions at build time and do not store paklist
   -p, --package         compress release pak
-  -c, --clean           clean previous build
 ```
 
 Warning
