@@ -233,10 +233,10 @@ def main(stage=None):
 	args.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with profile %(metavar)s, default: %(default)s")
 	args.add_argument("-u", "--update-actions", dest="update", help="compute actions, write down list", action="store_true")
 	args.add_argument("-a", "--auto-actions", dest="auto_actions", help="compute actions at build time and do not store the list", action="store_true")
-
 	args.add_argument("-c", "--clean", dest="clean", metavar="KEYWORD", help="clean previous build, keywords are: map, test, pak, all")
 	args.add_argument("-b", "--build", dest="build", help="build source pakdir", action="store_true")
 	args.add_argument("-p", "--package", dest="package", help="compress release pak", action="store_true")
+	args.add_argument("-sr", "--since-reference", dest="since_reference", metavar="REFERENCE", help="build partial pakdir since given reference")
 
 	args = args.parse_args()
 
@@ -276,9 +276,14 @@ def main(stage=None):
 			action_list = Action.List(args.source_dir, args.game_name)
 			action_list.readActions()
 
-		if args.auto_actions:
+		if args.since_reference:
+			file_repo = SourceTree.Git(args.source_dir)
+			file_list = file_repo.listFilesSinceReference(args.since_reference)
+		else:
 			file_tree = SourceTree.Tree(args.source_dir)
 			file_list = file_tree.listFiles()
+
+		if args.auto_actions:
 			action_list.computeActions(file_list)
 
 		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile)

@@ -378,26 +378,34 @@ class Git():
 		file_list = []
 		proc = subprocess.Popen(self.git + ["ls-files"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		with proc.stdout as stdout:
-			for file in stdout:
-				file = file.decode()
-				if file.endswith("\n"):
-					file = file[:-1]
-				file_list.append(file)
+			for file_path in stdout:
+				file_path = file_path.decode()
+				if file_path.endswith("\n"):
+					file_path = file_path[:-1]
+				file_list.append(file_path)
 
 		blacklist = BlackList(self.source_dir)
 		file_list = blacklist.filter(file_list)
 
 		return file_list
 
-	def listModifiedFiles(self, reference):
+	def listFilesSinceReference(self, reference):
 		file_list = []
 		proc = subprocess.Popen(self.git + ["diff", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		with proc.stdout as stdout:
-			for file in stdout:
-				file = file.decode()
-				if file.endswith("\n"):
-					file = file[:-1]
-				file_list.append(file)
+			for file_path in stdout:
+				file_path = file_path.decode()
+				if file_path.endswith("\n"):
+					file_path = file_path[:-1]
+
+				full_path = os.path.join(self.source_dir, file_path)
+
+				# if file still in history
+				if os.path.isfile(file_path):
+					logging.debug("file still in repository: " + file_path)
+					file_list.append(file_path)
+				else:
+					logging.debug("file not there anymore: " + file_path)
 
 		blacklist = BlackList(self.source_dir)
 		file_list = blacklist.filter(file_list)
