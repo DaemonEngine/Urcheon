@@ -227,8 +227,8 @@ class Bsp():
 
 
 		# TODO: set something else for quiet and verbose mode
-		self.subprocess_stdout = None;
-		self.subprocess_stderr = None;
+		self.subprocess_stdout = None
+		self.subprocess_stderr = None
 
 	def compileBsp(self, map_path, build_prefix, stage_list=None):
 		logging.debug("building " + map_path + " to prefix: " + build_prefix)

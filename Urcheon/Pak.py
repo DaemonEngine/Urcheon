@@ -31,14 +31,18 @@ from collections import OrderedDict
 
 class Builder():
 	# testdir is the pk3dir, so the target here
-	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, auto_actions=False, transient_dir=None, is_recursion=False, parallel=True):
+	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, auto_actions=False, transient_dir=None, is_nested=False, parallel=True):
 		self.source_dir = source_dir
 		self.action_list = action_list
-		self.is_recursion = is_recursion
+		self.is_nested = is_nested
 		self.parallel = parallel
 
-		pak_config = SourceTree.Config(source_dir)
-		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
+		# Do not look for pak configuration in temporary directories, do not build temporary stuff in system build directories
+		if not is_nested:
+			pak_config = SourceTree.Config(source_dir)
+			self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
+		else:
+			self.test_dir = test_dir
 
 		if not game_name:
 			game_name = pak_config.requireKey("game")
@@ -63,13 +67,14 @@ class Builder():
 
 		logging.debug("reading build list from source dir: " + self.source_dir)
 
+		thread_list = []
 		for action in Action.Directory().directory:
 			for file_path in self.action_list.active_action_dict[action.keyword]:
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
-				# the is_recursion argument is just there to tell that action to not do specific stuff because recursion
-				a = action(self.source_dir, self.test_dir, file_path, game_name=self.game_name, map_profile=self.map_profile, is_recursion=self.is_recursion)
+				# the is_nested argument is just there to tell that action to not do specific stuff because recursion
+				a = action(self.source_dir, self.test_dir, file_path, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
 
 				if not self.parallel:
 					# explicitely requested (like in recursion)
@@ -80,11 +85,16 @@ class Builder():
 						a.run()
 					else:
 						thread = threading.Thread(target=a.run)
+						thread_list.append(thread)
 
 						while threading.active_count() > multiprocessing.cpu_count():
 							pass
 
 						thread.start()
+
+		# wait for all threads ending, otherwise we can start packaging while building is not ended
+		for thread in thread_list:
+			thread.join()
 
 
 class Packer():
@@ -119,14 +129,14 @@ class Packer():
 
 		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
 
-		orig_dir = os.getcwd()
-		# can't call --build and --package because of that:
-		os.chdir(self.test_dir)
-		for dirname, subdirname_list, file_name_list in os.walk('.'):
+		for dirname, subdirname_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
-				file_path = os.path.join(dirname, file_name)[len(os.path.curdir + os.path.sep):]
+				full_path = os.path.join(dirname, file_name)
+				file_path = full_path[len(self.test_dir):]
+				if file_path.startswith(os.path.sep):
+					file_path = file_path[1:]
 				Ui.print("adding file to package: " + file_path)
-				pak.write(file_path)
+				pak.write(full_path, arcname=file_path)
 
 		logging.debug("closing: " + self.pak_file)
 		pak.close()
@@ -144,7 +154,7 @@ class Cleaner():
 	def cleanTest(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
-				that_file = dir_name + os.path.sep + file_name
+				that_file = os.path.join(dir_name, file_name)
 				Ui.print("removing: " + that_file)
 				os.remove(that_file)
 				self.removeEmptyDir(dir_name)
@@ -157,8 +167,8 @@ class Cleaner():
 	def cleanPak(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.pak_prefix):
 			for file_name in file_name_list:
-				if file_name.startswith(self.pak_name) and file_name.endswith(".pk3"):
-					pak_file = dir_name + os.path.sep + file_name
+				if file_name.startswith(self.pak_name) and file_name.endswith(os.path.extsep + "pk3"):
+					pak_file = os.path.join(dir_name, file_name)
 					Ui.print("removing: " + pak_file)
 					os.remove(pak_file)
 					self.removeEmptyDir(dir_name)
@@ -168,31 +178,31 @@ class Cleaner():
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "bsp"):
-					bsp_file = dir_name + os.path.sep + file_name
+					bsp_file = os.path.join(dir_name, file_name)
 					Ui.print("removing: " + bsp_file)
 					os.remove(bsp_file)
 					self.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "map"):
-					map_file = dir_name + os.path.sep + file_name
+					map_file = os.path.join(dir_name, file_name)
 					Ui.print("removing: " + map_file)
 					os.remove(map_file)
 					self.removeEmptyDir(dir_name)
 
-				if dir_name.split("/")[-2:-1] == ["maps"] and file_name.startswith(os.path.extsep + "lm_"):
-					lightmap_file = dir_name + os.path.sep + file_name
+				if dir_name.split("/")[-2:-1] == ["maps"] and file_name.startswith("lm_"):
+					lightmap_file = os.path.join(dir_name, file_name)
 					Ui.print("removing: " + lightmap_file)
 					os.remove(lightmap_file)
 					self.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "navMesh"):
-					navmesh_file = dir_name + os.path.sep + file_name
+					navmesh_file = os.path.join(dir_name, file_name)
 					Ui.print("removing: " + navmesh_file)
 					os.remove(navmesh_file)
 					self.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["minimaps"]:
-					minimap_file = dir_name + os.path.sep + file_name
+					minimap_file = os.path.join(dir_name, file_name)
 					Ui.print("removing: " + minimap_file)
 					os.remove(minimap_file)
 					self.removeEmptyDir(dir_name)
@@ -226,13 +236,9 @@ def main(stage=None):
 	args.add_argument("-u", "--update-actions", dest="update", help="compute actions, write down list", action="store_true")
 	args.add_argument("-a", "--auto-actions", dest="auto_actions", help="compute actions at build time and do not store the list", action="store_true")
 
-	group = args.add_mutually_exclusive_group()
-	args.add_argument("-c", "--clean", dest="clean", help="clean all previous build", action="store_true")
-	args.add_argument("-cm", "--clean_map", dest="clean_map", help="clean previous map build", action="store_true")
-	args.add_argument("-ct", "--clean_test", dest="clean_test", help="clean previous test build", action="store_true")
-	args.add_argument("-cp", "--clean_pak", dest="clean_pak", help="clean previous pak build", action="store_true")
-	group.add_argument("-b", "--build", dest="build", help="build source pakdir", action="store_true")
-	group.add_argument("-p", "--package", dest="package", help="compress release pak", action="store_true")
+	args.add_argument("-c", "--clean", dest="clean", metavar="KEYWORD", help="clean previous build, keywords are: map, test, pak, all")
+	args.add_argument("-b", "--build", dest="build", help="build source pakdir", action="store_true")
+	args.add_argument("-p", "--package", dest="package", help="compress release pak", action="store_true")
 
 	args = args.parse_args()
 
@@ -261,21 +267,20 @@ def main(stage=None):
 		packer.pack()
 
 	if args.clean:
-		cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-		cleaner.cleanTest()
-		cleaner.cleanPak()
+		if args.clean not in ["map", "test", "pak", "all"]:
+			Ui.warning("clean keyword must be map, test, pak or all")
+			return
 
-	if args.clean_map:
 		cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-		cleaner.cleanMap()
 
-	if args.clean_test:
-		cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-		cleaner.cleanTest()
+		if args.clean == "map":
+			cleaner.cleanMap()
 
-	if args.clean_pak:
-		cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-		cleaner.cleanPak()
+		if args.clean == "test" or args.clean == "all":
+			cleaner.cleanTest()
+
+		if args.clean == "pak" or args.clean == "all":
+			cleaner.cleanPak()
 
 
 if __name__ == "__main__":

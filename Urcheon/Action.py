@@ -220,16 +220,16 @@ class Action():
 	parallel = True
 
 	# TODO: set something else in verbose mode
-	subprocess_stdout = subprocess.DEVNULL;
-	subprocess_stderr = subprocess.DEVNULL;
+	subprocess_stdout = subprocess.DEVNULL
+	subprocess_stderr = subprocess.DEVNULL
 
-	def __init__(self, source_dir, test_dir, file_path, game_name=None, map_profile=None, is_recursion=False):
+	def __init__(self, source_dir, test_dir, file_path, game_name=None, map_profile=None, is_nested=False):
 		self.source_dir = source_dir
 		self.test_dir = test_dir
 		self.file_path = file_path
 		self.game_name = game_name
 		self.map_profile = map_profile
-		self.is_recursion = is_recursion
+		self.is_nested = is_nested
 
 	def run(self):
 		Ui.print("Dumb action: " + self.file_path)
@@ -319,7 +319,7 @@ class Copy(Action):
 		# TODO: add specific rule for that
 		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
 		if ext == "bsp":
-			if not self.is_recursion:
+			if not self.is_nested:
 				# do not do that in recursion
 				bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 				bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=["nav", "minimap"])
@@ -389,7 +389,7 @@ class ConvertLossyWebp(Action):
 
 	def run(self):
 		source_path = self.getSourcePath()
-		build_path = self.getBuildPath(self.geteNewName(self.file_path))
+		build_path = self.getBuildPath()
 		self.createSubdirs()
 
 		if not self.isDifferent():
@@ -635,7 +635,7 @@ class MergeBsp(Action):
 		bsp_compiler.compileBsp(bsp_transient_path, transient_maps_path, stage_list=["nav", "minimap"])
 		action_list = List(transient_path, self.game_name)
 		action_list.readActions(auto_actions=True)
-		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_recursion=True, parallel=False)
+		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
 		builder.build(transient_dir=transient_path)
 		shutil.rmtree(transient_path)
 
@@ -699,7 +699,7 @@ class CompileBsp(Action):
 		bsp_compiler.compileBsp(source_path, transient_maps_path)
 		action_list = List(transient_path, self.game_name)
 		action_list.readActions(auto_actions=True)
-		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_recursion=True, parallel=False)
+		builder = Pak.Builder(transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
 		builder.build()
 		shutil.rmtree(transient_path)
 
