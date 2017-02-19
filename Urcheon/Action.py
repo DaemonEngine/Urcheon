@@ -8,7 +8,7 @@
 # 
 
 from Urcheon import MapCompiler
-from Urcheon import SourceTree
+from Urcheon import Repository
 from Urcheon import Ui
 from Urcheon import Pak
 from Urcheon import Bsp
@@ -29,14 +29,14 @@ from collections import OrderedDict
 class List():
 	def __init__(self, source_dir, game_name=None):
 		if not game_name:
-			pak_config = SourceTree.Config(source_dir)
+			pak_config = Repository.Config(source_dir)
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
 		self.action_list_file_name = os.path.join(".pakinfo", "actions.txt")
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_name)
 
-		self.inspector = SourceTree.Inspector(game_name)
+		self.inspector = Repository.Inspector(game_name)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
@@ -127,7 +127,7 @@ class List():
 	def updateActions(self, action_list):
 		self.readActions()
 
-		file_tree = SourceTree.Tree(self.source_dir)
+		file_tree = Repository.Tree(self.source_dir)
 		file_list = file_tree.listFiles()
 		self.computeActions(file_list)
 
@@ -576,7 +576,7 @@ class MergeBsp(Action):
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(bsp_transient_path, transient_maps_path, stage_list=["nav", "minimap"])
 
-		file_tree = SourceTree.Tree(transient_path)
+		file_tree = Repository.Tree(transient_path)
 		file_list = file_tree.listFiles()
 
 		action_list = List(transient_path, self.game_name)
@@ -645,7 +645,7 @@ class CompileBsp(Action):
 		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
 		bsp_compiler.compileBsp(source_path, transient_maps_path)
 
-		file_tree = SourceTree.Tree(transient_path)
+		file_tree = Repository.Tree(transient_path)
 		file_list = file_tree.listFiles()
 
 		action_list = List(transient_path, self.game_name)

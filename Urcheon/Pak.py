@@ -10,7 +10,7 @@
 
 from Urcheon import Action
 from Urcheon import MapCompiler
-from Urcheon import SourceTree
+from Urcheon import Repository
 from Urcheon import Ui
 import __main__ as m
 import argparse
@@ -39,7 +39,7 @@ class Builder():
 
 		# Do not look for pak configuration in temporary directories, do not build temporary stuff in system build directories
 		if not is_nested:
-			pak_config = SourceTree.Config(source_dir)
+			pak_config = Repository.Config(source_dir)
 			self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
 		else:
 			self.test_dir = test_dir
@@ -99,7 +99,7 @@ class Builder():
 
 class Packer():
 	def __init__(self, source_dir, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None):
-		pak_config = SourceTree.Config(source_dir)
+		pak_config = Repository.Config(source_dir)
 		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
 		self.pak_file = pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file)
 
@@ -144,7 +144,7 @@ class Packer():
 
 class Cleaner():
 	def __init__(self, source_dir, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None):
-		pak_config = SourceTree.Config(source_dir)
+		pak_config = Repository.Config(source_dir)
 		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
 		self.pak_prefix = pak_config.getPakPrefix(build_prefix=build_prefix, pak_prefix=pak_prefix)
 		self.pak_name = pak_config.requireKey("name")
@@ -266,7 +266,7 @@ def main(stage=None):
 
 	action_list = None
 	if args.update:
-		file_tree = SourceTree.Tree(args.source_dir)
+		file_tree = Repository.Tree(args.source_dir)
 		file_list = file_tree.listFiles()
 		action_list = Action.List(args.source_dir, args.game_name)
 		action_list.updateActions(action_list)
@@ -277,10 +277,10 @@ def main(stage=None):
 			action_list.readActions()
 
 		if args.since_reference:
-			file_repo = SourceTree.Git(args.source_dir)
+			file_repo = Repository.Git(args.source_dir)
 			file_list = file_repo.listFilesSinceReference(args.since_reference)
 		else:
-			file_tree = SourceTree.Tree(args.source_dir)
+			file_tree = Repository.Tree(args.source_dir)
 			file_list = file_tree.listFiles()
 
 		if args.auto_actions:

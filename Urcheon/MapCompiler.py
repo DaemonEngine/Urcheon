@@ -9,7 +9,7 @@
 
 
 from Urcheon import Defaults
-from Urcheon import SourceTree
+from Urcheon import Repository
 from Urcheon import Ui
 import configparser
 import logging
@@ -41,7 +41,7 @@ class Config():
 		self.map_config = OrderedDict()
 
 		if not game_name:
-			pak_config = SourceTree.Config(source_dir)
+			pak_config = Repository.Config(source_dir)
 			game_name = pak_config.getKey("game")
 
 		map_config_loaded = False
@@ -214,7 +214,7 @@ class Bsp():
 		self.map_profile = map_profile
 
 		if not game_name:
-			pak_config = SourceTree.Config(source_dir)
+			pak_config = Repository.Config(source_dir)
 			game_name = pak_config.requireKey("game")
 
 		self.game_name = game_name
