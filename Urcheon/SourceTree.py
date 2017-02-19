@@ -16,6 +16,7 @@ import importlib
 import logging
 import operator
 import os
+import subprocess
 
 
 class Config():
@@ -25,6 +26,7 @@ class Config():
 		self.pak_config = configparser.ConfigParser()
 		self.key_dict = None
 		self.loaded = False
+		self.source_dir = source_dir
 
 		if os.path.isfile(config_pak_path):
 			self.readConfig(config_pak_path)
@@ -108,7 +110,7 @@ class Config():
 	def getPakFile(self, build_prefix=None, pak_prefix=None, pak_file=None, pak_name=None):
 		if not pak_file:
 			if not pak_prefix:
-				pak_prefix = self.getPakPrefix(self, build_prefix=build_prefix)
+				pak_prefix = self.getPakPrefix(build_prefix=build_prefix)
 			pak_name = self.requireKey("name")
 			pak_version = self.requireKey("version")
 			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + os.path.extsep + "pk3"
@@ -258,3 +260,50 @@ class Inspector():
 
 		return action
 
+
+class Git():
+	def __init__(self, source_dir):
+		self.source_dir = source_dir
+		self.git = ["git", "-C", self.source_dir]
+		self.subprocess_stdout = subprocess.DEVNULL
+		self.subprocess_stderr = subprocess.DEVNULL
+		pass
+
+	def checkGit(self):
+		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		if proc.numerator == 0:
+			return True
+		else:
+			return False
+
+	def getLastTag(self):
+		line = ""
+		proc = subprocess.Popen(self.git + ["describe", "--abbrev=0", "--tags"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		with proc.stdout as stdout:
+			for line in stdout:
+				line = line.decode()
+				if line.endswith("\n"):
+					line = line[:-1]
+		return line
+
+	def listFiles(self):
+		lines = []
+		proc = subprocess.Popen(self.git + ["ls-files"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		with proc.stdout as stdout:
+			for line in stdout:
+				line = line.decode()
+				if line.endswith("\n"):
+					line = line[:-1]
+				lines.append(line)
+		return lines
+
+	def listModifiedFiles(self, reference):
+		lines = []
+		proc = subprocess.Popen(self.git + ["diff", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		with proc.stdout as stdout:
+			for line in stdout:
+				line = line.decode()
+				if line.endswith("\n"):
+					line = line[:-1]
+				lines.append(line)
+		return lines
