@@ -685,6 +685,7 @@ class MergeBsp(DumbTransient):
 
 		# copy merged file in transient_path for nested extra actions
 		# when per-file merging will be enabled, it must be done on final file only
+		logging.debug("merge_bsp build path: " + build_path)
 		shutil.copyfile(build_path, bsp_transient_path)
 		shutil.copystat(source_path, bsp_transient_path)
 
@@ -692,9 +693,6 @@ class MergeBsp(DumbTransient):
 		bsp_compiler.compileBsp(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
 
 		self.buildTransientPath()
-
-		# while merge_bsp, produced file is not in transient dir
-		self.body.append(self.getFileNewName())
 
 		# lucky unthought workaround: since the produced bsp will receive the date
 		# of the original directory when first file is merged,

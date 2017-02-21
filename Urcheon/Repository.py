@@ -237,6 +237,7 @@ class Inspector():
 		logging.debug("looking for file path:" + file_path)
 #		logging.debug("will try file types in this order: ", str(file_type_ordered_list))
 
+		# TODO: make a tree!
 		action = self.default_action
 		for file_type_name in file_type_ordered_list:
 			logging.debug("trying file type:" + file_type_name)
@@ -257,6 +258,8 @@ class Inspector():
 			if matched_file_type:
 				action = file_type_action
 				description  = file_type_description
+				logging.debug("matched file type: " + file_type_name)
+				logging.debug("matched file type action: " + file_type_action)
 				break
 
 		# TODO read from config
