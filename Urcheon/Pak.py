@@ -153,9 +153,16 @@ class Packer():
 
 		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
 
-		for dirname, subdirname_list, file_name_list in os.walk(self.test_dir):
+		paktrace_dir = Repository.PakTrace(None).paktrace_dir
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
-				full_path = os.path.join(dirname, file_name)
+				rel_dir_name = os.path.relpath(dir_name, self.test_dir)
+
+				# ignore paktrace files
+				if dir_name.startswith(paktrace_dir + os.path.sep):
+					continue
+
+				full_path = os.path.join(dir_name, file_name)
 				file_path = os.path.relpath(full_path, self.test_dir)
 				Ui.print("add file to package: " + file_path)
 				pak.write(full_path, arcname=file_path)
@@ -167,6 +174,7 @@ class Packer():
 
 
 class Cleaner():
+	# TODO: remove paktraces files too
 	def __init__(self, source_dir, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None):
 		pak_config = Repository.Config(source_dir)
 		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
@@ -296,11 +304,6 @@ class Cleaner():
 			full_path = os.path.join(self.test_dir, dust_paktrace)
 			FileSystem.cleanRemoveFile(full_path)
 
-	def uniqify(self, iterable):
-		# magic: do not resolv in each iteration
-		s=set()
-		s_add = s.add
-		return [x for x in iterable if not (x in s or s_add(x))]
 
 def main(stage=None):
 
