@@ -17,6 +17,7 @@ import importlib
 import logging
 import operator
 import os
+import shutil
 import subprocess
 
 
@@ -354,6 +355,85 @@ class Tree():
 		file_list = blacklist.filter(file_list)
 
 		return file_list
+
+
+class PakTrace():
+	paktrace_dir = ".paktrace"
+
+	def __init__(self, test_dir):
+		self.test_dir = test_dir
+
+	# this is a list to keep files names that are produced while building with other files
+	def read(self, head):
+		logging.debug("read paktrace for head: " + head)
+
+		paktrace_path = self.getPath(head)
+		body = self.readByPath(paktrace_path)
+
+		if not body:
+			body = [head]
+
+		logging.debug("body read:" + str(body))
+		return body
+
+	def readByPath(self, file_path):
+		paktrace_path = os.path.join(self.test_dir, file_path)
+
+		logging.debug("read paktrace from path: " + paktrace_path)
+
+		if os.path.isfile(paktrace_path):
+			paktrace_file = open(paktrace_path, "r")
+			body = paktrace_file.read().splitlines()
+			paktrace_file.close()
+
+			unmodified_body = []
+			for member_file in body:
+				member_path = os.path.join(self.test_dir, member_file)
+				if os.path.isfile(member_path):
+					if os.stat(member_path).st_mtime == os.stat(paktrace_path).st_mtime:
+						unmodified_body.append(member_path)
+			unmodifed_body = body
+			return body
+		else:
+			return None
+
+	def write(self, head, body):
+		logging.debug("write paktrace for head: " + head)
+
+		self.remove(head)
+
+		paktrace_path = self.getPath(head)
+
+		paktrace_subdir = os.path.dirname(paktrace_path)
+		os.makedirs(paktrace_subdir, exist_ok=True)
+
+		paktrace_file = open(paktrace_path, "w")
+		for line in body:
+			paktrace_file.write(line + "\n")
+		paktrace_file.close()
+
+		head_path = os.path.join(self.test_dir, head)
+
+		shutil.copystat(head_path, paktrace_path)
+
+	def remove(self, head):
+		logging.debug("remove paktrace for head: " + head)
+
+		paktrace_path = self.getPath(head)
+
+		if os.path.isfile(paktrace_path):
+			os.remove(paktrace_path)
+
+	def getName(self, head):
+		head_path = os.path.join(self.test_dir, head)
+		paktrace_name = head + os.path.extsep + "txt"
+		return paktrace_name
+		
+	def getPath(self, head):
+		paktrace_name = self.getName(head)
+		paktrace_dirpath = os.path.join(self.test_dir, self.paktrace_dir)
+		paktrace_path = os.path.join(paktrace_dirpath, paktrace_name)
+		return paktrace_path
 
 class Git():
 	def __init__(self, source_dir):

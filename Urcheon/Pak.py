@@ -9,6 +9,7 @@
 
 
 from Urcheon import Action
+from Urcheon import FileSystem
 from Urcheon import MapCompiler
 from Urcheon import Repository
 from Urcheon import Ui
@@ -30,8 +31,8 @@ from collections import OrderedDict
 
 
 class Builder():
-	# testdir is the pk3dir, so the target here
-	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, transient_dir=None, is_nested=False, parallel=True):
+	# test_dir is the pk3dir, so it's the build dir here
+	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, is_nested=False, parallel=True):
 		self.source_dir = source_dir
 		self.action_list = action_list
 		self.is_nested = is_nested
@@ -57,7 +58,7 @@ class Builder():
 		self.map_profile = map_profile
 
 
-	def build(self, transient_dir=None):
+	def build(self):
 		# TODO: check if not a directory
 		if os.path.isdir(self.test_dir):
 			logging.debug("found build dir: " + self.test_dir)
@@ -68,6 +69,7 @@ class Builder():
 		logging.debug("reading build list from source dir: " + self.source_dir)
 
 		thread_list = []
+		produced_unit_list = []
 		for action in Action.Directory().directory:
 			for file_path in self.action_list.active_action_dict[action.keyword]:
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
@@ -78,13 +80,14 @@ class Builder():
 
 				if not self.parallel:
 					# explicitely requested (like in recursion)
-					a.run()
+					produced_unit_list.append(a.run())
 				else:
 					if not action.parallel:
 						# action that can't be multithreaded
-						a.run()
+						produced_unit_list.append(a.run())
 					else:
-						thread = threading.Thread(target=a.run)
+						# wrapper does: produced_unit_list.append(a.run())
+						thread = threading.Thread(target=self.threadAppendRes, args=(a.run, (), produced_unit_list))
 						thread_list.append(thread)
 
 						while threading.active_count() > multiprocessing.cpu_count():
@@ -92,9 +95,30 @@ class Builder():
 
 						thread.start()
 
-		# wait for all threads ending, otherwise we can start packaging while building is not ended
+		# wait for all threads ending, otherwise it will start packaging while building is not ended
+		# and well, we have to read that list now to purge old files
 		for thread in thread_list:
 			thread.join()
+
+		# deduplication
+		unit_list = []
+		for unit in produced_unit_list:
+			logging.debug("unit: " + str(unit))
+			head = unit["head"]
+			body = unit["body"]
+
+			# if multiple calls produces the same files (like merge_bsp)
+			if head in unit:
+				continue
+
+			unit_list.append(unit)
+
+		logging.debug("unit_list:" + str(unit_list))
+		return unit_list
+
+	def threadAppendRes(self, func, args, res):
+		# magic: only works if res is a mutable object (like a list)
+		res.append(func(*args))
 
 
 class Packer():
@@ -133,10 +157,10 @@ class Packer():
 			for file_name in file_name_list:
 				full_path = os.path.join(dirname, file_name)
 				file_path = os.path.relpath(full_path, self.test_dir)
-				Ui.print("adding file to package: " + file_path)
+				Ui.print("add file to package: " + file_path)
 				pak.write(full_path, arcname=file_path)
 
-		logging.debug("closing: " + self.pak_file)
+		logging.debug("close: " + self.pak_file)
 		pak.close()
 
 		Ui.print("Package written: " + self.pak_file)
@@ -153,63 +177,130 @@ class Cleaner():
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
 				that_file = os.path.join(dir_name, file_name)
-				Ui.print("removing: " + that_file)
+				Ui.print("clean: " + that_file)
 				os.remove(that_file)
-				self.removeEmptyDir(dir_name)
+				FileSystem.removeEmptyDir(dir_name)
 			for dir_name in subdir_name_list:
 				that_dir = dir_name + os.path.sep + dir_name
-				self.removeEmptyDir(that_dir)
-			self.removeEmptyDir(dir_name)
-		self.removeEmptyDir(self.test_dir)
+				FileSystem.removeEmptyDir(that_dir)
+			FileSystem.removeEmptyDir(dir_name)
+		FileSystem.removeEmptyDir(self.test_dir)
 
 	def cleanPak(self):
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.pak_prefix):
 			for file_name in file_name_list:
 				if file_name.startswith(self.pak_name) and file_name.endswith(os.path.extsep + "pk3"):
 					pak_file = os.path.join(dir_name, file_name)
-					Ui.print("removing: " + pak_file)
+					Ui.print("clean: " + pak_file)
 					os.remove(pak_file)
-					self.removeEmptyDir(dir_name)
-		self.removeEmptyDir(self.pak_prefix)
+					FileSystem.removeEmptyDir(dir_name)
+		FileSystem.removeEmptyDir(self.pak_prefix)
 
 	def cleanMap(self):
+		# TODO: use paktrace abilities?
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "bsp"):
 					bsp_file = os.path.join(dir_name, file_name)
-					Ui.print("removing: " + bsp_file)
+					Ui.print("clean: " + bsp_file)
 					os.remove(bsp_file)
-					self.removeEmptyDir(dir_name)
+					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "map"):
 					map_file = os.path.join(dir_name, file_name)
-					Ui.print("removing: " + map_file)
+					Ui.print("clean: " + map_file)
 					os.remove(map_file)
-					self.removeEmptyDir(dir_name)
+					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-2:-1] == ["maps"] and file_name.startswith("lm_"):
 					lightmap_file = os.path.join(dir_name, file_name)
-					Ui.print("removing: " + lightmap_file)
+					Ui.print("clean: " + lightmap_file)
 					os.remove(lightmap_file)
-					self.removeEmptyDir(dir_name)
+					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "navMesh"):
 					navmesh_file = os.path.join(dir_name, file_name)
-					Ui.print("removing: " + navmesh_file)
+					Ui.print("clean: " + navmesh_file)
 					os.remove(navmesh_file)
-					self.removeEmptyDir(dir_name)
+					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["minimaps"]:
 					minimap_file = os.path.join(dir_name, file_name)
-					Ui.print("removing: " + minimap_file)
+					Ui.print("clean: " + minimap_file)
 					os.remove(minimap_file)
-					self.removeEmptyDir(dir_name)
+					FileSystem.removeEmptyDir(dir_name)
 
-	def removeEmptyDir(self, dir_name):
-		if os.path.isdir(dir_name):
-			if os.listdir(dir_name) == []:
-				os.rmdir(dir_name)
+	def cleanDust(self, produced_unit_list):
 
+		produced_file_list = []
+		for unit in produced_unit_list:
+			produced_file_list.extend(unit["body"])
+
+		paktrace_file_list = []
+		dust_paktrace_list = []
+		dust_file_list = []
+
+		paktrace_dir = Repository.PakTrace(None).paktrace_dir
+		paktrace_fulldir = os.path.join(self.test_dir, paktrace_dir)
+		if os.path.isdir(paktrace_fulldir):
+			logging.debug("look for dust in directory: " + paktrace_dir)
+			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_fulldir):
+				dir_name = os.path.relpath(dir_name, self.test_dir)
+				logging.debug("found paktrace dir: " + dir_name)
+
+				for file_name in file_name_list:
+					file_path = os.path.join(dir_name, file_name)
+					paktrace = Repository.PakTrace(self.test_dir)
+					body = paktrace.readByPath(file_path)
+
+					member_found = False
+					for member_name in body:
+						member_path = os.path.join(self.test_dir, member_name)
+						if os.path.isfile(member_path):
+							paktrace_file_list.append(member_name)
+							member_found = True
+
+					if not member_found:
+						dust_paktrace_list.append(file_path)
+
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
+			dir_name = os.path.relpath(dir_name, self.test_dir)
+
+			# skip paktrace directoru
+			if dir_name == paktrace_dir or dir_name.startswith(paktrace_dir + os.path.sep):
+				continue
+
+			logging.debug("look for dust in directory: " + dir_name)
+			logging.debug("found directory: " + dir_name)
+			for file_name in file_name_list:
+				that_file = os.path.join(dir_name, file_name)
+				logging.debug("found file: " + that_file)
+				if that_file not in paktrace_file_list and that_file not in produced_file_list:
+					logging.debug("found dust file: " + that_file)
+					dust_file_list.append(that_file)
+
+		logging.debug("produced file list:" + str(produced_file_list))
+		logging.debug("paktrace file list:" + str(paktrace_file_list))
+		logging.debug("dust pkatrace list: " + str(dust_paktrace_list))
+		logging.debug("dust file list: " + str(dust_file_list))
+
+		logging.debug("old file_list: " + str(dust_file_list))
+		for dust_file in dust_file_list:
+			dust_file_path = os.path.join(self.test_dir, dust_file)
+			Ui.print("clean dust file: " + dust_file)
+			full_path = os.path.join(self.test_dir, dust_file_path)
+			FileSystem.cleanRemoveFile(full_path)
+
+		for dust_paktrace in dust_paktrace_list:
+			Ui.print("clean dust paktrace: " + dust_paktrace)
+			full_path = os.path.join(self.test_dir, dust_paktrace)
+			FileSystem.cleanRemoveFile(full_path)
+
+	def uniqify(self, iterable):
+		# magic: do not resolv in each iteration
+		s=set()
+		s_add = s.add
+		return [x for x in iterable if not (x in s or s_add(x))]
 
 def main(stage=None):
 
@@ -235,6 +326,8 @@ def main(stage=None):
 	args.add_argument("-a", "--auto-actions", dest="auto_actions", help="compute actions at build time and do not store the list", action="store_true")
 	args.add_argument("-c", "--clean", dest="clean", metavar="KEYWORD", help="clean previous build, keywords are: map, test, pak, all")
 	args.add_argument("-b", "--build", dest="build", help="build source pakdir", action="store_true")
+	args.add_argument("-kd", "--keep-dust", dest="keep_dust", help="keep dust from previous build", action="store_true")
+	args.add_argument("-sb", "--sequential-build", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
 	args.add_argument("-p", "--package", dest="package", help="compress release pak", action="store_true")
 	args.add_argument("-sr", "--since-reference", dest="since_reference", metavar="REFERENCE", help="build partial pakdir since given reference")
 
@@ -286,8 +379,11 @@ def main(stage=None):
 		if args.auto_actions:
 			action_list.computeActions(file_list)
 
-		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile)
-		builder.build()
+		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, parallel = not args.sequential_build)
+		produced_unit_list = builder.build()
+		if not args.keep_dust:
+			cleaner = Cleaner(args.source_dir)
+			cleaner.cleanDust(produced_unit_list)
 
 	if args.package:
 		packer = Packer(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
