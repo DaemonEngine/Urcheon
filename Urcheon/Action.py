@@ -137,26 +137,26 @@ class List():
 		self.writeActions()
 
 
-class Directory():
-	def __init__(self):
-
-		# I want actions printed and executed in this order
-		self.directory = [
-			Copy,
-			ConvertJpg,
-			ConvertPng,
-			ConvertCrn,
-			ConvertNormalCrn,
-			ConvertLossyWebp,
-			ConvertLosslessWebp,
-			ConvertVorbis,
-			ConvertOpus,
-			CompileIqm,
-			MergeBsp,
-			CompileBsp,
-			Keep,
-			Ignore,
-		]
+# I want actions printed and executed in this order
+def list():
+	action_list = [
+		Copy,
+		ConvertJpg,
+		ConvertPng,
+		ConvertCrn,
+		ConvertNormalCrn,
+		ConvertLossyWebp,
+		ConvertLosslessWebp,
+		ConvertVorbis,
+		ConvertOpus,
+		CompileIqm,
+		CopyBsp,
+		MergeBsp,
+		CompileBsp,
+		Keep,
+		Ignore,
+	]
+	return action_list
 
 
 class Action():
@@ -311,14 +311,6 @@ class Copy(Action):
 		Ui.print("Copy: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		self.setTimeStamp()
-
-		# TODO: add specific rule for that
-		ext = os.path.splitext(build_path)[1][len(os.path.extsep):]
-		if ext == "bsp":
-			if not self.is_nested:
-				# do not do that in recursion
-				bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
-				bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=["nav", "minimap"])
 
 		return self.getProducedUnit()
 
@@ -623,6 +615,32 @@ class DumbTransient(Action):
 			
 		shutil.rmtree(self.transient_path)
 
+
+class CopyBsp(DumbTransient):
+	keyword = "copy_bsp"
+	description = "copy bsp file"
+	parallel = True
+
+	def run(self):
+		source_path = self.getSourcePath()
+		build_path = self.getTargetPath()
+		self.createSubdirs()
+
+		if not self.isDifferent():
+			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
+			return self.getProducedUnit()
+
+		Ui.print("Copy bsp: " + self.file_path)
+		shutil.copyfile(source_path, build_path)
+		self.setTimeStamp()
+
+		if not self.is_nested:
+			# do not do that in nested build, in that case this bsp an already produced one
+			# and this stages are called by the parent build
+			bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
+			bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=["nav", "minimap"])
+
+		return self.getProducedUnit()
 
 class MergeBsp(DumbTransient):
 	keyword = "merge_bsp"

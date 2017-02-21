@@ -70,7 +70,7 @@ class Builder():
 
 		thread_list = []
 		produced_unit_list = []
-		for action in Action.Directory().directory:
+		for action in Action.list():
 			for file_path in self.action_list.active_action_dict[action.keyword]:
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores

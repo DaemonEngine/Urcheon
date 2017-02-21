@@ -237,3 +237,9 @@ file_unvanquished_navmesh = {
 	"description": "Navigation Mesh",
 	"action": "copy",
 }
+
+file_unvanquished_bsp = {
+	"file_ext": "bsp",
+	"description": "BSP File",
+	"action": "copy_bsp",
+}

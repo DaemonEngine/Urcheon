@@ -183,7 +183,7 @@ class Inspector():
 		}
 
 		self.action_name_dict = OrderedDict()
-		for action in Action.Directory().directory:
+		for action in Action.list():
 			self.action_name_dict[action.keyword] = action.description
 
 		# TODO read from config
