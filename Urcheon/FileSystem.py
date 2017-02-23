@@ -11,6 +11,7 @@
 import os
 
 def cleanRemoveFile(file_name):
+	os.remove(file_name)
 	dir_name = os.path.dirname(file_name)
 	removeEmptyDir(dir_name)
 
