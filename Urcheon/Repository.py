@@ -126,7 +126,7 @@ class Config():
 
 class FileProfile():
 	def __init__(self, game_name):
-		self.file_profile = importlib.import_module("profiles.files." + game_name)
+		self.file_profile = importlib.import_module("profile.file." + game_name)
 		self.file_profile_file_type_dict = [variable for variable in dir(self.file_profile) if variable.startswith("file_")]
 		self.file_type_dict = {}
 		self.file_type_weight_dict = {}
@@ -292,7 +292,8 @@ class BlackList():
 		]
 		pass
 
-		pakignore_path = os.path.join(".pakinfo", "pakignore")
+		pakignore_name = "ignore" + os.path.extsep + "txt"
+		pakignore_path = os.path.join(".pakinfo", pakignore_name)
 		pakignore_path = os.path.join(source_dir, pakignore_path)
 
 		if os.path.isfile(pakignore_path):

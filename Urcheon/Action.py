@@ -33,8 +33,9 @@ class List():
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
-		self.action_list_file_name = os.path.join(".pakinfo", "actions.txt")
-		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_name)
+		action_list_file_name = "action" + os.path.extsep + "txt"
+		self.action_list_file_path = os.path.join(".pakinfo", action_list_file_name)
+		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
 		self.inspector = Repository.Inspector(game_name)
 		self.active_action_dict = OrderedDict()
@@ -85,7 +86,7 @@ class List():
 						self.computed_disabled_action_dict[action_name].append(file_path)
 
 		else:
-			Ui.verbose("List not found: " + self.action_list_file_name)
+			Ui.verbose("List not found: " + self.action_list_file_path)
 
 	def computeActions(self, file_list):
 		for file_path in file_list:

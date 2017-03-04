@@ -14,13 +14,13 @@ import sys
 
 
 data_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
-map_config_dir = data_dir + os.path.sep + "profiles" + os.path.sep + "maps"
+map_config_dir = data_dir + os.path.sep + "profile" + os.path.sep + "map"
 # net yet used, must port to toml first
-files_config_dir = data_dir + os.path.sep + "profiles" + os.path.sep + "files"
+files_config_dir = data_dir + os.path.sep + "profile" + os.path.sep + "file"
 
 def getPakMapConfigPath(source_dir, map_path):
 	map_base = os.path.splitext(os.path.basename(map_path))[0]
-	pak_map_config_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "maps" + os.path.sep + map_base + os.path.extsep + "ini"
+	pak_map_config_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "map" + os.path.sep + map_base + os.path.extsep + "ini"
 	if os.path.isfile(pak_map_config_path):
 		logging.debug("map profile found: " + pak_map_config_path)
 		return pak_map_config_path
