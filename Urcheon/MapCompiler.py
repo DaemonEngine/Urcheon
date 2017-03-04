@@ -83,23 +83,23 @@ class Config():
 		if not config.read(config_path):
 			Ui.error("failed to load map config: ", config_path)
 
-		if ":config:" in config.sections():
-			logging.debug("found extend section in map profile: " + config_path)
-			if "extend" in config[":config:"].keys():
-				game_name = config[":config:"]["extend"]
-				logging.debug("found “extend” instruction in “:config:” section: " + game_name)
+		if "_init_" in config.sections():
+			logging.debug("found “_init_” section in map profile: " + config_path)
+			if "extend" in config["_init_"].keys():
+				game_name = config["_init_"]["extend"]
+				logging.debug("found “extend” instruction in “_init_” section: " + game_name)
 				logging.debug("loading parent game map config")
 				game_config_path = Defaults.getGameMapConfigPath(game_name)
 				self.readConfig(game_config_path, is_parent=True)
 
-			if "default" in config[":config:"].keys():
-				default = config[":config:"]["default"]
-				logging.debug("found “default” instruction in “:config:” section: " + default)
+			if "default" in config["_init_"].keys():
+				default = config["_init_"]["default"]
+				logging.debug("found “default” instruction in “_init_” section: " + default)
 				self.default_profile = default
 
-			if "copy" in config[":config:"].keys():
-				copy = config[":config:"]["copy"]
-				logging.debug("found “copy” instruction in “:config:” section: " + copy)
+			if "copy" in config["_init_"].keys():
+				copy = config["_init_"]["copy"]
+				logging.debug("found “copy” instruction in “_init_” section: " + copy)
 
 				if copy == "yes":
 					self.copy_map = True
@@ -108,7 +108,7 @@ class Config():
 				else:
 					Ui.error("unknown “copy” value in config section, must be “yes” or “no”: " + config_path)
 
-			del config[":config:"]
+			del config["_init_"]
 
 		logging.debug("build profiles found: " + str(config.sections()))
 

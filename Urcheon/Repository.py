@@ -9,6 +9,7 @@
 
 
 from Urcheon import Action
+from Urcheon import Defaults
 from Urcheon import Ui
 from collections import OrderedDict
 import configparser
@@ -19,6 +20,7 @@ import operator
 import os
 import shutil
 import subprocess
+import pytoml
 
 
 class Config():
@@ -125,48 +127,101 @@ class Config():
 		return os.path.abspath(pak_file)
 
 class FileProfile():
-	def __init__(self, game_name):
-		self.file_profile = importlib.import_module("profile.file." + game_name)
-		self.file_profile_file_type_dict = [variable for variable in dir(self.file_profile) if variable.startswith("file_")]
+	def __init__(self, source_dir, profile_name):
+		# not yet used:
+		self.source_dir = source_dir
+
+		# for self.inspector.inspector_name_dict
+		self.inspector = Inspector(None, None)
+
 		self.file_type_dict = {}
 		self.file_type_weight_dict = {}
-		self.expandFileTypes()
+		self.readProfile(profile_name)
+		self.expandFileTypeDict()
 
-	def inheritFileType(self, config_file_type_dict):
-		if "inherit" in config_file_type_dict.keys():
-			logging.debug("inherit from file type: " + config_file_type_dict["inherit"])
-			inherited_file_type, weight = self.inheritFileType(getattr(self.file_profile, config_file_type_dict["inherit"]))
+	def readProfile(self, profile_name, is_parent=False):
+		file_profile_path = Defaults.getGameFileProfilePath(profile_name)
+
+		if not file_profile_path:
+			Ui.error("missing file profile: " + file_profile_path)
+
+		file_profile_file = open(file_profile_path, "r")
+		file_profile_dict = pytoml.load(file_profile_file)
+		file_profile_file.close()
+		
+		if "_init_" in file_profile_dict.keys():
+			logging.debug("found “_init_” section in file profile: " + file_profile_path)
+			if "extend" in file_profile_dict["_init_"]:
+				profile_parent_name = file_profile_dict["_init_"]["extend"]
+				logging.debug("found “extend” instruction in “_init_” section: " + profile_parent_name)
+				logging.debug("loading parent file profile")
+				self.readProfile(profile_parent_name, is_parent=True)
+			del file_profile_dict["_init_"]
+		
+		logging.debug("file profiles found: " + str(file_profile_dict.keys()))
+
+		for file_type in file_profile_dict.keys():
+			# if two names collide, the child win
+			self.file_type_dict[file_type] = file_profile_dict[file_type]
+
+		for file_type in self.file_type_dict.keys():
+			file_type = self.file_type_dict[file_type]
+			for key in file_type.keys():
+				if key in self.inspector.inspector_name_dict:
+					if not isinstance(file_type[key], list):
+						# value must always be a list, if there is only one string, put it in list
+						file_type[key] = [ file_type[key] ]
+
+		logging.debug("file types: " + str(self.file_type_dict))
+
+	def printProfile(self):
+		logging.debug(str(self.file_type_dict))
+		print(pytoml.dumps(self.file_type_dict))
+
+	def expandFileType(self, file_type_name):
+		logging.debug("expanding file type: " + file_type_name)
+		file_type = self.file_type_dict[file_type_name]
+		if "inherit" in file_type.keys():
+			inherited_type_name = file_type["inherit"]
+			logging.debug("inherit from file type: " + inherited_type_name)
+			inherited_file_type = self.expandFileType(inherited_type_name)
+			self.file_type_weight_dict[file_type_name] = self.file_type_weight_dict[inherited_type_name] + 1
+			del(file_type["inherit"])
 		else:
-			inherited_file_type, weight = {}, 0
+			if not file_type_name in self.file_type_weight_dict:
+				# if not already processed
+				self.file_type_weight_dict[file_type_name] = 0
+			inherited_file_type = {}
 
-		inspector = Inspector(None)
+		inspector = Inspector(None, None)
 
 		for keyword in list(inspector.inspector_name_dict.keys()) + [
 			"description",
 			"action",
 		]:
-			if keyword in config_file_type_dict.keys():
-				inherited_file_type[keyword] = config_file_type_dict[keyword]
-			elif keyword not in inherited_file_type.keys():
-				inherited_file_type[keyword] = None
+			if keyword in file_type.keys():
+				inherited_file_type[keyword] = file_type[keyword]
+#			elif keyword not in inherited_file_type.keys():
+#				inherited_file_type[keyword] = None
 
-		for keyword in inspector.inspector_name_dict.keys():
-			if isinstance(inherited_file_type[keyword], str):
-				inherited_file_type[keyword] = [ inherited_file_type[keyword] ]
+#		for keyword in inspector.inspector_name_dict.keys():
+#			if keyword in inherited_file_type:
+#				inherited_file_type[keyword] = [ inherited_file_type[keyword] ]
 
-		return inherited_file_type, weight + 1
+		return inherited_file_type
 
-	def expandFileTypes(self):
-		for file_type in self.file_profile_file_type_dict:
-			logging.debug("expanding file type: " + file_type)
-			self.file_type_dict[file_type] = []
-			self.file_type_dict[file_type], self.file_type_weight_dict[file_type] = self.inheritFileType(getattr(self.file_profile, file_type))
+	def expandFileTypeDict(self):
+		for file_type_name in self.file_type_dict.keys():
+			self.file_type_dict[file_type_name] = self.expandFileType(file_type_name)
 
 
 class Inspector():
-	def __init__(self, game_name):
+	def __init__(self, source_dir, game_name):
 		if game_name:
-			self.file_profile = FileProfile(game_name)
+			self.file_profile = FileProfile(source_dir, game_name)
+			logging.debug("file type weight dict: " + str(self.file_profile.file_type_weight_dict))
+			self.file_type_ordered_list = [x[0] for x in sorted(self.file_profile.file_type_weight_dict.items(), key=operator.itemgetter(1), reverse=True)]
+			logging.debug("will try file types in this order: " + str(self.file_type_ordered_list))
 		else:
 			self.file_profile = None
 		self.inspector_name_dict = {
@@ -233,14 +288,12 @@ class Inspector():
 		return ext in dir_ext
 
 	def inspect(self, file_path):
-		file_type_ordered_list = [x[0] for x in sorted(self.file_profile.file_type_weight_dict.items(), key=operator.itemgetter(1), reverse=True)]
 		logging.debug("looking for file path:" + file_path)
-#		logging.debug("will try file types in this order: ", str(file_type_ordered_list))
 
 		# TODO: make a tree!
 		action = self.default_action
-		for file_type_name in file_type_ordered_list:
-			logging.debug("trying file type:" + file_type_name)
+		for file_type_name in self.file_type_ordered_list:
+			logging.debug("trying file type: " + file_type_name)
 			criteria_dict = self.file_profile.file_type_dict[file_type_name].copy()
 			file_type_action = criteria_dict.pop("action")
 			file_type_description = criteria_dict.pop("description")

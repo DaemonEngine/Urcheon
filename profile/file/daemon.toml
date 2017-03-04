@@ -1,0 +1,205 @@
+### Legal
+#
+# Author:  Thomas DEBESSE <dev@illwieckz.net>
+# License: ISC
+# 
+
+[_init_]
+extend = "common"
+
+[daemon_script]
+inherit = "common_script"
+dir_ancestor_name = "scripts"
+description = "Script"
+
+[daemon_texture]
+inherit = "common_pixmap"
+dir_ancestor_name = [
+	"textures",
+	"models",
+	"gfx",
+	"env",
+]
+description = "Texture"
+action = "convert_crn"
+
+[daemon_crn]
+inherit = "daemon_texture"
+file_ext = "crn"
+description = "Crunch Texture"
+action = "copy"
+
+[daemon_dds]
+inherit = "daemon_texture"
+file_ext = "dds"
+description = "Direct Draw Surface"
+action = "copy"
+
+[daemon_skybox]
+inherit = "daemon_texture"
+file_suffix = [
+	"bk",
+	"dn",
+	"ft",
+	"lf",
+	"rt",
+	"up",
+]
+dir_ancestor_name = "env"
+description = "Skybox"
+action = "convert_lossy_webp"
+
+[daemon_jpg_skybox]
+inherit = "daemon_skybox"
+file_ext = "jpg"
+action = "copy"
+
+[daemon_lightmap]
+inherit = "common_pixmap"
+file_prefix = "lm"
+dir_ancestor_name = "maps"
+dir_grand_father_name = "maps"
+description = "LightMap"
+action = "convert_lossless_webp"
+
+[daemon_preview]
+inherit = "daemon_texture"
+file_suffix = "p"
+description = "Editor preview image"
+action = "convert_jpg"
+
+[daemon_jpg_preview]
+inherit = "daemon_preview"
+file_ext = "jpg"
+action = "copy"
+
+[daemon_normalmap]
+inherit = "daemon_texture"
+file_suffix = "n"
+description = "Normal map"
+action = "convert_normalized_crn"
+
+[daemon_crn_normalmap]
+inherit = "daemon_normalmap"
+file_ext = [
+	"crn",
+	"dds",
+]
+action = "copy"
+
+[daemon_minimap]
+file_ext = "minimap"
+dir_ancestor_name = "minimaps"
+description = "MiniMap sidecar"
+action = "copy"
+
+[daemon_minimap_image]
+inherit = "common_pixmap"
+dir_ancestor_name = "minimaps"
+description = "MiniMap image"
+action = "convert_crn"
+
+[daemon_crn_minimap_image]
+inherit = "daemon_minimap_image"
+file_ext = [
+	"crn",
+	"dds",
+]
+action = "copy"
+
+[daemon_colorgrade]
+inherit = "daemon_texture"
+dir_ancestor_name = "gfx"
+file_base = "colorgrading"
+description = "ColorGrade"
+action = "convert_lossless_webp"
+
+[daemon_png_colorgrade]
+inherit = "daemon_colorgrade"
+file_ext = "png"
+action = "copy"
+
+[daemon_arena]
+file_ext = "arena"
+dir_ancestor_name = "meta"
+description = "Arena file"
+action = "copy"
+
+[daemon_levelshot]
+inherit = "common_pixmap"
+dir_ancestor_name = "meta"
+description = "LevelShot"
+action = "convert_jpg"
+
+[daemon_about]
+dir_ancestor_name = "about"
+description = "About file"
+action = "copy"
+
+[daemon_map]
+file_ext = "map"
+dir_ancestor_name = "maps"
+description = "Map"
+action = "compile_bsp"
+
+[daemon_bspdir_lump]
+file_ext = [
+	"txt",
+	"csv",
+	"bin",
+]
+dir_ancestor_name = "maps"
+dir_father_ext = "bspdir"
+description = "BSP Lump"
+action = "merge_bsp"
+
+[daemon_bspdir_lightmap]
+inherit = "daemon_lightmap"
+dir_ancestor_name = "maps"
+father_name = "lightmaps.d"
+dir_grandfather_ext = "bspdir"
+description = "BSP LightMap"
+action = "merge_bsp"
+
+[daemon_sound]
+inherit = "common_sound"
+dir_ancestor_name = [
+	"models",
+	"sound",
+]
+description = "Sound File"
+action = "convert_opus"
+
+[daemon_opus]
+inherit = "daemon_sound"
+file_ext = "opus"
+description = "Opus Sound File"
+action = "copy"
+
+[daemon_vorbis]
+inherit = "daemon_sound"
+file_ext = "ogg"
+description = "Vorbis Sound File"
+action = "copy"
+
+[daemon_model]
+inherit = "common_model"
+dir_ancestor_name = "models"
+description = "Model File"
+
+[daemon_iqe_model]
+inherit = "common_iqe_model"
+dir_ancestor_name = "models"
+description = "IQE Model File"
+action = "compile_iqm"
+
+[daemon_navmesh]
+dir_ancestor_name = "maps"
+file_ext = "navMesh"
+description = "Navigation Mesh"
+action = "copy"
+
+[daemon_bsp]
+file_ext = "bsp"
+description = "BSP File"
+action = "copy_bsp"

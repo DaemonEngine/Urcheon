@@ -37,7 +37,7 @@ class List():
 		self.action_list_file_path = os.path.join(".pakinfo", action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
-		self.inspector = Repository.Inspector(game_name)
+		self.inspector = Repository.Inspector(source_dir, game_name)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()

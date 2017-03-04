@@ -14,9 +14,20 @@ import sys
 
 
 data_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
-map_config_dir = data_dir + os.path.sep + "profile" + os.path.sep + "map"
-# net yet used, must port to toml first
-files_config_dir = data_dir + os.path.sep + "profile" + os.path.sep + "file"
+profile_dir = os.path.join(data_dir, "profile")
+map_config_dir = os.path.join(profile_dir, "map")
+file_profile_dir = os.path.join(profile_dir, "file")
+
+def getGameFileProfilePath(game_name):
+	game_file_profile_path = game_name + os.path.extsep + "toml"
+	game_file_profile_path = os.path.join(file_profile_dir, game_file_profile_path)
+	if os.path.isfile(game_file_profile_path):
+		logging.debug("game file profile found: " + game_file_profile_path)
+		return game_file_profile_path
+	else:
+		logging.debug("game file profile not found")
+		return None
+
 
 def getPakMapConfigPath(source_dir, map_path):
 	map_base = os.path.splitext(os.path.basename(map_path))[0]
