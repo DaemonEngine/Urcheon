@@ -1,8 +1,5 @@
-### Legal
-#
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
 
 [_init_]
 extend = "common"

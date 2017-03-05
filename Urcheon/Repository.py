@@ -216,7 +216,7 @@ class FileProfile():
 
 
 class Inspector():
-	def __init__(self, source_dir, game_name):
+	def __init__(self, source_dir, game_name, disabled_action_list=[]):
 		if game_name:
 			self.file_profile = FileProfile(source_dir, game_name)
 			logging.debug("file type weight dict: " + str(self.file_profile.file_type_weight_dict))
@@ -224,6 +224,9 @@ class Inspector():
 			logging.debug("will try file types in this order: " + str(self.file_type_ordered_list))
 		else:
 			self.file_profile = None
+
+		self.disabled_action_list = disabled_action_list
+
 		self.inspector_name_dict = {
 			"file_name":			self.inspectFileName,
 			"file_ext":				self.inspectFileExt,
@@ -291,6 +294,7 @@ class Inspector():
 		logging.debug("looking for file path:" + file_path)
 
 		# TODO: make a tree!
+		description = "unknown file"
 		action = self.default_action
 		for file_type_name in self.file_type_ordered_list:
 			logging.debug("trying file type: " + file_type_name)
@@ -309,17 +313,19 @@ class Inspector():
 						break
 
 			if matched_file_type:
-				action = file_type_action
-				description  = file_type_description
 				logging.debug("matched file type: " + file_type_name)
 				logging.debug("matched file type action: " + file_type_action)
+
+				if file_type_action in self.disabled_action_list:
+					logging.debug("disabled action, will " + action + " instead: " + file_type_action)
+				else:
+					action = file_type_action
+
+				description  = file_type_description
 				break
 
 		# TODO read from config
-		if action == self.default_action:
-			Ui.warning(file_path + ": unknown file found, will " + self.action_name_dict[action] + ".")
-		else:
-			Ui.print(file_path + ": " + description + " found, will " + self.action_name_dict[action] + ".")
+		Ui.print(file_path + ": " + description + " found, will " + self.action_name_dict[action] + ".")
 
 		return action
 

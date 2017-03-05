@@ -1,8 +1,5 @@
-### Legal
-#
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
 
 [common_deps]
 file_base = "DEPS"

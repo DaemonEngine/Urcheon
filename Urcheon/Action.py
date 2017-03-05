@@ -27,7 +27,7 @@ from collections import OrderedDict
 
 
 class List():
-	def __init__(self, source_dir, game_name=None):
+	def __init__(self, source_dir, game_name=None, disabled_action_list=[]):
 		if not game_name:
 			pak_config = Repository.Config(source_dir)
 			game_name = pak_config.requireKey("game")
@@ -37,7 +37,7 @@ class List():
 		self.action_list_file_path = os.path.join(".pakinfo", action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
-		self.inspector = Repository.Inspector(source_dir, game_name)
+		self.inspector = Repository.Inspector(source_dir, game_name, disabled_action_list=disabled_action_list)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
@@ -183,7 +183,8 @@ class Action():
 		return getProducedUnit()
 
 	def getFileNewName(self):
-		# dumb example, must be overriden in sub class
+		# must be overriden in sub class
+		# some actions rely on this one (keep, copy, copy_bsp)
 		return self.file_path
 
 	def getSourcePath(self):
@@ -599,11 +600,11 @@ class DumbTransient(Action):
 		self.transient_maps_path = os.path.join(self.transient_path, "maps")
 		os.makedirs(self.transient_maps_path, exist_ok=True)
 
-	def buildTransientPath(self):
+	def buildTransientPath(self, disabled_action_list=[]):
 		file_tree = Repository.Tree(self.transient_path)
 		file_list = file_tree.listFiles()
 
-		action_list = List(self.transient_path, self.game_name)
+		action_list = List(self.transient_path, self.game_name, disabled_action_list=disabled_action_list)
 		action_list.computeActions(file_list)
 
 		builder = Pak.Builder(self.transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
@@ -631,15 +632,20 @@ class CopyBsp(DumbTransient):
 			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
 			return self.getProducedUnit()
 
-		Ui.print("Copy bsp: " + self.file_path)
-		shutil.copyfile(source_path, build_path)
-		self.setTimeStamp()
+		self.createTransientPath()
+		bsp_path = self.getFileNewName()
+		bsp_transient_path = os.path.join(self.transient_path, bsp_path)
 
-		if not self.is_nested:
-			# do not do that in nested build, in that case this bsp an already produced one
-			# and this stages are called by the parent build
-			bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
-			bsp_compiler.compileBsp(build_path, os.path.dirname(build_path), stage_list=["nav", "minimap"])
+		Ui.print("Copy bsp: " + self.file_path)
+		shutil.copyfile(source_path, bsp_transient_path)
+		shutil.copystat(source_path, bsp_transient_path)
+
+		bsp_compiler = MapCompiler.Bsp(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
+		bsp_compiler.compileBsp(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
+
+		self.buildTransientPath(disabled_action_list=["copy_bsp"])
+
+		self.setTimeStamp()
 
 		return self.getProducedUnit()
 
@@ -651,11 +657,11 @@ class MergeBsp(DumbTransient):
 	def run(self):
 		# TODO: ensure bsp is already copied/compiled if modifying copied/compiled bsp
 		# TODO: this is not yet possible to merge over something built
-		#	Ui.warning("Bsp file already there, will reuse: " + source_path)
+		# Ui.warning("Bsp file already there, will reuse: " + source_path)
 
 		# TODO if file already there
-		#   you must ensure compile bsp and copy bsp are made before
-		#   beware of multithreading
+		# you must ensure compile bsp and copy bsp are made before
+		# beware of multithreading
 
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
@@ -666,7 +672,7 @@ class MergeBsp(DumbTransient):
 			return self.getProducedUnit()
 
 		# TODO: remove target before merging, to avoid bugs when merging in place
-		# merging in place not implemented yet
+		# merging in place is not implemented yet
 
 		self.createTransientPath()
 
@@ -684,16 +690,16 @@ class MergeBsp(DumbTransient):
 		# built in final place so it's kept between calls for each file
 		bsp.writeFile(build_path)
 
-		# copy merged file in transient_path for nested extra actions
-		# when per-file merging will be enabled, it must be done on final file only
+		# copy merged file in transient_path for nested extra actions because when
+		# per-file merging will be enabled, merge will be done on final file only
 		logging.debug("merge_bsp build path: " + build_path)
 		shutil.copyfile(build_path, bsp_transient_path)
 		shutil.copystat(source_path, bsp_transient_path)
 
-		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
+		bsp_compiler = MapCompiler.Bsp(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
 		bsp_compiler.compileBsp(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
 
-		self.buildTransientPath()
+		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])
 
 		# lucky unthought workaround: since the produced bsp will receive the date
 		# of the original directory when first file is merged,
@@ -736,10 +742,10 @@ class CompileBsp(DumbTransient):
 
 		Ui.print("Compiling to bsp: " + self.file_path)
 
-		bsp_compiler = MapCompiler.Bsp(self.source_dir, self.game_name, self.map_profile)
+		bsp_compiler = MapCompiler.Bsp(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
 		bsp_compiler.compileBsp(source_path, self.transient_maps_path)
 
-		self.buildTransientPath()
+		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])
 
 		self.setTimeStamp()
 

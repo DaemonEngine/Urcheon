@@ -27,16 +27,6 @@ class Config():
 		self.map_config = OrderedDict()
 
 		self.default_profile = None
-		self.copy_map = True
-
-		# I want compilation in this order
-		self.build_stages = [
-			"bsp",
-			"vis",
-			"light",
-			"nav",
-			"minimap",
-		]
 
 		self.map_config = OrderedDict()
 
@@ -97,17 +87,6 @@ class Config():
 				logging.debug("found “default” instruction in “_init_” section: " + default)
 				self.default_profile = default
 
-			if "copy" in config["_init_"].keys():
-				copy = config["_init_"]["copy"]
-				logging.debug("found “copy” instruction in “_init_” section: " + copy)
-
-				if copy == "yes":
-					self.copy_map = True
-				elif copy == "no":
-					self.copy_map = False
-				else:
-					Ui.error("unknown “copy” value in config section, must be “yes” or “no”: " + config_path)
-
 			del config["_init_"]
 
 		logging.debug("build profiles found: " + str(config.sections()))
@@ -115,14 +94,11 @@ class Config():
 		for build_profile in config.sections():
 			logging.debug("build profile found: " + build_profile)
 
-			if build_profile not in self.map_config.keys():
-				self.map_config[build_profile] = OrderedDict()
+			# overwrite parent profile
+			self.map_config[build_profile] = OrderedDict()
 
 			for build_stage in config[build_profile].keys():
 				logging.debug("found build stage in “" + build_profile + "” profile: " + build_stage)
-				if build_stage not in self.build_stages + [ "all" ]:
-					Ui.warning("unknown stage in “" + config_path + "”: " + build_stage)
-					continue
 
 				logging.debug("add build parameters for “" + build_stage + "” stage: " + config[build_profile][build_stage])
 				arguments = config[build_profile][build_stage].split(" ")
@@ -133,55 +109,19 @@ class Config():
 
 		# reordered empty map_config without "all" stuff
 		temp_map_config = OrderedDict()
+
 		for build_profile in self.map_config.keys():
 			if build_profile == "all":
 				continue
-			if build_profile not in temp_map_config:
-				temp_map_config[build_profile] = OrderedDict()
 
-			# in this order please
-			for build_stage in self.build_stages:
-				# but ignore it if it does not exist
-				# it already ignores "all" stage
-				if build_stage not in self.map_config[build_profile].keys():
-					continue
-				temp_map_config[build_profile][build_stage] = []
+			temp_map_config[build_profile] = OrderedDict()
 
-		# things to set in all profiles, all stages
-		all_all_prepend = None
-		if "all" in self.map_config.keys():
-			if "all" in self.map_config["all"].keys():
-				all_all_prepend = self.map_config["all"]["all"]
+			if "all" in self.map_config.keys():
+				for build_stage in self.map_config["all"].keys():
+					temp_map_config[build_profile][build_stage] = self.map_config["all"][build_stage]
 
-		if all_all_prepend:
-			for build_profile in temp_map_config.keys():
-				for build_stage in temp_map_config[build_profile].keys():
-					# no need to concatenate here, we know it's already empty, but there
-					temp_map_config[build_profile][build_stage] = all_all_prepend
-
-		# things to set in all profiles but same stage
-		if "all" in self.map_config.keys():
-			for build_profile in temp_map_config.keys():
-				for build_stage in temp_map_config[build_profile].keys():
-					if build_stage in self.map_config["all"]:
-						all_stage_prepend = self.map_config["all"][build_stage]
-						# concatenate
-						arguments = temp_map_config[build_profile][build_stage] + all_stage_prepend
-						temp_map_config[build_profile][build_stage] = arguments
-						
-		# things to set in all stages of same profile
-		for build_profile in temp_map_config.keys():
-			for build_stage in temp_map_config[build_profile].keys():
-				if "all" in self.map_config[build_profile].keys():
-					# concatenate
-					arguments = temp_map_config[build_profile][build_stage] + self.map_config[build_profile]["all"]
-					temp_map_config[build_profile][build_stage] = arguments
-
-		for build_profile in temp_map_config.keys():
-			for build_stage in temp_map_config[build_profile].keys():
-				arguments = temp_map_config[build_profile][build_stage] + self.map_config[build_profile][build_stage]
-				arguments = [ a for a in arguments if a != ""]
-				temp_map_config[build_profile][build_stage] = arguments
+			for build_stage in self.map_config[build_profile].keys():
+				temp_map_config[build_profile][build_stage] = self.map_config[build_profile][build_stage]
 
 		self.map_config = temp_map_config
 
@@ -194,6 +134,11 @@ class Config():
 
 	def printConfig(self):
 		first_line = True
+		if self.default_profile:
+			Ui.print("[_init_]")
+			Ui.print("default = " + self.default_profile)
+			first_line = False
+
 		for build_profile in self.map_config.keys():
 			if first_line:
 				first_line = False
@@ -220,7 +165,7 @@ class Bsp():
 		self.game_name = game_name
 
 		if not map_profile:
-			map_config = MapCompiler.Config(source_dir)
+			map_config = self.Config(source_dir)
 			map_profile = map_config.requireDefaultProfile()
 
 		self.map_profile = map_profile
@@ -253,56 +198,92 @@ class Bsp():
 		build_stage_dict = map_config.map_config[self.map_profile]
 
 		for build_stage in stage_list:
-			if build_stage not in build_stage_dict.keys():
-				continue
-			# TODO: :none: ?
-			elif build_stage_dict[build_stage] == "none":
+			if build_stage not in build_stage_dict:
+				# happens in copy_bsp and merge_bsp
 				continue
 
 			Ui.print("Building " + map_path + ", stage: " + build_stage)
 
-			# TODO: if previous stage failed
-			source_path = map_path
 			extended_option_list = []
-			if build_stage == "bsp":
-				extended_option_list = ["-prtfile", prt_path, "-srffile", srf_path, "-bspfile", bsp_path]
-				source_path = map_path
-			elif build_stage == "vis":
-				extended_option_list = ["-prtfile", prt_path]
-				source_path = bsp_path
-			elif build_stage == "light":
-				extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
-				source_path = map_path
-			elif build_stage == "nav":
-				source_path = bsp_path
-			elif build_stage == "minimap":
-				source_path = bsp_path
-
-			# pakpath_list = ["-fs_pakpath", os.path.abspath(self.source_dir)]
-			pakpath_list = ["-fs_pakpath", self.source_dir]
-
-			pakpath_env = os.getenv("PAKPATH")
-			if pakpath_env:
-				for pakpath in pakpath_env.split(":"):
-					pakpath_list += ["-fs_pakpath", pakpath]
 
 			stage_option_list = build_stage_dict[build_stage]
+
+			tool_keyword = stage_option_list[0]
+			logging.debug("tool keyword: " + tool_keyword)
+
+			stage_option_list = stage_option_list[1:]
 			logging.debug("stage options: " + str(stage_option_list))
 
-			call_list = ["q3map2", "-" + build_stage] + pakpath_list + extended_option_list + stage_option_list + [source_path]
 
-			logging.debug("call list: " + str(call_list))
+			if tool_keyword[0] != "!":
+				Ui.error("keyword must begin with “!”")
 
-			Ui.verbose("Build command: " + " ".join(call_list))
+			tool_keyword = tool_keyword[1:]
 
-			# TODO: remove that ugly workaround
-			if build_stage == "minimap" and self.game_name == "unvanquished":
-				self.renderMiniMap(map_path, source_path, build_prefix, call_list)
+			if ":" in tool_keyword:
+				tool_name, tool_stage = tool_keyword.split(":")
 			else:
-				subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+				tool_name, tool_stage = tool_keyword, None
 
-		if map_config.copy_map:
-			self.copyMap(map_path, build_prefix)
+			logging.debug("tool name: " + tool_name)
+			logging.debug("tool stage: " + str(tool_stage))
+
+			if tool_name == "q3map2":
+				# TODO: if previous stage failed
+				source_path = map_path
+				if tool_stage == "bsp":
+					extended_option_list = ["-prtfile", prt_path, "-srffile", srf_path, "-bspfile", bsp_path]
+					source_path = map_path
+				elif tool_stage == "vis":
+					extended_option_list = ["-prtfile", prt_path]
+					source_path = bsp_path
+				elif tool_stage == "light":
+					extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
+					source_path = map_path
+				elif tool_stage == "nav":
+					source_path = bsp_path
+				elif tool_stage == "minimap":
+					source_path = bsp_path
+				else:
+					Ui.error("bad “" + tool_name + "” stage: " + tool_stage)
+
+				# pakpath_list = ["-fs_pakpath", os.path.abspath(self.source_dir)]
+				pakpath_list = ["-fs_pakpath", self.source_dir]
+
+				pakpath_env = os.getenv("PAKPATH")
+				if pakpath_env:
+					for pakpath in pakpath_env.split(":"):
+						pakpath_list += ["-fs_pakpath", pakpath]
+
+				call_list = [tool_name, "-" + tool_stage] + pakpath_list + extended_option_list + stage_option_list + [source_path]
+				logging.debug("call list: " + str(call_list))
+				Ui.verbose("Build command: " + " ".join(call_list))
+
+				# TODO: remove that ugly workaround
+				if tool_stage == "minimap" and self.game_name == "unvanquished":
+					self.renderMiniMap(map_path, source_path, build_prefix, call_list)
+				else:
+					subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
+			elif tool_name == "daemonmap":
+				if tool_stage == "nav":
+					source_path = bsp_path
+
+					call_list = [tool_name, "-" + tool_stage] + stage_option_list + [source_path]
+					logging.debug("call list: " + str(call_list))
+					Ui.verbose("Build command: " + " ".join(call_list))
+
+					subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+
+				else:
+					Ui.error("bad “" + tool_name + "” stage: " + tool_stage)
+
+			elif tool_name == "copy":
+				source_path = map_path
+				self.copyMap(map_path, build_prefix)
+
+			else:
+				Ui.error("unknown tool name: " + tool_name)
 
 		if os.path.isfile(prt_path):
 			os.remove(prt_path)
@@ -344,12 +325,9 @@ class Bsp():
 		minimap_sidecar_file.close()
 
 	def copyMap(self, map_path, build_prefix):
-
 		Ui.print("Copying map source: " + map_path)
-		return
-		map_name = os.path.basename(map_path)
-		copy_path = build_prefix + os.path.sep + map_name
-		shutil.copyfile(map_path, copy_path)
-		shutil.copystat(map_path, copy_path)
-
+		source_path = os.path.join(self.source_dir, map_path)
+		copy_path = os.path.join(build_prefix, os.path.basename(map_path))
+		shutil.copyfile(source_path, copy_path)
+		shutil.copystat(source_path, copy_path)
 
