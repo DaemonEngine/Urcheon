@@ -176,7 +176,7 @@ class FileProfile():
 
 	def printProfile(self):
 		logging.debug(str(self.file_type_dict))
-		Ui.print(pytoml.dumps(self.file_type_dict))
+		print(pytoml.dumps(self.file_type_dict))
 
 	def expandFileType(self, file_type_name):
 		logging.debug("expanding file type: " + file_type_name)

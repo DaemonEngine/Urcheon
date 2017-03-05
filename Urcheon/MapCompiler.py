@@ -71,7 +71,7 @@ class Config():
 
 		logging.debug("reading map config: " + config_path)
 		if not config.read(config_path):
-			Ui.error("failed to load map config: ", config_path)
+			Ui.error("failed to load map config: " + config_path)
 
 		if "_init_" in config.sections():
 			logging.debug("found “_init_” section in map profile: " + config_path)
@@ -135,22 +135,22 @@ class Config():
 	def printConfig(self):
 		first_line = True
 		if self.default_profile:
-			Ui.print("[_init_]")
-			Ui.print("default = " + self.default_profile)
+			print("[_init_]")
+			print("default = " + self.default_profile)
 			first_line = False
 
 		for build_profile in self.map_config.keys():
 			if first_line:
 				first_line = False
 			else:
-				Ui.print("")
+				print("")
 
-			Ui.print("[" + build_profile + "]")
+			print("[" + build_profile + "]")
 
 			if self.map_config[build_profile]:
 				for build_stage in self.map_config[build_profile].keys():
 					logging.debug("parameters for “" + build_stage + "” stage: " + str(self.map_config[build_profile][build_stage]))
-					Ui.print(build_stage + " = " + " ".join(self.map_config[build_profile][build_stage]))
+					print(build_stage + " = " + " ".join(self.map_config[build_profile][build_stage]))
 
 
 class Bsp():
