@@ -55,7 +55,7 @@ action = "copy"
 inherit = "common_pixmap"
 file_prefix = "lm"
 dir_ancestor_name = "maps"
-dir_grand_father_name = "maps"
+dir_grandfather_name = "maps"
 description = "LightMap"
 action = "convert_lossless_webp"
 
@@ -84,7 +84,7 @@ file_ext = [
 ]
 action = "copy"
 
-[daemon_minimap]
+[daemon_minimap_sidecar]
 file_ext = "minimap"
 dir_ancestor_name = "minimaps"
 description = "MiniMap sidecar"
@@ -153,7 +153,7 @@ action = "merge_bsp"
 [daemon_bspdir_lightmap]
 inherit = "daemon_lightmap"
 dir_ancestor_name = "maps"
-father_name = "lightmaps.d"
+dir_father_name = "lightmaps.d"
 dir_grandfather_ext = "bspdir"
 description = "BSP LightMap"
 action = "merge_bsp"

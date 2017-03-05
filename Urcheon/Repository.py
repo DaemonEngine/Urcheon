@@ -176,39 +176,31 @@ class FileProfile():
 
 	def printProfile(self):
 		logging.debug(str(self.file_type_dict))
-		print(pytoml.dumps(self.file_type_dict))
+		Ui.print(pytoml.dumps(self.file_type_dict))
 
 	def expandFileType(self, file_type_name):
 		logging.debug("expanding file type: " + file_type_name)
 		file_type = self.file_type_dict[file_type_name]
+
 		if "inherit" in file_type.keys():
 			inherited_type_name = file_type["inherit"]
 			logging.debug("inherit from file type: " + inherited_type_name)
-			inherited_file_type = self.expandFileType(inherited_type_name)
+			expanded_file_type = self.expandFileType(inherited_type_name)
 			self.file_type_weight_dict[file_type_name] = self.file_type_weight_dict[inherited_type_name] + 1
 			del(file_type["inherit"])
 		else:
 			if not file_type_name in self.file_type_weight_dict:
-				# if not already processed
+				# if this file type was never processed
 				self.file_type_weight_dict[file_type_name] = 0
-			inherited_file_type = {}
 
-		inspector = Inspector(None, None)
+			expanded_file_type = {}
 
-		for keyword in list(inspector.inspector_name_dict.keys()) + [
-			"description",
-			"action",
-		]:
-			if keyword in file_type.keys():
-				inherited_file_type[keyword] = file_type[keyword]
-#			elif keyword not in inherited_file_type.keys():
-#				inherited_file_type[keyword] = None
+		for keyword in expanded_file_type.keys():
+			if keyword not in file_type.keys():
+				# replace expanded keywords by newer if exist, keep peviously defined ones
+				file_type[keyword] = expanded_file_type[keyword]
 
-#		for keyword in inspector.inspector_name_dict.keys():
-#			if keyword in inherited_file_type:
-#				inherited_file_type[keyword] = [ inherited_file_type[keyword] ]
-
-		return inherited_file_type
+		return file_type
 
 	def expandFileTypeDict(self):
 		for file_type_name in self.file_type_dict.keys():
