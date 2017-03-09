@@ -74,7 +74,7 @@ This `pak` call cleans the previous build, automatically computes build rules (n
 
 Type `urcheon pak --help` from some help.
 
-The `urcheon pak` stage relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. The navmesh code merge is still pending so you must use my [navmesh branch](https://gitlab.com/illwieckz/netradiant/commits/navmesh) if you use `urcheon pak` to build map packages. Other `urcheon pak` dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from Sauerbraten](http://sauerbraten.org/iqm/).
+The `urcheon pak` stage relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. You must use [daemonmap](https://github.com/Unvanquished/daemonmap) if you want to generate Unvanquished navmeshes. Other `urcheon pak` dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from Sauerbraten](http://sauerbraten.org/iqm/).
 
 Warning
 -------
@@ -89,4 +89,4 @@ Thomas Debesse <dev@illwieckz.net>
 Copyright
 ---------
 
-This script is distributed under the highly permissive and laconic [ISC License](COPYING.md).
+This toolbox is distributed under the highly permissive and laconic [ISC License](COPYING.md).
