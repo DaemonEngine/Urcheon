@@ -33,7 +33,7 @@ class List():
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
-		action_list_file_name = "action" + os.path.extsep + "txt"
+		action_list_file_name = "build" + os.path.extsep + "txt"
 		self.action_list_file_path = os.path.join(".pakinfo", action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
