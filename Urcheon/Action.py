@@ -640,8 +640,8 @@ class CopyBsp(DumbTransient):
 		shutil.copyfile(source_path, bsp_transient_path)
 		shutil.copystat(source_path, bsp_transient_path)
 
-		bsp_compiler = MapCompiler.Bsp(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
-		bsp_compiler.compileBsp(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
+		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
+		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp"])
 
@@ -696,8 +696,8 @@ class MergeBsp(DumbTransient):
 		shutil.copyfile(build_path, bsp_transient_path)
 		shutil.copystat(source_path, bsp_transient_path)
 
-		bsp_compiler = MapCompiler.Bsp(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
-		bsp_compiler.compileBsp(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
+		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
+		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])
 
@@ -742,8 +742,8 @@ class CompileBsp(DumbTransient):
 
 		Ui.print("Compiling to bsp: " + self.file_path)
 
-		bsp_compiler = MapCompiler.Bsp(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
-		bsp_compiler.compileBsp(source_path, self.transient_maps_path)
+		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
+		map_compiler.compile(source_path, self.transient_maps_path)
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])
 
