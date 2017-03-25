@@ -107,10 +107,3 @@ action = "ignore"
 inherit = "common_text"
 file_base = "README"
 description = "Common ReadMe File"
-
-[common_nullwav]
-inherit = "common_sound"
-file_ext = "wav"
-file_base = "null"
-description = "Common NULL Sound File"
-action = "copy"

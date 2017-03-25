@@ -22,14 +22,28 @@ action = "convert_crn"
 
 [daemon_crn]
 inherit = "daemon_texture"
-file_ext = "crn"
-description = "Crunch Texture"
+file_ext = [
+	"crn",
+	"dds",
+]
 action = "copy"
 
-[daemon_dds]
-inherit = "daemon_texture"
-file_ext = "dds"
-description = "Direct Draw Surface"
+[daemon_ui_texture]
+inherit = "common_pixmap"
+dir_ancestor_name = [
+	"emoticons",
+	"icons",
+	"ui",
+]
+description = "Texture"
+action = "convert_crn"
+
+[daemon_ui_crn]
+inherit = "daemon_ui_texture"
+file_ext = [
+	"crn",
+	"dds",
+]
 action = "copy"
 
 [daemon_skybox]
@@ -166,6 +180,13 @@ dir_ancestor_name = [
 ]
 description = "Sound File"
 action = "convert_opus"
+
+[daemon_nullwav]
+inherit = "daemon_sound"
+file_ext = "wav"
+file_base = "null"
+description = "Common NULL Sound File"
+action = "copy"
 
 [daemon_opus]
 inherit = "daemon_sound"
