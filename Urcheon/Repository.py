@@ -18,6 +18,7 @@ import importlib
 import logging
 import operator
 import os
+import re
 import shutil
 import subprocess
 import pytoml
@@ -339,6 +340,7 @@ class BlackList():
 			".*.swp",
 			".git*",
 			".pakinfo",
+			"DEPS",
 			"build",
 		]
 		pass
@@ -500,7 +502,11 @@ class Git():
 		self.subprocess_stdout = subprocess.DEVNULL
 		self.subprocess_stderr = subprocess.DEVNULL
 
-	def check(self):
+		if self.test():
+			self.tag_list = self.getTagList()
+			self.commit_list = self.getCommitList()
+
+	def test(self):
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		if proc.numerator == 0:
 			return True
@@ -508,84 +514,81 @@ class Git():
 			return False
 
 	def getVersion(self):
-		tag_name = self.getLastTag()
-		commit_id = self.getLastCommitId()
+		return self.computeVersion(self.getLastCommit())
 
-		append = ""
-		compute_append = True
-		if tag_name:
-			version = tag_name
-			if version.startswith("v"):
+	def computeVersion(self, reference):
+		commit = self.getCommit(reference)
+		version = ""
+
+		for tag in self.tag_list:
+			if self.isSame(tag, reference):
 				# v9.0 → 9.0
-				version = version[1:]
+				return tag[1:]
 
-			tag_commit = self.getCommitIdByTag(tag_name)
-			if tag_commit != commit_id:
-				compute_append = True
+			if self.isAncestor(tag, reference):
+				version = tag[1:]
+				break
 
-		else:
+		if self.tag_list == []:
 			version = "0"
-			compte_append = True
 
-		if compute_append:
-			short_id = commit_id[:7]
-			commit_date = self.getLastCommitDate()
-			time_stamp = "0" + hex(int(commit_date))[2:]
-			append = "+" + time_stamp + "~" + short_id
-
-		version += append
+		time_stamp = self.getHexTimeStamp(reference)
+		short_id = self.getShortId(reference)
+		version += "+" + time_stamp + "~" + short_id
 
 		return version
 
+	def getHexTimeStamp(self, reference):
+		commit_date = self.getDate(reference)
+		time_stamp = "0" + hex(int(commit_date))[2:]
+		return time_stamp
+		
+	def isAncestor(self, parent, child):
+		proc = subprocess.Popen(self.git + ["merge-base", "--is-ancestor", parent, child], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+		if proc.returncode == 0:
+			return True
+		else:
+			return False
+
+	def isSame(self, reference1, reference2):
+		return self.getCommit(reference1) == self.getCommit(reference2)
+
 	def getLastTag(self):
-		tag_name = None
-		proc = subprocess.Popen(self.git + ["describe", "--abbrev=0", "--tags"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-		with proc.stdout as stdout:
-			for tag_name in stdout:
-				tag_name = tag_name.decode()
-				if tag_name.endswith("\n"):
-					tag_name = tag_name[:-1]
-		return tag_name
+		return self.getTagList()[0]
+
+	def getCommitList(self):
+		# more recent first
+		proc = subprocess.Popen(self.git + ["rev-list", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+		return stdout.decode().splitlines()
 	
-	def getCommitIdByTag(self, tag_name):
-		commit_id = None
-		proc = subprocess.Popen(self.git + ["rev-list", "-n", "1", tag_name], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-		with proc.stdout as stdout:
-			for commit_id in stdout:
-				commit_id = commit_id.decode()
-				if commit_id.endswith("\n"):
-					commit_id = commit_id[:-1]
-		return commit_id
+	def getTagList(self):
+		# greater first
+		proc = subprocess.Popen(self.git + ["tag", "-l", "--sort=-version:refname", "v*"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+		return stdout.decode().splitlines()
+	
+	def getCommit(self, reference):
+		proc = subprocess.Popen(self.git + ["rev-list", "-n", "1", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+		return stdout.decode().splitlines()[0]
 
-	def getLastCommitId(self):
-		commit_id = None
-		proc = subprocess.Popen(self.git + ["rev-parse", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-		with proc.stdout as stdout:
-			for commit_id in stdout:
-				commit_id = commit_id.decode()
-				if commit_id.endswith("\n"):
-					commit_id = commit_id[:-1]
-		return commit_id
+	def getShortId(self, reference):
+		return self.getCommit(reference)[:7]
 
-	def getLastCommitDate(self):
-		commit_date = None
-		proc = subprocess.Popen(self.git + ["log", "-1", "--pretty=format:%ct"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-		with proc.stdout as stdout:
-			for commit_date in stdout:
-				commit_date = commit_date.decode()
-				if commit_date.endswith("\n"):
-					commit_date = commit_date[:-1]
-		return commit_date
+	def getDate(self, reference):
+		proc = subprocess.Popen(self.git + ["log", "-1", "--pretty=format:%ct", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+		return stdout.decode().splitlines()[0]
+
+	def getLastCommit(self):
+		return self.commit_list[0]
 
 	def listFiles(self):
-		file_list = []
 		proc = subprocess.Popen(self.git + ["ls-files"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-		with proc.stdout as stdout:
-			for file_path in stdout:
-				file_path = file_path.decode()
-				if file_path.endswith("\n"):
-					file_path = file_path[:-1]
-				file_list.append(file_path)
+		stdout, stderr = proc.communicate()
+		file_list = stdout.decode().splitlines()
 
 		blacklist = BlackList(self.source_dir)
 		file_list = blacklist.filter(file_list)
@@ -595,22 +598,173 @@ class Git():
 	def listFilesSinceReference(self, reference):
 		file_list = []
 		proc = subprocess.Popen(self.git + ["diff", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-		with proc.stdout as stdout:
-			for file_path in stdout:
-				file_path = file_path.decode()
-				if file_path.endswith("\n"):
-					file_path = file_path[:-1]
+		stdout, stderr = proc.communicate()
+		repo_file_list = stdout.decode().splitlines()
 
-				full_path = os.path.join(self.source_dir, file_path)
+		for file_path in repo_file_list:
+			full_path = os.path.join(self.source_dir, file_path)
 
-				# if file still in history
-				if os.path.isfile(file_path):
-					logging.debug("file still in repository: " + file_path)
-					file_list.append(file_path)
-				else:
-					logging.debug("file not there anymore: " + file_path)
+			# if file still in history
+			if os.path.isfile(full_path):
+				logging.debug("file still in repository: " + file_path)
+				file_list.append(file_path)
+			else:
+				logging.debug("file not there anymore: " + file_path)
 
 		blacklist = BlackList(self.source_dir)
 		file_list = blacklist.filter(file_list)
 
 		return file_list
+
+class Deps():
+	def __init__(self):
+		self.deps_dict = OrderedDict()
+
+	def read(self, pakdir_path):
+		deps_file_path = os.path.join(pakdir_path, "DEPS")
+
+		if not os.path.isfile(deps_file_path):
+			return False
+
+		deps_file = open(deps_file_path, "r")
+		line_list = [line.strip() for line in deps_file]
+		deps_file.close()
+
+		empty_line_pattern = re.compile(r"^[ \t]*$")
+		basic_deps_line_pattern = re.compile(r"^[ \t]*(?P<pak_name>[^ \t]*)[ \t]*$")
+		version_deps_line_pattern = re.compile(r"^[ \t]*(?P<pak_name>[^ \t]*)[ \t]*(?P<pak_version>.*)$")
+
+		for line in line_list:
+			line_match = empty_line_pattern.match(line)
+			if line_match:
+				continue
+
+			line_match = basic_deps_line_pattern.match(line)
+			if line_match:
+				pak_name = line_match.group("pak_name")
+				pak_version = None
+				self.set(pak_name, pak_version)
+				continue
+
+			line_match = version_deps_line_pattern.match(line)
+			if line_match:
+				pak_name = line_match.group("pak_name")
+				pak_version = line_match.group("pak_version")
+				self.set(pak_name, pak_version)
+				continue
+
+			Ui.error("malformed line in DEPS file: " + line)
+
+		return True
+
+	def translateTest(self):
+		pakpath = PakPath()
+
+		Ui.print("translating DEPS for testing")
+		for pak_name in self.deps_dict.keys():
+			pak_version = self.get(pak_name)
+			if pak_version == "src":
+				pak_version = "test"
+
+				if pak_version == None:
+					Ui.error("pakdir not found: " + pakdir_name)
+
+			self.set(pak_name, pak_version)
+
+	def translateRelease(self):
+		pakpath = PakPath()
+
+		Ui.print("translating DEPS for release")
+		for pak_name in self.deps_dict.keys():
+			pak_version = self.get(pak_name)
+			if pak_version == "test":
+				pak_version = pakpath.getPakDirVersion(pak_name)
+
+				if pak_version == None:
+					Ui.error("pakdir not found: " + pakdir_name)
+
+			self.set(pak_name, pak_version)
+
+	def write(self, pakdir_path):
+		deps_file_path = os.path.join(pakdir_path, "DEPS")
+		deps_file = open(deps_file_path, "w")
+		deps_file.write(self.produce())
+		return deps_file_path
+
+	def get(self, pak_name):
+		if pak_name not in self.deps_dict.keys():
+			return None
+
+		return self.deps_dict[pak_name]
+
+	def set(self, pak_name, pak_version):
+		if pak_version != None:
+			empty_version_pattern = re.compile(r"^[ \t]*$")
+			if empty_version_pattern.match(pak_version):
+				pak_version = None
+
+		self.deps_dict[pak_name] = pak_version
+
+	def produce(self):
+		string = ""
+		for pak_name in self.deps_dict.keys():
+			pak_version = self.get(pak_name)
+
+			if pak_version == None:
+				string += pak_name
+			else:
+				string += pak_name + " " + pak_version
+
+			string += "\n"
+
+		return string
+
+	def print(self):
+		print(self.produce())
+
+	def remove(self, pakdir_path):
+		deps_file_path = os.path.join(pakdir_path, "DEPS")
+		if os.path.isfile(deps_file_path):
+			os.remove(deps_file_path)
+
+class PakPath:
+	def __init__(self):
+		self.pakpath_list = []
+
+		pakpath_env = os.getenv("PAKPATH")
+		if pakpath_env:
+			self.pakpath_list = pakpath_env.split(":")
+
+		self.pakdir_dict = {}
+		for pakpath in self.pakpath_list:
+			for dir_name in os.listdir(pakpath):
+				full_path = os.path.abspath(os.path.join(pakpath, dir_name))
+				if os.path.isdir(full_path):
+					if dir_name.endswith(os.path.extsep + "pk3dir"):
+						if dir_name not in self.pakdir_dict:
+							pak_name = dir_name.split('_')[0]
+							pak_version = dir_name.split('_')[1].rstrip(os.path.extsep + "pk3dir")
+
+							if pak_version == "src":
+								git = Git(full_path)
+								if git.test():
+									pak_version = git.getVersion()
+								else:
+									pak_version = "0"
+
+							self.pakdir_dict[pak_name] = {}
+							self.pakdir_dict[pak_name]["full_path"] = full_path
+							self.pakdir_dict[pak_name]["version"] = pak_version
+
+
+	def listPakPath(self):
+		return self.pakpath_list
+
+	def listPakDir(self):
+		return self.pakdir_dict
+
+	def getPakDirVersion(self, pak_name):
+		if pak_name not in self.pakdir_dict:
+			return None
+
+		return self.pakdir_dict[pak_name]["version"]

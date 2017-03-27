@@ -207,10 +207,8 @@ class Compiler():
 		# self.pakpath_list = ["-fs_pakpath", os.path.abspath(self.source_dir)]
 		self.pakpath_list = ["-fs_pakpath", self.source_dir]
 
-		pakpath_env = os.getenv("PAKPATH")
-		if pakpath_env:
-			for pakpath in pakpath_env.split(":"):
-				self.pakpath_list += ["-fs_pakpath", pakpath]
+		for pakpath in Repository.PakPath().listPakPath():
+			self.pakpath_list += ["-fs_pakpath", pakpath]
 
 		if not stage_list:
 			if self.map_profile not in self.map_config.profile.keys():
@@ -368,4 +366,3 @@ class Compiler():
 		copy_path = os.path.join(self.build_prefix, os.path.basename(self.map_path))
 		shutil.copyfile(source_path, copy_path)
 		shutil.copystat(source_path, copy_path)
-

@@ -1,11 +1,6 @@
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
 
-[common_deps]
-file_base = "DEPS"
-description = "Package DEPS File"
-action = "copy"
-
 [common_pixmap_editor]
 file_ext = [
 	"xcf",

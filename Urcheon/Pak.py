@@ -21,6 +21,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import zipfile
 from collections import OrderedDict
@@ -32,10 +33,11 @@ from collections import OrderedDict
 
 class Builder():
 	# test_dir is the pk3dir, so it's the build dir here
-	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, is_nested=False, parallel=True):
+	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, is_nested=False, since_reference=None, parallel=True):
 		self.source_dir = source_dir
 		self.action_list = action_list
 		self.is_nested = is_nested
+		self.since_reference = since_reference
 		self.parallel = parallel
 
 		# Do not look for pak configuration in temporary directories, do not build temporary stuff in system build directories
@@ -44,6 +46,8 @@ class Builder():
 			self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
 		else:
 			self.test_dir = test_dir
+
+		self.pak_name = pak_config.requireKey("name")
 
 		if not game_name:
 			game_name = pak_config.requireKey("game")
@@ -95,8 +99,10 @@ class Builder():
 
 						thread.start()
 
-		# wait for all threads ending, otherwise it will start packaging while building is not ended
-		# and well, we have to read that list now to purge old files
+		# wait for all threads ending, otherwise it will start packaging next
+		# package while the building task for the current one is not ended
+		# and well, we now have to read that list to purge old files, so we
+		# must wait
 		for thread in thread_list:
 			thread.join()
 
@@ -112,6 +118,29 @@ class Builder():
 				continue
 
 			unit_list.append(unit)
+
+		if not self.is_nested:
+			is_deps = False
+
+			deps = Repository.Deps()
+
+			if self.since_reference: 
+				is_deps = True
+				git_repo = Repository.Git(self.source_dir)
+				previous_version = git_repo.computeVersion(self.since_reference)
+				deps.set(self.pak_name, previous_version)
+
+			if deps.read(self.source_dir):
+				is_deps = True
+
+			if is_deps:
+				deps.translateTest()
+				deps.write(self.test_dir)
+
+				unit = {}
+				unit["head"] = "DEPS"
+				unit["body"] = ["DEPS"]
+				unit_list.append(unit)
 
 		logging.debug("unit_list:" + str(unit_list))
 		return unit_list
@@ -158,14 +187,29 @@ class Packer():
 			for file_name in file_name_list:
 				rel_dir_name = os.path.relpath(dir_name, self.test_dir)
 
-				# ignore paktrace files
-				if dir_name.startswith(paktrace_dir + os.path.sep):
-					continue
-
 				full_path = os.path.join(dir_name, file_name)
 				file_path = os.path.relpath(full_path, self.test_dir)
+
+				# ignore paktrace files
+				if file_path.startswith(paktrace_dir + os.path.sep):
+					continue
+
+				# ignore DEPS file, will add it later
+				if file_path == "DEPS":
+					continue
+
 				Ui.print("add file to package: " + file_path)
 				pak.write(full_path, arcname=file_path)
+
+		# translating DEPS file
+		deps = Repository.Deps()
+		if deps.read(self.test_dir):
+			deps.translateRelease()
+			# TODO: add itself if partial build
+			deps_temp_dir = tempfile.mkdtemp()
+			deps_temp_file = deps.write(deps_temp_dir)
+			Ui.print("add file to package: DEPS")
+			pak.write(deps_temp_file, arcname="DEPS")
 
 		logging.debug("close: " + self.pak_file)
 		pak.close()
@@ -258,12 +302,14 @@ class Cleaner():
 
 				for file_name in file_name_list:
 					file_path = os.path.join(dir_name, file_name)
+					file_path = os.path.normpath(file_path)
 					paktrace = Repository.PakTrace(self.test_dir)
 					body = paktrace.readByPath(file_path)
 
 					member_found = False
 					for member_name in body:
 						member_path = os.path.join(self.test_dir, member_name)
+						member_path = os.path.normpath(member_path)
 						if os.path.isfile(member_path):
 							paktrace_file_list.append(member_name)
 							member_found = True
@@ -274,7 +320,7 @@ class Cleaner():
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			dir_name = os.path.relpath(dir_name, self.test_dir)
 
-			# skip paktrace directoru
+			# skip paktrace directory
 			if dir_name == paktrace_dir or dir_name.startswith(paktrace_dir + os.path.sep):
 				continue
 
@@ -282,14 +328,15 @@ class Cleaner():
 			logging.debug("found directory: " + dir_name)
 			for file_name in file_name_list:
 				that_file = os.path.join(dir_name, file_name)
+				that_file = os.path.normpath(that_file)
 				logging.debug("found file: " + that_file)
 				if that_file not in paktrace_file_list and that_file not in produced_file_list:
 					logging.debug("found dust file: " + that_file)
 					dust_file_list.append(that_file)
 
-		logging.debug("produced file list:" + str(produced_file_list))
-		logging.debug("paktrace file list:" + str(paktrace_file_list))
-		logging.debug("dust pkatrace list: " + str(dust_paktrace_list))
+		logging.debug("produced file list: " + str(produced_file_list))
+		logging.debug("paktrace file list: " + str(paktrace_file_list))
+		logging.debug("dust paktrace list: " + str(dust_paktrace_list))
 		logging.debug("dust file list: " + str(dust_file_list))
 
 		logging.debug("old file_list: " + str(dust_file_list))
@@ -382,7 +429,8 @@ def main(stage=None):
 		if args.auto_actions:
 			action_list.computeActions(file_list)
 
-		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, parallel = not args.sequential_build)
+		parallel_build = not args.sequential_build
+		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
 		produced_unit_list = builder.build()
 		if not args.keep_dust:
 			cleaner = Cleaner(args.source_dir)

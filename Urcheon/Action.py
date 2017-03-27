@@ -55,6 +55,7 @@ class List():
 			action_list_file = open(self.action_list_path, "r")
 			line_list = [line.strip() for line in action_list_file]
 			action_list_file.close()
+
 			action_line_pattern = re.compile(r"^[ \t]*(?P<action_name>[^ \t]*)[ \t]*(?P<file_path>.*)$")
 			quoted_path_pattern = re.compile(r"^\"(?P<file_path>.*)\"[ \t]*$")
 			disabled_action_pattern = re.compile(r"^#[ \t]*(?P<action_name>.*)$")
@@ -90,21 +91,22 @@ class List():
 
 	def computeActions(self, file_list):
 		for file_path in file_list:
-					unknown_file_path = True
-					logging.debug("active actions: " + str(self.active_action_dict))
-					logging.debug("inactive actions:" + str(self.disabled_action_dict))
-					for read_action in self.active_action_dict.keys():
-						if file_path in self.active_action_dict[read_action]:
-							Ui.print(file_path + ": Known file, will " + self.inspector.action_name_dict[read_action] + ".")
-							self.computed_active_action_dict[read_action].append(file_path)
-							unknown_file_path = False
-						elif file_path in self.disabled_action_dict[read_action]:
-							Ui.print(file_path + ": Disabled known file, will ignore it.")
-							self.computed_disabled_action_dict[read_action].append(file_path)
-							unknown_file_path = False
-					if unknown_file_path:
-						computed_action = self.inspector.inspect(file_path)
-						self.computed_active_action_dict[computed_action].append(file_path)
+			file_path = os.path.normpath(file_path)
+			unknown_file_path = True
+			logging.debug("active actions: " + str(self.active_action_dict))
+			logging.debug("inactive actions:" + str(self.disabled_action_dict))
+			for read_action in self.active_action_dict.keys():
+				if file_path in self.active_action_dict[read_action]:
+					Ui.print(file_path + ": Known file, will " + self.inspector.action_name_dict[read_action] + ".")
+					self.computed_active_action_dict[read_action].append(file_path)
+					unknown_file_path = False
+				elif file_path in self.disabled_action_dict[read_action]:
+					Ui.print(file_path + ": Disabled known file, will ignore it.")
+					self.computed_disabled_action_dict[read_action].append(file_path)
+					unknown_file_path = False
+			if unknown_file_path:
+				computed_action = self.inspector.inspect(file_path)
+				self.computed_active_action_dict[computed_action].append(file_path)
 
 		self.active_action_dict = self.computed_active_action_dict
 		self.active_inaction_dict = self.computed_disabled_action_dict
