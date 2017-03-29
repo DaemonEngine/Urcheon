@@ -9,7 +9,8 @@
 
 
 from Urcheon import Action
-from Urcheon import Defaults
+from Urcheon import Default
+from Urcheon import Profile
 from Urcheon import Ui
 from collections import OrderedDict
 import configparser
@@ -26,32 +27,36 @@ import pytoml
 
 class Config():
 	def __init__(self, source_dir):
-		# TODO: check absolute path (check in map ini too)
-		config_pak_path = source_dir + os.path.sep + ".pakinfo" + os.path.sep + "pak" + os.path.extsep +  "ini"
-		self.pak_config = configparser.ConfigParser()
+		self.profile_fs = Profile.Fs(source_dir)
+
 		self.key_dict = None
 		self.loaded = False
 		self.source_dir = source_dir
 
-		if os.path.isfile(config_pak_path):
-			self.readConfig(config_pak_path)
-		else:
-			Ui.error("pak config file not found: " + config_pak_path)
+		config_pak_name = Default.pak_config_base + os.path.extsep + Default.pak_config_ext
+		self.readConfig(config_pak_name)
 
-	def readConfig(self, config_pak_path):
+	def readConfig(self, config_pak_name):
+		config_pak_path = self.profile_fs.getPath(config_pak_name)
+
+		if not config_pak_path:
+			Ui.error("pak config file not found: " + config_pak_name)
+
 		logging.debug("reading pak config file " + config_pak_path)
 
-		if not self.pak_config.read(config_pak_path):
+		pak_config = configparser.ConfigParser()
+
+		if not pak_config.read(config_pak_path):
 			Ui.error("error reading pak config file: " + config_pak_path)
 
-		logging.debug("config sections: " + str(self.pak_config.sections()))
+		logging.debug("config sections: " + str(pak_config.sections()))
 
-		if not "config" in self.pak_config.sections():
+		if not "config" in pak_config.sections():
 			Ui.error("can't find config section in pak config file: " + config_pak_path)
 
 		logging.debug("config found in pak config file: " + config_pak_path)
 
-		self.key_dict = self.pak_config["config"]
+		self.key_dict = pak_config["config"]
 
 	def requireKey(self, key_name):
 		# TODO: strip quotes
@@ -74,7 +79,7 @@ class Config():
 				Ui.notice("BUILDPREFIX set, will use: " + env_build_prefix)
 				build_prefix = env_build_prefix
 			else:
-				build_prefix = self.source_dir + os.path.sep + "build"
+				build_prefix = self.source_dir + os.path.sep + Default.build_prefix
 
 		return os.path.abspath(build_prefix)
 
@@ -86,7 +91,7 @@ class Config():
 				test_prefix = env_test_prefix
 			else:
 				build_prefix = self.getBuildPrefix(build_prefix=build_prefix)
-				test_prefix = build_prefix + os.path.sep + "test"
+				test_prefix = build_prefix + os.path.sep + Default.test_prefix
 
 		return os.path.abspath(test_prefix)
 
@@ -98,7 +103,7 @@ class Config():
 				pak_prefix = env_pak_prefix
 			else:
 				build_prefix = self.getBuildPrefix(build_prefix=build_prefix)
-				pak_prefix = build_prefix + os.path.sep + "pkg"
+				pak_prefix = build_prefix + os.path.sep + Default.pak_prefix
 
 		return os.path.abspath(pak_prefix)
 
@@ -128,23 +133,32 @@ class Config():
 
 
 class FileProfile():
-	def __init__(self, source_dir, profile_name):
+	def __init__(self, source_dir, profile_name=None):
 		# not yet used:
 		self.source_dir = source_dir
 
 		# for self.inspector.inspector_name_dict
 		self.inspector = Inspector(None, None)
 
+		self.profile_fs = Profile.Fs(source_dir)
+
 		self.file_type_dict = {}
 		self.file_type_weight_dict = {}
+
+		if not profile_name:
+			pak_config = Config(source_dir)
+			profile_name = pak_config.getKey("game")
+
 		self.readProfile(profile_name)
 		self.expandFileTypeDict()
 
 	def readProfile(self, profile_name, is_parent=False):
-		file_profile_path = Defaults.getGameFileProfilePath(profile_name)
+		file_profile_name = os.path.join(Default.file_profile_dir, profile_name + os.path.extsep + Default.file_profile_ext)
+		file_profile_path = self.profile_fs.getPath(file_profile_name)
 
 		if not file_profile_path:
-			Ui.error("missing file profile: " + file_profile_path)
+			# that's not a typo
+			Ui.error("file profile file not found: " + file_profile_name)
 
 		file_profile_file = open(file_profile_path, "r")
 		file_profile_dict = pytoml.load(file_profile_file)
@@ -211,11 +225,12 @@ class FileProfile():
 class Inspector():
 	def __init__(self, source_dir, game_name, disabled_action_list=[]):
 		if game_name:
-			self.file_profile = FileProfile(source_dir, game_name)
+			self.file_profile = FileProfile(source_dir, profile_name=game_name)
 			logging.debug("file type weight dict: " + str(self.file_profile.file_type_weight_dict))
 			self.file_type_ordered_list = [x[0] for x in sorted(self.file_profile.file_type_weight_dict.items(), key=operator.itemgetter(1), reverse=True)]
 			logging.debug("will try file types in this order: " + str(self.file_type_ordered_list))
 		else:
+			# TODO: check if this needed (probably to get some stuff without having to compute so much things)
 			self.file_profile = None
 
 		self.disabled_action_list = disabled_action_list
@@ -339,14 +354,14 @@ class BlackList():
 			"*~",
 			".*.swp",
 			".git*",
-			".pakinfo",
+			Default.pakinfo_dir,
 			"DEPS",
-			"build",
+			Default.build_prefix,
 		]
 		pass
 
-		pakignore_name = "ignore" + os.path.extsep + "txt"
-		pakignore_path = os.path.join(".pakinfo", pakignore_name)
+		pakignore_name = Default.ignore_list_base + os.path.extsep + Default.ignore_list_ext
+		pakignore_path = os.path.join(Default.pakinfo_dir, pakignore_name)
 		pakignore_path = os.path.join(source_dir, pakignore_path)
 
 		if os.path.isfile(pakignore_path):
@@ -419,7 +434,7 @@ class Tree():
 
 
 class PakTrace():
-	paktrace_dir = ".paktrace"
+	paktrace_dir = Default.paktrace_dir
 
 	def __init__(self, test_dir):
 		self.test_dir = test_dir
@@ -487,7 +502,7 @@ class PakTrace():
 
 	def getName(self, head):
 		head_path = os.path.join(self.test_dir, head)
-		paktrace_name = head + os.path.extsep + "txt"
+		paktrace_name = head + os.path.extsep + Default.paktrace_file_ext
 		return paktrace_name
 		
 	def getPath(self, head):

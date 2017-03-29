@@ -7,6 +7,7 @@
 # License: ISC
 # 
 
+from Urcheon import Default
 from Urcheon import MapCompiler
 from Urcheon import Repository
 from Urcheon import Ui
@@ -33,8 +34,8 @@ class List():
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
-		action_list_file_name = "build" + os.path.extsep + "txt"
-		self.action_list_file_path = os.path.join(".pakinfo", action_list_file_name)
+		action_list_file_name = Default.build_list_base + os.path.extsep + Default.build_list_ext
+		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
 		self.inspector = Repository.Inspector(source_dir, game_name, disabled_action_list=disabled_action_list)

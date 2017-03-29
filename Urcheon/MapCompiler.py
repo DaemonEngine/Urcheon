@@ -8,7 +8,8 @@
 # 
 
 
-from Urcheon import Defaults
+from Urcheon import Default
+from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
 import configparser
@@ -24,6 +25,7 @@ from collections import OrderedDict
 
 class Config():
 	def __init__(self, source_dir, game_name=None, map_path=None):
+		self.profile_fs = Profile.Fs(source_dir)
 		self.profile = OrderedDict()
 
 		self.default_profile = None
@@ -33,52 +35,52 @@ class Config():
 			pak_config = Repository.Config(source_dir)
 			game_name = pak_config.getKey("game")
 
-		config_loaded = False
+		config_path = None
 
 		# try loading map config first
 		if map_path:
-			config_path = Defaults.getPakMapConfigPath(source_dir, map_path)
+			map_base = os.path.splitext(os.path.basename(map_path))[0]
+			map_config_path = os.path.join(Default.map_profile_dir, map_base + os.path.extsep + Default.map_profile_ext)
 
-			if config_path:
-				self.readConfig(config_path)
-				config_loaded = True
+			if self.profile_fs.isFile(map_config_path):
+				config_path = map_config_path
 
 		# if no map config, try loading game map config
-		if game_name:
-			game_config_path = Defaults.getGameMapConfigPath(game_name)
+		if not config_path and game_name:
+			game_config_path = os.path.join(Default.map_profile_dir, game_name + os.path.extsep + Default.map_profile_ext)
 
-			if not config_loaded and game_config_path:
-				self.readConfig(game_config_path)
-				config_loaded = True
+			if self.profile_fs.isFile(game_config_path):
+				config_path = game_config_path
 
 		# if no map config and no game config, try loading default one
-		default_config_path = Defaults.getDefaultMapConfigPath()
-		if not config_loaded and default_config_path:
-			self.readConfig(default_config_path)
-			config_loaded = True
+		if not config_path:
+			default_config_path = os.path.join(Default.map_profile_dir, Default.default_base + os.path.extsep + Default.map_profile_ext)
 
-		# well, it must never occurs, previous errors raise before
-		if not config_loaded:
-			Ui.error("was not able to load any map config")
+			if self.profile_fs.isFile(default_config_path):
+				config_path = default_config_path
 
+		# well, if it occurs it means there is missing files in installation dir
+		if not config_path:
+			Ui.error("missing map compiler config")
 
-	def readConfig(self, config_path, is_parent=False):
+		self.readConfig(config_path)
+
+	def readConfig(self, config_file, is_parent=False):
 		config = configparser.ConfigParser()
 
-		if not config_path:
-			Ui.error("not a map config path")
+		config_path = self.profile_fs.getPath(config_file)
 
 		logging.debug("reading map config: " + config_path)
 		if not config.read(config_path):
-			Ui.error("failed to load map config: " + config_path)
+			Ui.error("failed to load map config: " + config_file)
 
 		if "_init_" in config.sections():
-			logging.debug("found “_init_” section in map profile: " + config_path)
+			logging.debug("found “_init_” section in map profile: " + config_file)
 			if "extend" in config["_init_"].keys():
 				game_name = config["_init_"]["extend"]
 				logging.debug("found “extend” instruction in “_init_” section: " + game_name)
 				logging.debug("loading parent game map config")
-				game_config_path = Defaults.getGameMapConfigPath(game_name)
+				game_config_path = os.path.join(Default.map_profile_dir, game_name + os.path.extsep + Default.map_profile_ext)
 				self.readConfig(game_config_path, is_parent=True)
 
 			if "default" in config["_init_"].keys():
