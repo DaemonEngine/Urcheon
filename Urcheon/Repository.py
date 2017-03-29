@@ -102,7 +102,6 @@ class Config():
 
 		return os.path.abspath(pak_prefix)
 
-
 	def getTestDir(self, build_prefix=None, test_prefix=None, test_dir=None, pak_name=None):
 		if not test_dir:
 			if not test_prefix:
@@ -126,6 +125,7 @@ class Config():
 			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + os.path.extsep + "pk3"
 
 		return os.path.abspath(pak_file)
+
 
 class FileProfile():
 	def __init__(self, source_dir, profile_name):
@@ -396,6 +396,7 @@ class BlackList():
 				path_list.insert(0, pair[1])
 		return path_list
 
+
 class Tree():
 	def __init__(self, source_dir):
 		self.source_dir = source_dir
@@ -494,6 +495,7 @@ class PakTrace():
 		paktrace_dirpath = os.path.join(self.test_dir, self.paktrace_dir)
 		paktrace_path = os.path.join(paktrace_dirpath, paktrace_name)
 		return paktrace_path
+
 
 class Git():
 	def __init__(self, source_dir):
@@ -616,6 +618,7 @@ class Git():
 
 		return file_list
 
+
 class Deps():
 	def __init__(self):
 		self.deps_dict = OrderedDict()
@@ -663,11 +666,9 @@ class Deps():
 		Ui.print("translating DEPS for testing")
 		for pak_name in self.deps_dict.keys():
 			pak_version = self.get(pak_name)
+
 			if pak_version == "src":
 				pak_version = "test"
-
-				if pak_version == None:
-					Ui.error("pakdir not found: " + pakdir_name)
 
 			self.set(pak_name, pak_version)
 
@@ -677,11 +678,9 @@ class Deps():
 		Ui.print("translating DEPS for release")
 		for pak_name in self.deps_dict.keys():
 			pak_version = self.get(pak_name)
+
 			if pak_version == "test":
 				pak_version = pakpath.getPakDirVersion(pak_name)
-
-				if pak_version == None:
-					Ui.error("pakdir not found: " + pakdir_name)
 
 			self.set(pak_name, pak_version)
 
@@ -727,6 +726,7 @@ class Deps():
 		if os.path.isfile(deps_file_path):
 			os.remove(deps_file_path)
 
+
 class PakPath:
 	def __init__(self):
 		self.pakpath_list = []
@@ -755,7 +755,6 @@ class PakPath:
 							self.pakdir_dict[pak_name] = {}
 							self.pakdir_dict[pak_name]["full_path"] = full_path
 							self.pakdir_dict[pak_name]["version"] = pak_version
-
 
 	def listPakPath(self):
 		return self.pakpath_list
