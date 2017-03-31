@@ -1,0 +1,22 @@
+[options]
+
+# Unvanquished uses the daemon engine
+renderer = daemon
+
+# Preview images use a strong pink, so lower this
+editorOpacity = 0.3
+
+# q3map2 can't read compressed textures, so we let sloth precalculate light colors
+precalcColors = on
+
+# q3map2 can't read compressed textures, so it cannot calculate alpha shadows
+alphaShadows = off
+
+# Set default light colors & intensities for lights with custom colors
+colors        = white:ffffff orange:ffba60 blue:7bb3ff red:ff6c61
+customLights  = 1500 3000 6000
+colorBlendExp = 1.2
+
+# Set default light intensities for lights with predefined color
+predefLights = 0 200 400
+

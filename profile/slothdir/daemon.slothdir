@@ -1,0 +1,24 @@
+[config]
+sloth = "daemon.sloth"
+
+[shader]
+dir = "scripts"
+ext = "shader"
+header = """
+For modifications, it is recommended that you copy this file into your map's
+file space and, inside the shader name (but not in the pathes to the texture
+maps!), replace "shared" with your map's short name. If you do so, please
+remove this header.
+
+This file has been generated automatically with Sloth, which can be found at
+https://github.com/Unvanquished/Sloth
+"""
+
+[suffix]
+dir = "_src"
+diffuse = "_d"
+normal = "_n"
+height = "_h"
+specular = "_s"
+addition = "_a"
+preview = "_p"
