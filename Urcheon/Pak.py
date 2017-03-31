@@ -33,9 +33,10 @@ from collections import OrderedDict
 
 class Builder():
 	# test_dir is the pk3dir, so it's the build dir here
-	def __init__(self, source_dir, action_list, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, is_nested=False, since_reference=None, parallel=True):
+	def __init__(self, source_dir, action_list, stage, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, is_nested=False, since_reference=None, parallel=True):
 		self.source_dir = source_dir
 		self.action_list = action_list
+		self.stage = stage
 		self.is_nested = is_nested
 		self.since_reference = since_reference
 		self.parallel = parallel
@@ -80,7 +81,7 @@ class Builder():
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
 				# the is_nested argument is just there to tell that action to not do specific stuff because recursion
-				a = action(self.source_dir, self.test_dir, file_path, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
+				a = action(self.source_dir, self.test_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
 
 				if not self.parallel:
 					# explicitely requested (like in recursion)
@@ -408,15 +409,18 @@ def main(stage=None):
 			cleaner.cleanPak()
 
 	action_list = None
+
+	# TODO: find a way to update "prepare" actions too
 	if args.update:
 		file_tree = Repository.Tree(args.source_dir)
 		file_list = file_tree.listFiles()
-		action_list = Action.List(args.source_dir, args.game_name)
+
+		action_list = Action.List(args.source_dir, "build", game_name=args.game_name)
 		action_list.updateActions(action_list)
 
 	if args.build:
 		if not action_list:
-			action_list = Action.List(args.source_dir, args.game_name)
+			action_list = Action.List(args.source_dir, "build", game_name=args.game_name)
 			action_list.readActions()
 
 		if args.since_reference:
@@ -430,7 +434,7 @@ def main(stage=None):
 			action_list.computeActions(file_list)
 
 		parallel_build = not args.sequential_build
-		builder = Builder(args.source_dir, action_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
+		builder = Builder(args.source_dir, action_list, "build", build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
 		produced_unit_list = builder.build()
 		if not args.keep_dust:
 			cleaner = Cleaner(args.source_dir)

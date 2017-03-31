@@ -18,7 +18,7 @@ dir_ancestor_name = [
 	"env",
 ]
 description = "Texture"
-action = "convert_crn"
+build = "convert_crn"
 
 [daemon_crn]
 inherit = "daemon_texture"
@@ -26,7 +26,7 @@ file_ext = [
 	"crn",
 	"dds",
 ]
-action = "copy"
+build = "copy"
 
 [daemon_ui_texture]
 inherit = "common_pixmap"
@@ -36,7 +36,7 @@ dir_ancestor_name = [
 	"ui",
 ]
 description = "Texture"
-action = "convert_crn"
+build = "convert_crn"
 
 [daemon_ui_crn]
 inherit = "daemon_ui_texture"
@@ -44,7 +44,7 @@ file_ext = [
 	"crn",
 	"dds",
 ]
-action = "copy"
+build = "copy"
 
 [daemon_skybox]
 inherit = "daemon_texture"
@@ -58,12 +58,12 @@ file_suffix = [
 ]
 dir_ancestor_name = "env"
 description = "Skybox"
-action = "convert_lossy_webp"
+build = "convert_lossy_webp"
 
 [daemon_jpg_skybox]
 inherit = "daemon_skybox"
 file_ext = "jpg"
-action = "copy"
+build = "copy"
 
 [daemon_lightmap]
 inherit = "common_pixmap"
@@ -71,24 +71,24 @@ file_prefix = "lm"
 dir_ancestor_name = "maps"
 dir_grandfather_name = "maps"
 description = "LightMap"
-action = "convert_lossless_webp"
+build = "convert_lossless_webp"
 
 [daemon_preview]
 inherit = "daemon_texture"
 file_suffix = "p"
 description = "Editor preview image"
-action = "convert_jpg"
+build = "convert_jpg"
 
 [daemon_jpg_preview]
 inherit = "daemon_preview"
 file_ext = "jpg"
-action = "copy"
+build = "copy"
 
 [daemon_normalmap]
 inherit = "daemon_texture"
 file_suffix = "n"
 description = "Normal map"
-action = "convert_normalized_crn"
+build = "convert_normalized_crn"
 
 [daemon_crn_normalmap]
 inherit = "daemon_normalmap"
@@ -96,19 +96,19 @@ file_ext = [
 	"crn",
 	"dds",
 ]
-action = "copy"
+build = "copy"
 
 [daemon_minimap_sidecar]
 file_ext = "minimap"
 dir_ancestor_name = "minimaps"
 description = "MiniMap sidecar"
-action = "copy"
+build = "copy"
 
 [daemon_minimap_image]
 inherit = "common_pixmap"
 dir_ancestor_name = "minimaps"
 description = "MiniMap image"
-action = "convert_crn"
+build = "convert_crn"
 
 [daemon_crn_minimap_image]
 inherit = "daemon_minimap_image"
@@ -116,42 +116,42 @@ file_ext = [
 	"crn",
 	"dds",
 ]
-action = "copy"
+build = "copy"
 
 [daemon_colorgrade]
 inherit = "daemon_texture"
 dir_ancestor_name = "gfx"
 file_base = "colorgrading"
 description = "ColorGrade"
-action = "convert_lossless_webp"
+build = "convert_lossless_webp"
 
 [daemon_png_colorgrade]
 inherit = "daemon_colorgrade"
 file_ext = "png"
-action = "copy"
+build = "copy"
 
 [daemon_arena]
 file_ext = "arena"
 dir_ancestor_name = "meta"
 description = "Arena file"
-action = "copy"
+build = "copy"
 
 [daemon_levelshot]
 inherit = "common_pixmap"
 dir_ancestor_name = "meta"
 description = "LevelShot"
-action = "convert_jpg"
+build = "convert_jpg"
 
 [daemon_about]
 dir_ancestor_name = "about"
 description = "About file"
-action = "copy"
+build = "copy"
 
 [daemon_map]
 file_ext = "map"
 dir_ancestor_name = "maps"
 description = "Map"
-action = "compile_bsp"
+build = "compile_bsp"
 
 [daemon_bspdir_lump]
 file_ext = [
@@ -162,7 +162,7 @@ file_ext = [
 dir_ancestor_name = "maps"
 dir_father_ext = "bspdir"
 description = "BSP Lump"
-action = "merge_bsp"
+build = "merge_bsp"
 
 [daemon_bspdir_lightmap]
 inherit = "daemon_lightmap"
@@ -170,7 +170,7 @@ dir_ancestor_name = "maps"
 dir_father_name = "lightmaps.d"
 dir_grandfather_ext = "bspdir"
 description = "BSP LightMap"
-action = "merge_bsp"
+build = "merge_bsp"
 
 [daemon_sound]
 inherit = "common_sound"
@@ -179,26 +179,26 @@ dir_ancestor_name = [
 	"sound",
 ]
 description = "Sound File"
-action = "convert_opus"
+build = "convert_opus"
 
 [daemon_nullwav]
 inherit = "daemon_sound"
 file_ext = "wav"
 file_base = "null"
 description = "Common NULL Sound File"
-action = "copy"
+build = "copy"
 
 [daemon_opus]
 inherit = "daemon_sound"
 file_ext = "opus"
 description = "Opus Sound File"
-action = "copy"
+build = "copy"
 
 [daemon_vorbis]
 inherit = "daemon_sound"
 file_ext = "ogg"
 description = "Vorbis Sound File"
-action = "copy"
+build = "copy"
 
 [daemon_model]
 inherit = "common_model"
@@ -209,15 +209,15 @@ description = "Model File"
 inherit = "common_iqe_model"
 dir_ancestor_name = "models"
 description = "IQE Model File"
-action = "compile_iqm"
+build = "compile_iqm"
 
 [daemon_navmesh]
 dir_ancestor_name = "maps"
 file_ext = "navMesh"
 description = "Navigation Mesh"
-action = "copy"
+build = "copy"
 
 [daemon_bsp]
 file_ext = "bsp"
 description = "BSP File"
-action = "copy_bsp"
+build = "copy_bsp"

@@ -8,7 +8,7 @@ file_ext = [
 	"ora",
 ]
 description = "Pixmap Editor File"
-action = "ignore"
+build = "ignore"
 
 [common_vector_picture]
 file_ext = [
@@ -16,14 +16,14 @@ file_ext = [
 	"svgz",
 ]
 description = "Vector picture"
-action = "ignore"
+build = "ignore"
 
 [common_metada_sidecar]
 file_ext = [
 	"vorbiscomment",
 ]
 description = "Metadata Sidecar"
-action = "ignore"
+build = "ignore"
 
 [common_pixmap]
 file_ext = [
@@ -37,7 +37,7 @@ file_ext = [
 	"dds",
 ]
 description = "Texture"
-action = "copy"
+build = "copy"
 
 [common_sound]
 file_ext = [
@@ -47,7 +47,7 @@ file_ext = [
 	"opus",
 ]
 description = "Sound File"
-action = "copy"
+build = "copy"
 
 [common_script]
 file_ext = [
@@ -57,7 +57,7 @@ file_ext = [
 ]
 dir_ancestor_name = "scripts"
 description = "Common Script"
-action = "copy"
+build = "copy"
 
 [common_model]
 file_ext = [
@@ -70,20 +70,20 @@ file_ext = [
 	"qc",
 ]
 description = "Common Model File"
-action = "copy"
+build = "copy"
 
 [common_iqe_model]
 inherit = "common_model"
 file_ext = "iqe"
 description = "Common IQE Model File"
-action = "compile_iqm"
+build = "compile_iqm"
 
 [common_model_source]
 file_ext = [
 	"blend",
 ]
 description = "Common Model Source"
-action = "ignore"
+build = "ignore"
 
 [common_text]
 file_ext = [
@@ -91,12 +91,12 @@ file_ext = [
 	"md",
 ]
 description = "Common Text File"
-action = "copy"
+build = "copy"
 
 [common_sloth]
 file_ext = "sloth"
 description = "Common Sloth Description File"
-action = "ignore"
+build = "ignore"
 
 [common_readme]
 inherit = "common_text"

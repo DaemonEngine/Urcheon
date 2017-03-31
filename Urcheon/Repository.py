@@ -139,7 +139,7 @@ class FileProfile():
 		self.source_dir = source_dir
 
 		# for self.inspector.inspector_name_dict
-		self.inspector = Inspector(None, None)
+		self.inspector = Inspector(None, None, None)
 
 		self.profile_fs = Profile.Fs(source_dir)
 
@@ -224,7 +224,7 @@ class FileProfile():
 
 
 class Inspector():
-	def __init__(self, source_dir, game_name, disabled_action_list=[]):
+	def __init__(self, source_dir, game_name, stage, disabled_action_list=[]):
 		if game_name:
 			self.file_profile = FileProfile(source_dir, profile_name=game_name)
 			logging.debug("file type weight dict: " + str(self.file_profile.file_type_weight_dict))
@@ -233,6 +233,8 @@ class Inspector():
 		else:
 			# TODO: check if this needed (probably to get some stuff without having to compute so much things)
 			self.file_profile = None
+
+		self.stage = stage
 
 		self.disabled_action_list = disabled_action_list
 
@@ -253,8 +255,10 @@ class Inspector():
 		for action in Action.list():
 			self.action_name_dict[action.keyword] = action.description
 
-		# TODO read from config
-		self.default_action = "keep"
+		self.default_action_dict = {
+			"prepare": "ignore",
+			"build": "keep",
+		}
 
 	def inspectFileName(self, file_path, file_name):
 		name = os.path.basename(file_path)
@@ -304,11 +308,22 @@ class Inspector():
 
 		# TODO: make a tree!
 		description = "unknown file"
-		action = self.default_action
+		action = self.default_action_dict[self.stage]
 		for file_type_name in self.file_type_ordered_list:
 			logging.debug("trying file type: " + file_type_name)
 			criteria_dict = self.file_profile.file_type_dict[file_type_name].copy()
-			file_type_action = criteria_dict.pop("action")
+
+			if self.stage not in criteria_dict:
+				file_type_action = "ignore"
+
+			# all stages
+			for stage in [ "prepare", "build" ]:
+				if stage in criteria_dict:
+					if stage == self.stage:
+						file_type_action = criteria_dict.pop(stage)
+					else:
+						criteria_dict.pop(stage)
+
 			file_type_description = criteria_dict.pop("description")
 
 			matched_file_type = True

@@ -29,17 +29,17 @@ from collections import OrderedDict
 
 
 class List():
-	def __init__(self, source_dir, game_name=None, disabled_action_list=[]):
+	def __init__(self, source_dir, stage, game_name=None, disabled_action_list=[]):
 		if not game_name:
 			pak_config = Repository.Config(source_dir)
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
-		action_list_file_name = Default.build_list_base + os.path.extsep + Default.build_list_ext
+		action_list_file_name = stage + os.path.extsep + Default.stage_action_list_ext
 		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
-		self.inspector = Repository.Inspector(source_dir, game_name, disabled_action_list=disabled_action_list)
+		self.inspector = Repository.Inspector(source_dir, game_name, stage, disabled_action_list=disabled_action_list)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
@@ -173,12 +173,13 @@ class Action():
 	subprocess_stdout = subprocess.DEVNULL
 	subprocess_stderr = subprocess.DEVNULL
 
-	def __init__(self, source_dir, test_dir, file_path, game_name=None, map_profile=None, is_nested=False):
+	def __init__(self, source_dir, test_dir, file_path, stage, game_name=None, map_profile=None, is_nested=False):
 		self.body = None
 		self.source_dir = source_dir
 		self.test_dir = test_dir
 		self.file_path = file_path
 		self.game_name = game_name
+		self.stage = stage
 		self.map_profile = map_profile
 		self.is_nested = is_nested
 
@@ -601,10 +602,10 @@ class DumbTransient(Action):
 		file_tree = Repository.Tree(self.transient_path)
 		file_list = file_tree.listFiles()
 
-		action_list = List(self.transient_path, self.game_name, disabled_action_list=disabled_action_list)
+		action_list = List(self.transient_path, self.stage, game_name=self.game_name, disabled_action_list=disabled_action_list)
 		action_list.computeActions(file_list)
 
-		builder = Pak.Builder(self.transient_path, action_list, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
+		builder = Pak.Builder(self.transient_path, action_list, self.stage, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
 		# keep track of built files
 		produced_unit_list = builder.build()
 
