@@ -10,6 +10,7 @@
 
 from Urcheon import Action
 from Urcheon import Default
+from Urcheon import FileSystem
 from Urcheon import Profile
 from Urcheon import Ui
 from collections import OrderedDict
@@ -465,11 +466,12 @@ class PakTrace():
 			unmodified_body = []
 			for member_file in body:
 				member_path = os.path.join(self.test_dir, member_file)
-				if os.path.isfile(member_path):
-					if os.stat(member_path).st_mtime == os.stat(paktrace_path).st_mtime:
-						unmodified_body.append(member_path)
+				if FileSystem.isSame(member_path, paktrace_path):
+					unmodified_body.append(member_path)
+
 			unmodifed_body = body
 			return body
+
 		else:
 			return None
 

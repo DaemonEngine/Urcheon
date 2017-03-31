@@ -8,6 +8,7 @@
 #
 
 from Urcheon import Default
+from Urcheon import FileSystem
 from Urcheon import MapCompiler
 from Urcheon import Repository
 from Urcheon import Ui
@@ -239,14 +240,7 @@ class Action():
 	def isDifferent(self):
 		source_path = self.getStatReference()
 		build_path = self.getTargetPath()
-		if not os.path.isfile(build_path):
-			logging.debug("built file not found: " + build_path)
-			return True
-		if os.stat(build_path).st_mtime != os.stat(source_path).st_mtime:
-			logging.debug("built file has a different modification time than reference: " + build_path)
-			return True
-		logging.debug("built file has same modification time than reference: " + build_path)
-		return False
+		return FileSystem.isDifferent(build_path, source_path)
 
 	def switchExtension(self, extension):
 		return os.path.splitext(self.file_path)[0] + os.path.extsep + extension

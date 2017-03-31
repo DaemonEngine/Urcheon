@@ -8,6 +8,7 @@
 #
 
 from Urcheon import Default
+from Urcheon import FileSystem
 from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
@@ -206,7 +207,7 @@ class SlothDir():
 		preview_path = os.path.join(dest_dir, preview_name)
 		preview_fullpath = os.path.realpath(preview_path)
 
-		if os.stat(preview_fullpath).st_mtime == os.stat(diffuse_fullpath).st_mtime:
+		if FileSystem.isSame(preview_fullpath, diffuse_fullpath):
 			logging.debug("unmodified diffuse, skipping preview generation")
 			return
 
@@ -227,9 +228,15 @@ class SlothDir():
 
 	# always sloth after preview generation
 	def sloth(self, dest_dir=None):
-		file_reference_list = [ self.slothdir_file_path ] + self.sloth_list
+
+		sourcedir_file_list = []
+		for file_path in [ self.slothdir_file_path ] + self.sloth_list:
+			full_path = os.path.realpath(os.path.join(self.source_dir, file_path))
+			sourcedir_file_list.append(full_path)
+
 		# TODO: check also slothdir and sloth files in pakinfo and profiles directories
-		file_reference = self.getNewer(file_reference_list)
+		file_reference_list = sourcedir_file_list
+		file_reference = FileSystem.getNewer(file_reference_list)
 
 		if not dest_dir:
 			dest_dir = self.source_dir
@@ -237,10 +244,9 @@ class SlothDir():
 		shader_path = os.path.join(dest_dir, self.shader_name)
 		shader_fullpath = os.path.realpath(shader_path)
 
-		if os.path.isfile(shader_fullpath) and os.path.isfile(file_reference):
-			if os.stat(shader_fullpath).st_mtime == os.stat(file_reference).st_mtime:
-				logging.debug("unmodified slothdir, skipping sloth generation")
-				return
+		if FileSystem.isSame(shader_fullpath, file_reference):
+			logging.debug("unmodified slothdir, skipping sloth generation")
+			return
 
 		command_list = [ "sloth.py" ]
 
@@ -297,18 +303,3 @@ class SlothDir():
 
 		if sloth_header_file:
 			os.remove(sloth_header_file)
-
-
-	def getNewer(self, file_path_list):
-		if file_path_list == []:
-			Ui.error("can't find newer file if file list is empty")
-
-		newer_path = os.path.realpath(os.path.join(self.source_dir, file_path_list[0]))
-
-		for file_path in file_path_list:
-			full_path = os.path.realpath(os.path.join(self.source_dir, file_path))
-			if os.stat(full_path).st_mtime > os.stat(newer_path).st_mtime:
-				newer_path = full_path
-
-		logging.debug("newer file: " + newer_path)
-		return newer_path
