@@ -469,8 +469,7 @@ class PakTrace():
 				if FileSystem.isSame(member_path, paktrace_path):
 					unmodified_body.append(member_path)
 
-			unmodifed_body = body
-			return body
+			return unmodified_body
 
 		else:
 			return None
