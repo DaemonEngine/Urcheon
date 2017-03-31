@@ -5,7 +5,7 @@
 #
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
+#
 
 
 from Urcheon import Default

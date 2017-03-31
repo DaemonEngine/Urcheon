@@ -5,7 +5,7 @@
 #
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
+#
 
 import __main__ as m
 import argparse

@@ -5,7 +5,7 @@
 #
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
+#
 
 import sys
 from colorama import Fore, Style, init

@@ -5,7 +5,7 @@
 #
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
+#
 
 
 from Urcheon import Action
@@ -124,7 +124,7 @@ class Builder():
 
 			deps = Repository.Deps()
 
-			if self.since_reference: 
+			if self.since_reference:
 				is_deps = True
 				git_repo = Repository.Git(self.source_dir)
 				previous_version = git_repo.computeVersion(self.since_reference)

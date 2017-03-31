@@ -5,7 +5,7 @@
 #
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
+#
 
 from Urcheon import Default
 from Urcheon import MapCompiler
@@ -641,6 +641,7 @@ class CopyBsp(DumbTransient):
 
 		Ui.print("Copy bsp: " + self.file_path)
 		shutil.copyfile(source_path, bsp_transient_path)
+		# TODO: isn't it done in setTimeStamp()?
 		shutil.copystat(source_path, bsp_transient_path)
 
 		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)

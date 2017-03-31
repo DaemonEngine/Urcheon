@@ -5,7 +5,7 @@
 #
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: ISC
-# 
+#
 
 
 from Urcheon import Action
@@ -152,7 +152,7 @@ class FileProfile():
 		self.readProfile(profile_name)
 		self.expandFileTypeDict()
 
-	def readProfile(self, profile_name, is_parent=False):
+	def readProfile(self, profile_name):
 		file_profile_name = os.path.join(Default.file_profile_dir, profile_name + os.path.extsep + Default.file_profile_ext)
 		file_profile_path = self.profile_fs.getPath(file_profile_name)
 
@@ -170,13 +170,13 @@ class FileProfile():
 				profile_parent_name = file_profile_dict["_init_"]["extend"]
 				logging.debug("found “extend” instruction in “_init_” section: " + profile_parent_name)
 				logging.debug("loading parent file profile")
-				self.readProfile(profile_parent_name, is_parent=True)
+				self.readProfile(profile_parent_name)
 			del file_profile_dict["_init_"]
 		
 		logging.debug("file profiles found: " + str(file_profile_dict.keys()))
 
 		for file_type in file_profile_dict.keys():
-			# if two names collide, the child win
+			# if two section names collide, the child win
 			self.file_type_dict[file_type] = file_profile_dict[file_type]
 
 		for file_type in self.file_type_dict.keys():
@@ -758,7 +758,7 @@ class PakPath:
 					if dir_name.endswith(os.path.extsep + "pk3dir"):
 						if dir_name not in self.pakdir_dict:
 							pak_name = dir_name.split('_')[0]
-							pak_version = dir_name.split('_')[1].rstrip(os.path.extsep + "pk3dir")
+							pak_version = dir_name.split('_')[1][:-len(os.path.extsep + "pk3dir")]
 
 							if pak_version == "src":
 								git = Git(full_path)
