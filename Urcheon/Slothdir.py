@@ -20,14 +20,15 @@ import shutil
 import subprocess
 import tempfile
 
-class SlothDir():
+class Slothdir():
 	def __init__(self, source_dir, slothdir_file_path, game_name=None):
 		self.source_dir = source_dir
-		self.slothdir_file_path = slothdir_file_path
-		self.profile_fs = Profile.Fs(source_dir)
+		self.slothdir_file_path = os.path.normpath(slothdir_file_path)
+		self.profile_fs = Profile.Fs(self.source_dir)
 		self.slothdir_dict = OrderedDict()
 
 		self.sloth_list = []
+		self.diffuse_list = []
 		self.preview_list = []
 
 		self.base_path = None
@@ -90,8 +91,8 @@ class SlothDir():
 
 			self.walk()
 
-			logging.debug("sloth_list: " + str(self.sloth_list))
-			logging.debug("preview_list: " + str(self.preview_list))
+			logging.debug("sloth list: " + str(self.sloth_list))
+			logging.debug("diffuse list: " + str(self.diffuse_list))
 
 	def read(self, slothdir_profile, real_path=False):
 		if not real_path:
@@ -128,7 +129,7 @@ class SlothDir():
 
 
 	def walk(self):
-		preview_list = []
+		diffuse_list = []
 		sloth_list = []
 
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.dir_path):
@@ -152,7 +153,7 @@ class SlothDir():
 
 						if preview_name:
 							logging.debug("will generate preview: " + preview_name)
-							preview_list.append(diffuse_name)
+							diffuse_list.append(diffuse_name)
 						else:
 							logging.debug("will reuse diffuse as preview")
 
@@ -162,7 +163,7 @@ class SlothDir():
 					sloth_list.append(sloth_name)
 
 		self.sloth_list = sloth_list
-		self.preview_list = preview_list
+		self.diffuse_list = diffuse_list
 
 
 	def getForeignPreviewName(self, diffuse_name):
@@ -192,11 +193,8 @@ class SlothDir():
 			return preview_name
 
 
-	def convertPreview(self, diffuse_name, dest_dir=None):
-		if not dest_dir:
-			dest_dir = self.source_dir
-
-		diffuse_path = os.path.join(self.source_dir, diffuse_name)
+	def preview(self, diffuse_name):
+		diffuse_path = os.path.normpath(os.path.join(self.source_dir, diffuse_name))
 		diffuse_fullpath = os.path.realpath(diffuse_path)
 		preview_name = self.getPreviewName(diffuse_name)
 
@@ -204,17 +202,21 @@ class SlothDir():
 			logging.debug("will reuse diffuse as preview for: " + diffuse_name)
 			return
 
-		preview_path = os.path.join(dest_dir, preview_name)
+		preview_path = os.path.normpath(os.path.join(self.source_dir, preview_name))
 		preview_fullpath = os.path.realpath(preview_path)
 
-		if FileSystem.isSame(preview_fullpath, diffuse_fullpath):
-			logging.debug("unmodified diffuse, skipping preview generation")
-			return
+		# HACK: never check because multiple files produces on reference
+		# we can detect added files, but not removed files yet
+		# if FileSystem.isSame(preview_fullpath, diffuse_fullpath):
+		#	logging.debug("unmodified diffuse, skipping preview generation")
+		#	return
 
 		command_list = [ "convert" ]
 		command_list += [ diffuse_fullpath ]
 		command_list += [ "-quality", "75", "-background", "magenta", "-alpha", "remove", "-alpha", "off" ]
 		command_list += [ preview_fullpath ]
+
+		Ui.print("Generate preview: " + diffuse_path)
 
 		logging.debug("convert command line: " + str(command_list))
 
@@ -225,12 +227,17 @@ class SlothDir():
 
 		shutil.copystat(diffuse_path, preview_fullpath)
 
+		self.preview_list += [ preview_path ]
 
-	# always sloth after preview generation
-	def sloth(self, dest_dir=None):
 
+	def previewAll(self):
+		for diffuse_name in self.diffuse_list:
+			self.preview(diffuse_name)
+
+
+	def getStatReference(self):
 		sourcedir_file_list = []
-		for file_path in [ self.slothdir_file_path ] + self.sloth_list:
+		for file_path in [ self.slothdir_file_path ] + self.sloth_list + self.diffuse_list:
 			full_path = os.path.realpath(os.path.join(self.source_dir, file_path))
 			sourcedir_file_list.append(full_path)
 
@@ -238,15 +245,27 @@ class SlothDir():
 		file_reference_list = sourcedir_file_list
 		file_reference = FileSystem.getNewer(file_reference_list)
 
-		if not dest_dir:
-			dest_dir = self.source_dir
+		return file_reference
 
-		shader_path = os.path.join(dest_dir, self.shader_name)
+
+	def setTimeStamp(self):
+		shader_path = os.path.join(self.source_dir, self.shader_name)
 		shader_fullpath = os.path.realpath(shader_path)
 
-		if FileSystem.isSame(shader_fullpath, file_reference):
-			logging.debug("unmodified slothdir, skipping sloth generation")
-			return
+		file_reference = self.getStatReference()
+		shutil.copystat(file_reference, shader_fullpath)
+
+
+	# always sloth after preview generation
+	def sloth(self):
+		shader_path = os.path.join(self.source_dir, self.shader_name)
+		shader_fullpath = os.path.realpath(shader_path)
+
+		# HACK: never check because multiple files produces on reference
+		# we can detect added files, but not removed files yet
+		# if FileSystem.isSame(shader_fullpath, file_reference):
+		#	logging.debug("unmodified slothdir, skipping sloth generation")
+		#	return
 
 		command_list = [ "sloth.py" ]
 
@@ -292,14 +311,17 @@ class SlothDir():
 
 		logging.debug("sloth command line: " + str(command_list))
 
-		Ui.print("Slothing: " + self.shader_name)
+		Ui.print("Sloth shader: " + self.dir_path)
 
 		# TODO: set something else in verbose mode
 		subprocess_stdout = subprocess.DEVNULL
 		subprocess_stderr = subprocess.DEVNULL
 		subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr)
 
-		shutil.copystat(file_reference, shader_fullpath)
-
 		if sloth_header_file:
 			os.remove(sloth_header_file)
+
+
+	def run(self):
+		self.previewAll()
+		self.sloth()

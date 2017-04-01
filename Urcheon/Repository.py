@@ -251,9 +251,9 @@ class Inspector():
 			"dir_grandfather_ext":	self.inspectDirGrandFatherExt,
 		}
 
-		self.action_name_dict = OrderedDict()
+		self.action_description_dict = OrderedDict()
 		for action in Action.list():
-			self.action_name_dict[action.keyword] = action.description
+			self.action_description_dict[action.keyword] = action.description
 
 		self.default_action_dict = {
 			"prepare": "ignore",
@@ -348,8 +348,12 @@ class Inspector():
 				description  = file_type_description
 				break
 
-		# TODO read from config
-		Ui.print(file_path + ": " + description + " found, will " + self.action_name_dict[action] + ".")
+		if action == "ignore":
+			_print = Ui.verbose
+		else:
+			_print = Ui.print
+
+		_print(file_path + ": " + description + " found, will " + self.action_description_dict[action] + ".")
 
 		return action
 
@@ -370,8 +374,9 @@ class BlackList():
 			"*~",
 			".*.swp",
 			".git*",
-			Default.pakinfo_dir,
 			"DEPS",
+			Default.pakinfo_dir,
+			Default.paktrace_dir,
 			Default.build_prefix,
 		]
 		pass
@@ -449,50 +454,41 @@ class Tree():
 		return file_list
 
 
-class PakTrace():
-	paktrace_dir = Default.paktrace_dir
+class Paktrace():
+	def __init__(self, build_dir):
+		self.build_dir = os.path.realpath(build_dir)
+		self.paktrace_dir = Default.paktrace_dir
 
-	def __init__(self, test_dir):
-		self.test_dir = test_dir
-
-	# this is a list to keep files names that are produced while building with other files
+	# this is a list to keep built files names
 	def read(self, head):
 		logging.debug("read paktrace for head: " + head)
 
 		paktrace_path = self.getPath(head)
 		body = self.readByPath(paktrace_path)
 
-		if not body:
-			body = [head]
-
 		logging.debug("body read:" + str(body))
 		return body
 
-	def readByPath(self, file_path):
-		paktrace_path = os.path.join(self.test_dir, file_path)
-
+	def readByPath(self, paktrace_path):
 		logging.debug("read paktrace from path: " + paktrace_path)
 
 		if os.path.isfile(paktrace_path):
 			paktrace_file = open(paktrace_path, "r")
 			body = paktrace_file.read().splitlines()
 			paktrace_file.close()
-
-			unmodified_body = []
-			for member_file in body:
-				member_path = os.path.join(self.test_dir, member_file)
-				if FileSystem.isSame(member_path, paktrace_path):
-					unmodified_body.append(member_path)
-
-			return unmodified_body
+			return body
 
 		else:
-			return None
+			return []
 
 	def write(self, head, body):
 		logging.debug("write paktrace for head: " + head)
 
 		self.remove(head)
+
+		# head is part of body
+		if head not in body:
+			body.append(head)
 
 		paktrace_path = self.getPath(head)
 
@@ -504,7 +500,7 @@ class PakTrace():
 			paktrace_file.write(line + "\n")
 		paktrace_file.close()
 
-		head_path = os.path.join(self.test_dir, head)
+		head_path = os.path.join(self.build_dir, head)
 
 		shutil.copystat(head_path, paktrace_path)
 
@@ -517,16 +513,28 @@ class PakTrace():
 			os.remove(paktrace_path)
 
 	def getName(self, head):
-		head_path = os.path.join(self.test_dir, head)
+		head_path = os.path.join(self.build_dir, head)
 		paktrace_name = head + os.path.extsep + Default.paktrace_file_ext
 		return paktrace_name
 		
 	def getPath(self, head):
 		paktrace_name = self.getName(head)
-		paktrace_dirpath = os.path.join(self.test_dir, self.paktrace_dir)
+		paktrace_dirpath = os.path.join(self.build_dir, self.paktrace_dir)
 		paktrace_path = os.path.join(paktrace_dirpath, paktrace_name)
 		return paktrace_path
 
+	def listAll(self):
+		paktrace_dir = Default.paktrace_dir
+		paktrace_path = os.path.join(self.build_dir, paktrace_dir)
+
+		file_list = []
+		if os.path.isdir(paktrace_path):
+			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_path):
+				for file_name in file_name_list:
+					file_path = os.path.join(dir_name, file_name)
+					file_list += self.readByPath(file_path)
+
+		return file_list
 
 class Git():
 	def __init__(self, source_dir):

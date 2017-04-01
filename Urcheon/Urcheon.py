@@ -17,6 +17,7 @@ def main():
 	arg_stage = StageParse(description="%(prog)s is a tender knight who takes care of my lovely granger's little flower.")
 	arg_stage.addStage("clean", help="clean stuff")
 	arg_stage.addStage("discover", help="discover files")
+	arg_stage.addStage("prepare", help="prepare source pakdir")
 	arg_stage.addStage("build", help="build test pakdir")
 	arg_stage.addStage("package", help="package release pak")
 
@@ -29,6 +30,9 @@ def main():
 
 	if arg_stage.discover:
 		stage = Pak.discover
+
+	if arg_stage.prepare:
+		stage = Pak.prepare
 
 	if arg_stage.build:
 		stage = Pak.build

@@ -93,7 +93,13 @@ file_ext = [
 description = "Common Text File"
 build = "copy"
 
+[common_slothdir]
+file_ext = "slothdir"
+description = "Common Slothdir Description File"
+prepare = "expand_slothdir"
+
 [common_sloth]
+# handled by slothdir
 file_ext = "sloth"
 description = "Common Sloth Description File"
 build = "ignore"

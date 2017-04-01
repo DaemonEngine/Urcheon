@@ -9,6 +9,7 @@
 
 
 from Urcheon import Action
+from Urcheon import Default
 from Urcheon import FileSystem
 from Urcheon import MapCompiler
 from Urcheon import Repository
@@ -26,11 +27,11 @@ from collections import OrderedDict
 
 
 class Builder():
-	# test_dir is the pk3dir, so it's the build dir here
-	def __init__(self, source_dir, action_list, stage, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, is_nested=False, since_reference=None, parallel=True):
+	def __init__(self, source_dir, action_list, stage, build_dir, game_name=None, map_profile=None, is_nested=False, since_reference=None, parallel=True):
 		self.source_dir = source_dir
 		self.action_list = action_list
 		self.stage = stage
+		self.build_dir = build_dir
 		self.is_nested = is_nested
 		self.since_reference = since_reference
 		self.parallel = parallel
@@ -38,7 +39,6 @@ class Builder():
 		# Do not look for pak configuration in temporary directories, do not build temporary stuff in system build directories
 		if not is_nested:
 			pak_config = Repository.Config(source_dir)
-			self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
 
 			if not game_name:
 				game_name = pak_config.requireKey("game")
@@ -46,8 +46,7 @@ class Builder():
 			self.pak_name = pak_config.requireKey("name")
 
 		else:
-			self.test_dir = test_dir
-			self.pak_name = None
+			self.build_dir = build_dir
 
 		self.game_name = game_name
 
@@ -61,11 +60,11 @@ class Builder():
 
 	def build(self):
 		# TODO: check if not a directory
-		if os.path.isdir(self.test_dir):
-			logging.debug("found build dir: " + self.test_dir)
+		if os.path.isdir(self.build_dir):
+			logging.debug("found build dir: " + self.build_dir)
 		else:
-			logging.debug("create build dir: " + self.test_dir)
-			os.makedirs(self.test_dir, exist_ok=True)
+			logging.debug("create build dir: " + self.build_dir)
+			os.makedirs(self.build_dir, exist_ok=True)
 
 		thread_list = []
 		produced_unit_list = []
@@ -75,7 +74,7 @@ class Builder():
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
 				# the is_nested argument is just there to tell that action to not do specific stuff because recursion
-				a = action(self.source_dir, self.test_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
+				a = action(self.source_dir, self.build_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
 
 				if not self.parallel:
 					# explicitely requested (like in recursion)
@@ -104,6 +103,10 @@ class Builder():
 		# deduplication
 		unit_list = []
 		for unit in produced_unit_list:
+			if unit == {}:
+				# because of ignore action
+				continue
+
 			logging.debug("unit: " + str(unit))
 			head = unit["head"]
 			body = unit["body"]
@@ -130,11 +133,11 @@ class Builder():
 
 			if is_deps:
 				deps.translateTest()
-				deps.write(self.test_dir)
+				deps.write(self.build_dir)
 
 				unit = {}
 				unit["head"] = "DEPS"
-				unit["body"] = ["DEPS"]
+				unit["body"] = []
 				unit_list.append(unit)
 
 		logging.debug("unit_list:" + str(unit_list))
@@ -146,10 +149,11 @@ class Builder():
 
 
 class Packer():
-	def __init__(self, source_dir, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None):
+	# TODO: reuse paktraces, does not walk for files
+	def __init__(self, source_dir, build_dir, pak_file):
 		pak_config = Repository.Config(source_dir)
-		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
-		self.pak_file = pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file)
+		self.build_dir = build_dir
+		self.pak_file = pak_file
 
 	def createSubdirs(self, pak_file):
 		pak_subdir = os.path.dirname(pak_file)
@@ -163,10 +167,10 @@ class Packer():
 			os.makedirs(pak_subdir, exist_ok=True)
 
 	def pack(self):
-		if not os.path.isdir(self.test_dir):
+		if not os.path.isdir(self.build_dir):
 			Ui.error("test pakdir not built")
 
-		Ui.print("Packing " + self.test_dir + " to: " + self.pak_file)
+		Ui.print("Packing " + self.build_dir + " to: " + self.pak_file)
 		self.createSubdirs(self.pak_file)
 		logging.debug("opening: " + self.pak_file)
 
@@ -177,13 +181,13 @@ class Packer():
 
 		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
 
-		paktrace_dir = Repository.PakTrace(None).paktrace_dir
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
+		paktrace_dir = Default.paktrace_dir
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.build_dir):
 			for file_name in file_name_list:
-				rel_dir_name = os.path.relpath(dir_name, self.test_dir)
+				rel_dir_name = os.path.relpath(dir_name, self.build_dir)
 
 				full_path = os.path.join(dir_name, file_name)
-				file_path = os.path.relpath(full_path, self.test_dir)
+				file_path = os.path.relpath(full_path, self.build_dir)
 
 				# ignore paktrace files
 				if file_path.startswith(paktrace_dir + os.path.sep):
@@ -198,7 +202,7 @@ class Packer():
 
 		# translating DEPS file
 		deps = Repository.Deps()
-		if deps.read(self.test_dir):
+		if deps.read(self.build_dir):
 			deps.translateRelease()
 			# TODO: add itself if partial build
 			deps_temp_dir = tempfile.mkdtemp()
@@ -213,15 +217,13 @@ class Packer():
 
 
 class Cleaner():
-	# TODO: remove paktraces files too
-	def __init__(self, source_dir, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None):
+	def __init__(self, source_dir):
 		pak_config = Repository.Config(source_dir)
-		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
-		self.pak_prefix = pak_config.getPakPrefix(build_prefix=build_prefix, pak_prefix=pak_prefix)
 		self.pak_name = pak_config.requireKey("name")
 
-	def cleanTest(self):
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
+
+	def cleanTest(self, build_dir):
+		for dir_name, subdir_name_list, file_name_list in os.walk(build_dir):
 			for file_name in file_name_list:
 				that_file = os.path.join(dir_name, file_name)
 				Ui.print("clean: " + that_file)
@@ -231,21 +233,23 @@ class Cleaner():
 				that_dir = dir_name + os.path.sep + dir_name
 				FileSystem.removeEmptyDir(that_dir)
 			FileSystem.removeEmptyDir(dir_name)
-		FileSystem.removeEmptyDir(self.test_dir)
+		FileSystem.removeEmptyDir(build_dir)
 
-	def cleanPak(self):
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.pak_prefix):
+
+	def cleanPak(self, pak_prefix):
+		for dir_name, subdir_name_list, file_name_list in os.walk(pak_prefix):
 			for file_name in file_name_list:
 				if file_name.startswith(self.pak_name) and file_name.endswith(os.path.extsep + "pk3"):
 					pak_file = os.path.join(dir_name, file_name)
 					Ui.print("clean: " + pak_file)
 					os.remove(pak_file)
 					FileSystem.removeEmptyDir(dir_name)
-		FileSystem.removeEmptyDir(self.pak_prefix)
+		FileSystem.removeEmptyDir(pak_prefix)
 
-	def cleanMap(self):
+
+	def cleanMap(self, build_dir):
 		# TODO: use paktrace abilities?
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
+		for dir_name, subdir_name_list, file_name_list in os.walk(build_dir):
 			for file_name in file_name_list:
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "bsp"):
 					bsp_file = os.path.join(dir_name, file_name)
@@ -277,121 +281,47 @@ class Cleaner():
 					os.remove(minimap_file)
 					FileSystem.removeEmptyDir(dir_name)
 
-	def cleanDust(self, produced_unit_list):
+		FileSystem.removeEmptyDir(build_dir)
 
+
+	def cleanDust(self, build_dir, produced_unit_list, previous_file_list):
 		produced_file_list = []
+		head_list = []
 		for unit in produced_unit_list:
+			head_list.append(unit["head"])
 			produced_file_list.extend(unit["body"])
 
-		paktrace_file_list = []
-		dust_paktrace_list = []
-		dust_file_list = []
+		for file_name in previous_file_list:
+			if file_name not in produced_file_list:
+				dust_file_path = os.path.normpath(os.path.join(build_dir, file_name))
+				Ui.print("clean dust file: " + file_name)
+				dust_file_fullpath = os.path.realpath(dust_file_path)
 
-		paktrace_dir = Repository.PakTrace(None).paktrace_dir
-		paktrace_fulldir = os.path.join(self.test_dir, paktrace_dir)
+				if not os.path.isfile(dust_file_fullpath):
+					# if you're there, it's because you are debugging a crash
+					continue
+
+				FileSystem.cleanRemoveFile(dust_file_fullpath)
+			
+		paktrace_dir = Default.paktrace_dir
+		paktrace_fulldir = os.path.join(build_dir, paktrace_dir)
+
 		if os.path.isdir(paktrace_fulldir):
 			logging.debug("look for dust in directory: " + paktrace_dir)
 			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_fulldir):
-				dir_name = os.path.relpath(dir_name, self.test_dir)
+				dir_name = os.path.relpath(dir_name, build_dir)
 				logging.debug("found paktrace dir: " + dir_name)
 
 				for file_name in file_name_list:
 					file_path = os.path.join(dir_name, file_name)
 					file_path = os.path.normpath(file_path)
-					paktrace = Repository.PakTrace(self.test_dir)
-					body = paktrace.readByPath(file_path)
 
-					member_found = False
-					for member_name in body:
-						member_path = os.path.join(self.test_dir, member_name)
-						member_path = os.path.normpath(member_path)
-						if os.path.isfile(member_path):
-							paktrace_file_list.append(member_name)
-							member_found = True
-
-					if not member_found:
-						dust_paktrace_list.append(file_path)
-
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
-			dir_name = os.path.relpath(dir_name, self.test_dir)
-
-			# skip paktrace directory
-			if dir_name == paktrace_dir or dir_name.startswith(paktrace_dir + os.path.sep):
-				continue
-
-			logging.debug("look for dust in directory: " + dir_name)
-			logging.debug("found directory: " + dir_name)
-			for file_name in file_name_list:
-				that_file = os.path.join(dir_name, file_name)
-				that_file = os.path.normpath(that_file)
-				logging.debug("found file: " + that_file)
-				if that_file not in paktrace_file_list and that_file not in produced_file_list:
-					logging.debug("found dust file: " + that_file)
-					dust_file_list.append(that_file)
-
-		logging.debug("produced file list: " + str(produced_file_list))
-		logging.debug("paktrace file list: " + str(paktrace_file_list))
-		logging.debug("dust paktrace list: " + str(dust_paktrace_list))
-		logging.debug("dust file list: " + str(dust_file_list))
-
-		logging.debug("old file_list: " + str(dust_file_list))
-		for dust_file in dust_file_list:
-			dust_file_path = os.path.join(self.test_dir, dust_file)
-			Ui.print("clean dust file: " + dust_file)
-			full_path = os.path.join(self.test_dir, dust_file_path)
-			FileSystem.cleanRemoveFile(full_path)
-
-		for dust_paktrace in dust_paktrace_list:
-			Ui.print("clean dust paktrace: " + dust_paktrace)
-			full_path = os.path.join(self.test_dir, dust_paktrace)
-			FileSystem.cleanRemoveFile(full_path)
-
-
-def clean(stage):
-	prog_name = os.path.basename(m.__file__) + " " + stage
-	description = "%(prog)s cleans build directory and previously generated package."
-
-	parser = argparse.ArgumentParser(description=description, prog=prog_name)
-
-	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
-	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
-	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
-	parser.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
-	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in prefix %(metavar)s, example: build")
-	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in prefix %(metavar)s, example: build/test")
-	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in prefix %(metavar)s, example: build/pkg")
-	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
-	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
-	parser.add_argument("-a", "--all", dest="clean_all", help="clean all (default)", action="store_true")
-	parser.add_argument("-m", "--map", dest="clean_map", help="clean previous map build", action="store_true")
-	parser.add_argument("-b", "--build", dest="clean_build", help="clean build directory", action="store_true")
-	parser.add_argument("-p", "--package", dest="clean_package", help="clean previously generated packages", action="store_true")
-
-	args = parser.parse_args()
-
-	if args.debug:
-		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-		logging.debug("Debug logging activated")
-		logging.debug("args: " + str(args))
-
-	if args.verbose:
-		Ui.verbosely = True
-
-	clean_all= args.clean_all
-
-	if not args.clean_map and not args.clean_build and not args.clean_package and not args.clean_all:
-		clean_all = True
-
-	cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-
-	if args.clean_map:
-		cleaner.cleanMap()
-
-	if args.clean_build or clean_all:
-		cleaner.cleanTest()
-
-	if args.clean_package or clean_all:
-		cleaner.cleanPak()
+					head_name = os.path.relpath(file_path, Default.paktrace_dir)[:-len(os.path.extsep + Default.paktrace_file_ext)]
+					if head_name not in head_list:
+						Ui.print("clean dust paktrace: " + file_path)
+						dust_paktrace_path = os.path.normpath(os.path.join(build_dir, file_path))
+						dust_paktrace_fullpath = os.path.realpath(dust_paktrace_path)
+						FileSystem.cleanRemoveFile(dust_paktrace_fullpath)
 
 
 def discover(stage):
@@ -423,9 +353,57 @@ def discover(stage):
 	action_list.updateActions(action_list)
 
 
+def prepare(stage):
+	prog_name = os.path.basename(m.__file__) + " " + stage
+	description = "%(prog)s prepare source pakdir."
+
+	parser = argparse.ArgumentParser(description=description, prog=prog_name)
+
+	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
+	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
+	parser.add_argument("--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
+	parser.add_argument("-n", "--no-auto-actions", dest="no_auto_actions", help="do not compute actions at build time", action="store_true")
+	parser.add_argument("-k", "--keep", dest="keep_dust", help="keep dust from previous build", action="store_true")
+	parser.add_argument("-s", "--sequential", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
+
+	args = parser.parse_args()
+
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		logging.debug("Debug logging activated")
+		logging.debug("args: " + str(args))
+
+	if args.verbose:
+		Ui.verbosely = True
+
+	action_list = Action.List(args.source_dir, "prepare", game_name=args.game_name)
+	action_list.readActions()
+
+	file_tree = Repository.Tree(args.source_dir)
+	file_list = file_tree.listFiles()
+
+	if not args.no_auto_actions:
+		action_list.computeActions(file_list)
+
+	source_dir = args.source_dir
+
+	paktrace = Repository.Paktrace(source_dir)
+	previous_file_list = paktrace.listAll()
+
+	parallel_build = not args.sequential_build
+	builder = Builder(source_dir, action_list, "prepare", source_dir, game_name=args.game_name, parallel=parallel_build)
+	produced_unit_list = builder.build()
+
+	cleaner = Cleaner(source_dir)
+
+	if not args.keep_dust:
+		cleaner.cleanDust(source_dir, produced_unit_list, previous_file_list)
+
+
 def build(stage):
 	prog_name = os.path.basename(m.__file__) + " " + stage
-	description = "%(prog)s produces pakdir."
+	description = "%(prog)s produces test pakdir."
 
 	parser = argparse.ArgumentParser(description=description, prog=prog_name)
 
@@ -437,7 +415,7 @@ def build(stage):
 	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in prefix %(metavar)s, example: build/test")
 	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
 	parser.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with profile %(metavar)s, default: %(default)s")
-	parser.add_argument("-a", "--auto-actions", dest="auto_actions", help="compute actions at build time", action="store_true")
+	parser.add_argument("-n", "--no-auto", dest="no_auto_actions", help="do not compute actions", action="store_true")
 	parser.add_argument("-k", "--keep", dest="keep_dust", help="keep dust from previous build", action="store_true")
 	parser.add_argument("-c", "--clean-map", dest="clean_map", help="clean previous map build", action="store_true")
 	parser.add_argument("-s", "--sequential", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
@@ -453,9 +431,6 @@ def build(stage):
 	if args.verbose:
 		Ui.verbosely = True
 
-	if args.clean_map:
-		cleaner.cleanMap()
-
 	action_list = Action.List(args.source_dir, "build", game_name=args.game_name)
 	action_list.readActions()
 
@@ -466,21 +441,33 @@ def build(stage):
 		file_tree = Repository.Tree(args.source_dir)
 		file_list = file_tree.listFiles()
 
-	if args.auto_actions:
+	if not args.no_auto_actions:
 		action_list.computeActions(file_list)
 
+	source_dir = args.source_dir
+
+	pak_config = Repository.Config(source_dir)
+	test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+
+	cleaner = Cleaner(source_dir)
+
+	if args.clean_map:
+		cleaner.cleanMap(test_dir)
+
+	paktrace = Repository.Paktrace(test_dir)
+	previous_file_list = paktrace.listAll()
+
 	parallel_build = not args.sequential_build
-	builder = Builder(args.source_dir, action_list, "build", build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
+	builder = Builder(source_dir, action_list, "build", test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
 	produced_unit_list = builder.build()
 
 	if not args.keep_dust:
-		cleaner = Cleaner(args.source_dir)
-		cleaner.cleanDust(produced_unit_list)
+		cleaner.cleanDust(test_dir, produced_unit_list, previous_file_list)
 
 
 def package(stage):
 	prog_name = os.path.basename(m.__file__) + " " + stage
-	description = "%(prog)s produces pak."
+	description = "%(prog)s produces release pak."
 
 	parser = argparse.ArgumentParser(description=description, prog=prog_name)
 
@@ -504,8 +491,75 @@ def package(stage):
 	if args.verbose:
 		Ui.verbosely = True
 
-	packer = Packer(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
+	source_dir = args.source_dir
+
+	pak_config = Repository.Config(source_dir)
+	test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+	pak_file = pak_config.getPakFile(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
+
+	packer = Packer(source_dir, test_dir, pak_file)
 	packer.pack()
+
+
+def clean(stage):
+	prog_name = os.path.basename(m.__file__) + " " + stage
+	description = "%(prog)s cleans build directory and previously generated package."
+
+	parser = argparse.ArgumentParser(description=description, prog=prog_name)
+
+	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
+	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
+	parser.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in prefix %(metavar)s, example: build")
+	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in prefix %(metavar)s, example: build/test")
+	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in prefix %(metavar)s, example: build/pkg")
+	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
+	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
+	parser.add_argument("-a", "--all", dest="clean_all", help="clean all (default)", action="store_true")
+	parser.add_argument("-s", "--source", dest="clean_source", help="clean previous source preparation", action="store_true")
+	parser.add_argument("-m", "--map", dest="clean_map", help="clean previous map build", action="store_true")
+	parser.add_argument("-b", "--build", dest="clean_build", help="clean build directory", action="store_true")
+	parser.add_argument("-p", "--package", dest="clean_package", help="clean previously generated packages", action="store_true")
+
+	args = parser.parse_args()
+
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		logging.debug("Debug logging activated")
+		logging.debug("args: " + str(args))
+
+	if args.verbose:
+		Ui.verbosely = True
+
+	clean_all = args.clean_all
+
+	if not args.clean_map and not args.clean_build and not args.clean_package and not args.clean_all:
+		clean_all = True
+
+	source_dir = args.source_dir
+	cleaner = Cleaner(source_dir)
+
+	if args.clean_map:
+		pak_config = Repository.Config(source_dir)
+		test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+		cleaner.cleanMap(test_dir)
+
+	if args.clean_source or clean_all:
+		paktrace = Repository.Paktrace(source_dir)
+		previous_file_list = paktrace.listAll()
+		cleaner.cleanDust(source_dir, [], previous_file_list)
+
+	if args.clean_build or clean_all:
+		pak_config = Repository.Config(source_dir)
+		test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+		cleaner.cleanTest(test_dir)
+
+	if args.clean_package or clean_all:
+		pak_config = Repository.Config(source_dir)
+		pak_prefix = pak_config.getPakPrefix(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix)
+		cleaner.cleanPak(pak_prefix)
+
 
 if __name__ == "__main__":
 	main()

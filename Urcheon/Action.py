@@ -11,6 +11,7 @@ from Urcheon import Default
 from Urcheon import FileSystem
 from Urcheon import MapCompiler
 from Urcheon import Repository
+from Urcheon import Slothdir
 from Urcheon import Ui
 from Urcheon import Pak
 from Urcheon import Bsp
@@ -46,7 +47,7 @@ class List():
 		self.computed_disabled_action_dict = OrderedDict()
 
 		# I want lines printed in this order
-		for action_name in self.inspector.action_name_dict.keys():
+		for action_name in self.inspector.action_description_dict.keys():
 			self.active_action_dict[action_name] = []
 			self.disabled_action_dict[action_name] = []
 			self.computed_active_action_dict[action_name] = []
@@ -155,6 +156,7 @@ def list():
 		ConvertVorbis,
 		ConvertOpus,
 		CompileIqm,
+		ExpandSlothdir,
 		CopyBsp,
 		MergeBsp,
 		CompileBsp,
@@ -173,15 +175,16 @@ class Action():
 	subprocess_stdout = subprocess.DEVNULL
 	subprocess_stderr = subprocess.DEVNULL
 
-	def __init__(self, source_dir, test_dir, file_path, stage, game_name=None, map_profile=None, is_nested=False):
-		self.body = None
+	def __init__(self, source_dir, build_dir, file_path, stage, game_name=None, map_profile=None, is_nested=False):
+		self.body = []
 		self.source_dir = source_dir
-		self.test_dir = test_dir
+		self.build_dir = build_dir
 		self.file_path = file_path
 		self.game_name = game_name
 		self.stage = stage
 		self.map_profile = map_profile
 		self.is_nested = is_nested
+		self.paktrace = Repository.Paktrace(self.build_dir)
 
 	def run(self):
 		Ui.print("Dumb action: " + self.file_path)
@@ -196,43 +199,50 @@ class Action():
 		return os.path.join(self.source_dir, self.file_path)
 
 	def getTargetPath(self):
-		return os.path.join(self.test_dir, self.getFileNewName())
+		return os.path.join(self.build_dir, self.getFileNewName())
 
 	def getStatReference(self):
 		return self.getSourcePath()
 		
 	def getBody(self):
 		head = self.getFileNewName()
-		if not self.body:
-			# we are skipping building, reuse body
-			if self.is_nested:
-				self.body = [head]
-			else:
-				paktrace = Repository.PakTrace(self.test_dir)
-				self.body = paktrace.read(head)
 
-		# never do this workaround because ignore action body must be empty
-		# fix your action instead
-		# head = self.getFileNewName()
-		# if head not in self.body:
-		#	self.body.append(head)
-		
+		if head not in self.body:
+			# head is always part of body
+			self.body += [ head ]
+
 		return self.body
 
 	def getProducedUnit(self):
 		head = self.getFileNewName()
 		body = self.getBody()
 
-		paktrace = Repository.PakTrace(self.test_dir)
-		if len(body) > 1:
-			head = self.getFileNewName()
-			paktrace.write(head, body)
-		else:
-			# otherwise it will keep previous paktrace with multiple path in it
-			# if newer build produces only one file
-			paktrace.remove(head)
+		if body:
+			# always write paktrace, even if head is the only body part because
+			# the prepare stage clean-up needs to track all produced files
+			# except in nested build of course since they are already tracked
+			if not self.is_nested:
+				head = self.getFileNewName()
+				self.paktrace.write(head, body)
 
-		unit = {"head":head, "body":body}
+		unit = {
+			"head": head,
+			"body": body
+		}
+
+		return unit
+
+	def getOldProducedUnit(self):
+		head = self.getFileNewName()
+
+		# we are reusing already built files, reuse body
+		body = self.paktrace.read(head)
+		
+		unit = {
+			"head": head,
+			"body": body
+		}
+
 		return unit
 
 	def getExt(self):
@@ -258,7 +268,7 @@ class Action():
 		unit = self.getProducedUnit()
 		body = unit["body"]
 		for produced_file in body:
-			produced_path = os.path.join(self.test_dir, produced_file)
+			produced_path = os.path.join(self.build_dir, produced_file)
 			if os.path.isfile(produced_path):
 				reference_path = self.getStatReference()
 				logging.debug("setting stat from “" + reference_path + "”: " + produced_path)
@@ -271,9 +281,12 @@ class Ignore(Action):
 	parallel = True
 
 	def run(self):
-		Ui.print("Ignoring: " + self.file_path)
-		self.body = []
+		Ui.verbose("Ignore: " + self.file_path)
 		return self.getProducedUnit()
+
+	def getProducedUnit(self):
+		return {}
+
 
 class Keep(Action):
 	keyword = "keep"
@@ -284,9 +297,11 @@ class Keep(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
+
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
+
 		Ui.print("Keep: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		self.setTimeStamp()
@@ -305,8 +320,8 @@ class Copy(Action):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		Ui.print("Copy: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
@@ -326,8 +341,8 @@ class ConvertJpg(Action):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() in ("jpg", "jpeg"):
 			Ui.print("File already in jpg, copy: " + self.file_path)
@@ -355,8 +370,8 @@ class ConvertPng(Action):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "png":
 			Ui.print("File already in png, copy: " + self.file_path)
@@ -389,8 +404,8 @@ class ConvertLossyWebp(DumbWebp):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
@@ -419,8 +434,8 @@ class ConvertLosslessWebp(DumbWebp):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
@@ -455,8 +470,8 @@ class ConvertCrn(DumbCrn):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
@@ -485,8 +500,8 @@ class ConvertNormalCrn(DumbCrn):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
@@ -515,8 +530,8 @@ class ConvertVorbis(Action):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "ogg":
 			Ui.print("File already in vorbis, copy: " + self.file_path)
@@ -544,8 +559,8 @@ class ConvertOpus(Action):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "opus":
 			Ui.print("File already in opus, copy: " + self.file_path)
@@ -573,8 +588,8 @@ class CompileIqm(Action):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		if self.getExt() == "iqm":
 			Ui.print("File already in iqm, copy: " + self.file_path)
@@ -591,6 +606,39 @@ class CompileIqm(Action):
 		return self.switchExtension("iqm")
 
 
+# it's a prepare stage action only
+class ExpandSlothdir(Action):
+	keyword = "expand_slothdir"
+	description = "produce previews and shader"
+	# it does parallel things itself
+	parallel = False
+
+	def run(self):
+		source_path = self.getSourcePath()
+
+		self.slothdir = Slothdir.Slothdir(self.source_dir, source_path, game_name=self.game_name)
+
+		# HACK: never check because multiple files produces on reference
+		# we can detect added files, but not removed files yet
+		# if not self.isDifferent():
+		#	Ui.print("Unmodified file, do nothing: " + self.file_path)
+		#	return self.getOldProducedUnit()
+
+		self.slothdir.run()
+
+		self.setTimeStamp()
+
+		self.body = self.slothdir.preview_list
+
+		return self.getProducedUnit()
+
+	def getStatReference(self):
+		return self.slothdir.getStatReference()
+
+	def getFileNewName(self):
+		return self.slothdir.shader_name
+
+
 class DumbTransient(Action):
 	def createTransientPath(self):
 		build_path = self.getTargetPath()
@@ -605,7 +653,7 @@ class DumbTransient(Action):
 		action_list = List(self.transient_path, self.stage, game_name=self.game_name, disabled_action_list=disabled_action_list)
 		action_list.computeActions(file_list)
 
-		builder = Pak.Builder(self.transient_path, action_list, self.stage, test_dir=self.test_dir, game_name=self.game_name, is_nested=True, parallel=False)
+		builder = Pak.Builder(self.transient_path, action_list, self.stage, self.build_dir, game_name=self.game_name, is_nested=True, parallel=False)
 		# keep track of built files
 		produced_unit_list = builder.build()
 
@@ -627,8 +675,8 @@ class CopyBsp(DumbTransient):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		self.createTransientPath()
 		bsp_path = self.getFileNewName()
@@ -667,8 +715,8 @@ class MergeBsp(DumbTransient):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file, do nothing: " + self.file_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnit()
 
 		# TODO: remove target before merging, to avoid bugs when merging in place
 		# merging in place is not implemented yet
@@ -734,8 +782,8 @@ class CompileBsp(DumbTransient):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.verbose("Unmodified file " + build_path + ", will reuse: " + source_path)
-			return self.getProducedUnit()
+			Ui.print("Unmodified file " + build_path + ", will reuse: " + source_path)
+			return self.getOldProducedUnit()
 
 		self.createTransientPath()
 
