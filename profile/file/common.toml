@@ -3,57 +3,55 @@
 
 [common_pixmap_editor]
 file_ext = [
-	"xcf",
-	"psd",
-	"ora",
+	".xcf",
+	".psd",
+	".ora",
 ]
 description = "Pixmap Editor File"
 build = "ignore"
 
 [common_vector_picture]
 file_ext = [
-	"svg",
-	"svgz",
+	".svg",
+	".svgz",
 ]
 description = "Vector picture"
 build = "ignore"
 
 [common_metada_sidecar]
-file_ext = [
-	"vorbiscomment",
-]
+file_ext = ".vorbiscomment"
 description = "Metadata Sidecar"
 build = "ignore"
 
 [common_pixmap]
 file_ext = [
-	"jpg",
-	"jpeg",
-	"png",
-	"tga",
-	"bmp",
-	"webp",
-	"crn",
-	"dds",
+	".jpg",
+	".jpeg",
+	".png",
+	".tga",
+	".bmp",
+	".webp",
+	".crn",
+	".dds",
 ]
 description = "Texture"
 build = "copy"
 
 [common_sound]
 file_ext = [
-	"wav",
-	"flac",
-	"ogg",
-	"opus",
+	".wav",
+	".flac",
+	".ogg",
+	".opus",
 ]
 description = "Sound File"
 build = "copy"
 
 [common_script]
 file_ext = [
-	"shader",
-	"particle",
-	"trail",
+	".shader",
+	".particle",
+	".trail",
 ]
 dir_ancestor_name = "scripts"
 description = "Common Script"
@@ -61,46 +59,46 @@ build = "copy"
 
 [common_model]
 file_ext = [
-	"ase",
-	"iqm",
-	"iqe",
-	"md3",
-	"md5anim",
-	"md5mesh",
-	"qc",
+	".ase",
+	".iqm",
+	".iqe",
+	".md3",
+	".md5anim",
+	".md5mesh",
+	".qc",
 ]
 description = "Common Model File"
 build = "copy"
 
 [common_iqe_model]
 inherit = "common_model"
-file_ext = "iqe"
+file_ext = ".iqe"
 description = "Common IQE Model File"
 build = "compile_iqm"
 
 [common_model_source]
 file_ext = [
-	"blend",
+	".blend",
 ]
 description = "Common Model Source"
 build = "ignore"
 
 [common_text]
 file_ext = [
-	"txt",
-	"md",
+	".txt",
+	".md",
 ]
 description = "Common Text File"
 build = "copy"
 
 [common_slothdir]
-file_ext = "slothdir"
+file_ext = ".slothdir"
 description = "Common Slothdir Description File"
 prepare = "expand_slothdir"
 
 [common_sloth]
 # handled by slothdir
-file_ext = "sloth"
+file_ext = ".sloth"
 description = "Common Sloth Description File"
 build = "ignore"
 

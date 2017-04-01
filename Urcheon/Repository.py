@@ -260,48 +260,53 @@ class Inspector():
 			"build": "keep",
 		}
 
+	def getDirFatherName(self, file_path):
+		return os.path.split(file_path)[0]
+
+	def getDirGrandFatherName(self, file_path):
+		return os.path.split(os.path.split(file_path)[0])[0]
+
+	def getBaseName(self, file_path):
+		# do not use os.path.splitext() because of .xxx.xxx extensions
+		# FIXME: broken with basenames containing dots
+		return file_path.split(os.path.extsep)[0]
+
 	def inspectFileName(self, file_path, file_name):
-		name = os.path.basename(file_path)
-		return name in file_name
+		return os.path.basename(file_path) == file_name
 
 	def inspectFileExt(self, file_path, file_ext):
-		ext = os.path.splitext(file_path)[1][len(os.path.extsep):]
-		return ext in file_ext
+		return file_path[-len(file_ext):] == file_ext
 
 	def inspectFileBase(self, file_path, file_base):
-		base = os.path.splitext(os.path.basename(file_path))[0]
-		return base in file_base
+		# FIXME: broken with basenames containing dots because of broken getBaseName()
+		return self.getBaseName(file_path) == file_base
 
 	def inspectFilePrefix(self, file_path, file_prefix):
-		suffix = os.path.basename(file_path).split('_')[0]
-		return suffix in file_prefix
+		# FIXME: broken with basenames containing dots because of broken getBaseName()
+		return self.getBaseName(file_path)[:len(file_prefix)] == file_prefix
 
 	def inspectFileSuffix(self, file_path, file_suffix):
-		suffix = os.path.splitext(os.path.basename(file_path))[0].split('_')[-1]
-		return suffix in file_suffix
+		# FIXME: broken with basenames containing dots because of broken getBaseName()
+		return self.getBaseName(file_path)[-len(file_suffix):] == file_suffix
 
 	def inspectDirAncestorName(self, file_path, dir_name):
 		previous = file_path
 		while file_path != "":
 			previous = file_path
 			file_path = os.path.split(file_path)[0]
-		return previous in dir_name
+		return previous == dir_name
 
 	def inspectDirFatherName(self, file_path, dir_name):
-		father = os.path.split(file_path)[0]
-		return father in dir_name
+		return self.getDirFatherName(file_path) == dir_name
 
 	def inspectDirFatherExt(self, file_path, dir_ext):
-		ext = os.path.splitext(os.path.split(file_path)[0])[1][len(os.path.extsep):]
-		return ext in dir_ext
+		return self.inspectFileExt(self.getDirFatherName(file_path), dir_ext)
 
 	def inspectDirGrandFatherName(self, file_path, dir_name):
-		grandfather = os.path.split(os.path.split(file_path)[0])[0]
-		return grandfather in dir_name
+		return self.getDirGrandFatherName(file_path) == dir_name
 
 	def inspectDirGrandFatherExt(self, file_path, dir_ext):
-		ext = os.path.splitext(os.path.split(os.path.split(file_path)[0])[0])[1][len(os.path.extsep):]
-		return ext in dir_ext
+		return self.inspectFileExt(self.getDirGrandFatherName(file_path), dir_ext)
 
 	def inspect(self, file_path):
 		logging.debug("looking for file path:" + file_path)
@@ -328,11 +333,17 @@ class Inspector():
 
 			matched_file_type = True
 			for criteria in criteria_dict.keys():
-				logging.debug("trying criteria: " + criteria + ", value: " + str(criteria_dict[criteria]))
+				logging.debug("trying criteria: " + criteria + ", list: " + str(criteria_dict[criteria]))
 				if criteria_dict[criteria] != None:
-					matched_criteria = self.inspector_name_dict[criteria](file_path, criteria_dict[criteria])
-					logging.debug("matched criteria: " + str(matched_criteria))
-					if not matched_criteria:
+					matched_criteria_list = False
+					for criteria_unit in criteria_dict[criteria]:
+						logging.debug("trying criteria: " + criteria + ", value: " + criteria_unit)
+						matched_criteria = self.inspector_name_dict[criteria](file_path, criteria_unit)
+						logging.debug("matched criteria: " + str(matched_criteria))
+						if matched_criteria:
+							matched_criteria_list = True
+
+					if not matched_criteria_list:
 						matched_file_type = False
 						break
 

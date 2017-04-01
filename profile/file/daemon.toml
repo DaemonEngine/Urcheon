@@ -23,8 +23,8 @@ build = "convert_crn"
 [daemon_crn]
 inherit = "daemon_texture"
 file_ext = [
-	"crn",
-	"dds",
+	".crn",
+	".dds",
 ]
 build = "copy"
 
@@ -41,20 +41,20 @@ build = "convert_crn"
 [daemon_ui_crn]
 inherit = "daemon_ui_texture"
 file_ext = [
-	"crn",
-	"dds",
+	".crn",
+	".dds",
 ]
 build = "copy"
 
 [daemon_skybox]
 inherit = "daemon_texture"
 file_suffix = [
-	"bk",
-	"dn",
-	"ft",
-	"lf",
-	"rt",
-	"up",
+	"_bk",
+	"_dn",
+	"_ft",
+	"_lf",
+	"_rt",
+	"_up",
 ]
 dir_ancestor_name = "env"
 description = "Skybox"
@@ -62,12 +62,12 @@ build = "convert_lossy_webp"
 
 [daemon_jpg_skybox]
 inherit = "daemon_skybox"
-file_ext = "jpg"
+file_ext = ".jpg"
 build = "copy"
 
 [daemon_lightmap]
 inherit = "common_pixmap"
-file_prefix = "lm"
+file_prefix = "lm_"
 dir_ancestor_name = "maps"
 dir_grandfather_name = "maps"
 description = "LightMap"
@@ -75,31 +75,31 @@ build = "convert_lossless_webp"
 
 [daemon_preview]
 inherit = "daemon_texture"
-file_suffix = "p"
+file_suffix = "_p"
 description = "Editor preview image"
 build = "convert_jpg"
 
 [daemon_jpg_preview]
 inherit = "daemon_preview"
-file_ext = "jpg"
+file_ext = ".jpg"
 build = "copy"
 
 [daemon_normalmap]
 inherit = "daemon_texture"
-file_suffix = "n"
+file_suffix = "_n"
 description = "Normal map"
 build = "convert_normalized_crn"
 
 [daemon_crn_normalmap]
 inherit = "daemon_normalmap"
 file_ext = [
-	"crn",
-	"dds",
+	".crn",
+	".dds",
 ]
 build = "copy"
 
 [daemon_minimap_sidecar]
-file_ext = "minimap"
+file_ext = ".minimap"
 dir_ancestor_name = "minimaps"
 description = "MiniMap sidecar"
 build = "copy"
@@ -113,8 +113,8 @@ build = "convert_crn"
 [daemon_crn_minimap_image]
 inherit = "daemon_minimap_image"
 file_ext = [
-	"crn",
-	"dds",
+	".crn",
+	".dds",
 ]
 build = "copy"
 
@@ -127,11 +127,11 @@ build = "convert_lossless_webp"
 
 [daemon_png_colorgrade]
 inherit = "daemon_colorgrade"
-file_ext = "png"
+file_ext = ".png"
 build = "copy"
 
 [daemon_arena]
-file_ext = "arena"
+file_ext = ".arena"
 dir_ancestor_name = "meta"
 description = "Arena file"
 build = "copy"
@@ -155,12 +155,12 @@ build = "compile_bsp"
 
 [daemon_bspdir_lump]
 file_ext = [
-	"txt",
-	"csv",
-	"bin",
+	".txt",
+	".csv",
+	".bin",
 ]
 dir_ancestor_name = "maps"
-dir_father_ext = "bspdir"
+dir_father_ext = ".bspdir"
 description = "BSP Lump"
 build = "merge_bsp"
 
@@ -168,7 +168,7 @@ build = "merge_bsp"
 inherit = "daemon_lightmap"
 dir_ancestor_name = "maps"
 dir_father_name = "lightmaps.d"
-dir_grandfather_ext = "bspdir"
+dir_grandfather_ext = ".bspdir"
 description = "BSP LightMap"
 build = "merge_bsp"
 
@@ -183,20 +183,20 @@ build = "convert_opus"
 
 [daemon_nullwav]
 inherit = "daemon_sound"
-file_ext = "wav"
+file_ext = ".wav"
 file_base = "null"
 description = "Common NULL Sound File"
 build = "copy"
 
 [daemon_opus]
 inherit = "daemon_sound"
-file_ext = "opus"
+file_ext = ".opus"
 description = "Opus Sound File"
 build = "copy"
 
 [daemon_vorbis]
 inherit = "daemon_sound"
-file_ext = "ogg"
+file_ext = ".ogg"
 description = "Vorbis Sound File"
 build = "copy"
 
@@ -213,11 +213,11 @@ build = "compile_iqm"
 
 [daemon_navmesh]
 dir_ancestor_name = "maps"
-file_ext = "navMesh"
+file_ext = ".navMesh"
 description = "Navigation Mesh"
 build = "copy"
 
 [daemon_bsp]
-file_ext = "bsp"
+file_ext = ".bsp"
 description = "BSP File"
 build = "copy_bsp"
