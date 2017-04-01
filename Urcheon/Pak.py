@@ -18,17 +18,11 @@ import argparse
 import logging
 import multiprocessing
 import os
-import shutil
-import subprocess
 import sys
 import tempfile
 import threading
 import zipfile
 from collections import OrderedDict
-
-
-# TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
-# TODO: comment out missing files
 
 
 class Builder():
@@ -45,13 +39,15 @@ class Builder():
 		if not is_nested:
 			pak_config = Repository.Config(source_dir)
 			self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
+
+			if not game_name:
+				game_name = pak_config.requireKey("game")
+
+			self.pak_name = pak_config.requireKey("name")
+
 		else:
 			self.test_dir = test_dir
-
-		self.pak_name = pak_config.requireKey("name")
-
-		if not game_name:
-			game_name = pak_config.requireKey("game")
+			self.pak_name = None
 
 		self.game_name = game_name
 
@@ -70,8 +66,6 @@ class Builder():
 		else:
 			logging.debug("create build dir: " + self.test_dir)
 			os.makedirs(self.test_dir, exist_ok=True)
-
-		logging.debug("reading build list from source dir: " + self.source_dir)
 
 		thread_list = []
 		produced_unit_list = []
@@ -353,36 +347,27 @@ class Cleaner():
 			FileSystem.cleanRemoveFile(full_path)
 
 
-def main(stage=None):
+def clean(stage):
+	prog_name = os.path.basename(m.__file__) + " " + stage
+	description = "%(prog)s cleans build directory and previously generated package."
 
-	if stage:
-		prog_name = os.path.basename(m.__file__) + " " + stage
-	else:
-		prog_name = os.path.basename(m.__file__)
+	parser = argparse.ArgumentParser(description=description, prog=prog_name)
 
-	description = "%(prog)s is a pak builder for my lovely granger."
+	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
+	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
+	parser.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in prefix %(metavar)s, example: build")
+	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in prefix %(metavar)s, example: build/test")
+	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in prefix %(metavar)s, example: build/pkg")
+	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
+	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
+	parser.add_argument("-a", "--all", dest="clean_all", help="clean all (default)", action="store_true")
+	parser.add_argument("-m", "--map", dest="clean_map", help="clean previous map build", action="store_true")
+	parser.add_argument("-b", "--build", dest="clean_build", help="clean build directory", action="store_true")
+	parser.add_argument("-p", "--package", dest="clean_package", help="clean previously generated packages", action="store_true")
 
-	args = argparse.ArgumentParser(description=description, prog=prog_name)
-	args.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
-	args.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
-	args.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
-	args.add_argument("-sd", "--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
-	args.add_argument("-bp", "--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in prefix %(metavar)s, example: build")
-	args.add_argument("-tp", "--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in prefix %(metavar)s, example: build/test")
-	args.add_argument("-pp", "--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in prefix %(metavar)s, example: build/pkg")
-	args.add_argument("-td", "--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
-	args.add_argument("-pf", "--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
-	args.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with profile %(metavar)s, default: %(default)s")
-	args.add_argument("-u", "--update-actions", dest="update", help="compute actions, write down list", action="store_true")
-	args.add_argument("-a", "--auto-actions", dest="auto_actions", help="compute actions at build time and do not store the list", action="store_true")
-	args.add_argument("-c", "--clean", dest="clean", metavar="KEYWORD", help="clean previous build, keywords are: map, test, pak, all")
-	args.add_argument("-b", "--build", dest="build", help="build source pakdir", action="store_true")
-	args.add_argument("-kd", "--keep-dust", dest="keep_dust", help="keep dust from previous build", action="store_true")
-	args.add_argument("-sb", "--sequential-build", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
-	args.add_argument("-p", "--package", dest="package", help="compress release pak", action="store_true")
-	args.add_argument("-sr", "--since-reference", dest="since_reference", metavar="REFERENCE", help="build partial pakdir since given reference")
-
-	args = args.parse_args()
+	args = parser.parse_args()
 
 	if args.debug:
 		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
@@ -392,57 +377,135 @@ def main(stage=None):
 	if args.verbose:
 		Ui.verbosely = True
 
-	if args.clean:
-		if args.clean not in ["map", "test", "pak", "all"]:
-			Ui.warning("clean keyword must be map, test, pak or all")
-			return
+	clean_all= args.clean_all
 
-		cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
+	if not args.clean_map and not args.clean_build and not args.clean_package and not args.clean_all:
+		clean_all = True
 
-		if args.clean == "map":
-			cleaner.cleanMap()
+	cleaner = Cleaner(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
 
-		if args.clean == "test" or args.clean == "all":
-			cleaner.cleanTest()
+	if args.clean_map:
+		cleaner.cleanMap()
 
-		if args.clean == "pak" or args.clean == "all":
-			cleaner.cleanPak()
+	if args.clean_build or clean_all:
+		cleaner.cleanTest()
 
-	action_list = None
+	if args.clean_package or clean_all:
+		cleaner.cleanPak()
+
+
+def discover(stage):
+	prog_name = os.path.basename(m.__file__) + " " + stage
+	description = "%(prog)s discover files and write down action lists."
+
+	parser = argparse.ArgumentParser(description=description, prog=prog_name)
+
+	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
+	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
+	parser.add_argument("--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
+
+	args = parser.parse_args()
+
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		logging.debug("Debug logging activated")
+		logging.debug("args: " + str(args))
+
+	if args.verbose:
+		Ui.verbosely = True
 
 	# TODO: find a way to update "prepare" actions too
-	if args.update:
+	file_tree = Repository.Tree(args.source_dir)
+	file_list = file_tree.listFiles()
+
+	action_list = Action.List(args.source_dir, "build", game_name=args.game_name)
+	action_list.updateActions(action_list)
+
+
+def build(stage):
+	prog_name = os.path.basename(m.__file__) + " " + stage
+	description = "%(prog)s produces pakdir."
+
+	parser = argparse.ArgumentParser(description=description, prog=prog_name)
+
+	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
+	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
+	parser.add_argument("--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in prefix %(metavar)s, example: build")
+	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in prefix %(metavar)s, example: build/test")
+	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as directory %(metavar)s")
+	parser.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with profile %(metavar)s, default: %(default)s")
+	parser.add_argument("-a", "--auto-actions", dest="auto_actions", help="compute actions at build time", action="store_true")
+	parser.add_argument("-k", "--keep", dest="keep_dust", help="keep dust from previous build", action="store_true")
+	parser.add_argument("-c", "--clean-map", dest="clean_map", help="clean previous map build", action="store_true")
+	parser.add_argument("-s", "--sequential", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
+	parser.add_argument("-r", "--reference", dest="since_reference", metavar="REFERENCE", help="build partial pakdir since given reference")
+
+	args = parser.parse_args()
+
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		logging.debug("Debug logging activated")
+		logging.debug("args: " + str(args))
+
+	if args.verbose:
+		Ui.verbosely = True
+
+	if args.clean_map:
+		cleaner.cleanMap()
+
+	action_list = Action.List(args.source_dir, "build", game_name=args.game_name)
+	action_list.readActions()
+
+	if args.since_reference:
+		file_repo = Repository.Git(args.source_dir)
+		file_list = file_repo.listFilesSinceReference(args.since_reference)
+	else:
 		file_tree = Repository.Tree(args.source_dir)
 		file_list = file_tree.listFiles()
 
-		action_list = Action.List(args.source_dir, "build", game_name=args.game_name)
-		action_list.updateActions(action_list)
+	if args.auto_actions:
+		action_list.computeActions(file_list)
 
-	if args.build:
-		if not action_list:
-			action_list = Action.List(args.source_dir, "build", game_name=args.game_name)
-			action_list.readActions()
+	parallel_build = not args.sequential_build
+	builder = Builder(args.source_dir, action_list, "build", build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
+	produced_unit_list = builder.build()
 
-		if args.since_reference:
-			file_repo = Repository.Git(args.source_dir)
-			file_list = file_repo.listFilesSinceReference(args.since_reference)
-		else:
-			file_tree = Repository.Tree(args.source_dir)
-			file_list = file_tree.listFiles()
+	if not args.keep_dust:
+		cleaner = Cleaner(args.source_dir)
+		cleaner.cleanDust(produced_unit_list)
 
-		if args.auto_actions:
-			action_list.computeActions(file_list)
 
-		parallel_build = not args.sequential_build
-		builder = Builder(args.source_dir, action_list, "build", build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
-		produced_unit_list = builder.build()
-		if not args.keep_dust:
-			cleaner = Cleaner(args.source_dir)
-			cleaner.cleanDust(produced_unit_list)
+def package(stage):
+	prog_name = os.path.basename(m.__file__) + " " + stage
+	description = "%(prog)s produces pak."
 
-	if args.package:
-		packer = Packer(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-		packer.pack()
+	parser = argparse.ArgumentParser(description=description, prog=prog_name)
+
+	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
+	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game profile %(metavar)s")
+	parser.add_argument("--source-dir", dest="source_dir", metavar="DIRNAME", default=".", help="build from directory %(metavar)s, default: %(default)s")
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in prefix %(metavar)s, example: build")
+	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="use test pakdir from prefix %(metavar)s, example: build/test")
+	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in prefix %(metavar)s, example: build/pkg")
+	parser.add_argument("--test_dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
+	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as file %(metavar)s")
+
+	args = parser.parse_args()
+
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		logging.debug("Debug logging activated")
+		logging.debug("args: " + str(args))
+
+	if args.verbose:
+		Ui.verbosely = True
+
+	packer = Packer(args.source_dir, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
+	packer.pack()
 
 if __name__ == "__main__":
 	main()

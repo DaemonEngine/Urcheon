@@ -28,18 +28,19 @@ class StageParse():
 		self.stage_dict[stage_name] = help
 		setattr(self, stage_name, False)
 
-	def printHelp(self, bad_arg=None, lone_stage=None):
+	def printHelp(self, bad_stage=False, no_stage=False, lone_stage=False):
 		print("usage: " + self.prog_name + " [-h] <stage> [stage arguments]")
 
-		if bad_arg:
-			print(self.prog_name + ": error: unrecognized argument: " + bad_arg)
+		if bad_stage:
+			print("")
+			print(self.prog_name + ": error: unrecognized argument: " + bad_stage)
 			sys.exit()
 
-		if lone_stage:
+		if no_stage:
 			print("")
-			print(self.prog_name + ": error: missing stage argument")
+			print(self.prog_name + ": error: missing stage")
 			print("")
-			print("  try: " + self.prog_name + " " + lone_stage + " -h")
+			print("  try: " + self.prog_name + " -h")
 			sys.exit()
 
 		if self.description:
@@ -73,20 +74,19 @@ class StageParse():
 
 	def parseArgs(self):
 		if len(sys.argv) == 1:
-			sys.exit()
+			self.printHelp(no_stage=True)
 
 		arg = sys.argv[1]
 
 		if arg == "-h" or arg == "--help":
 			self.printHelp()
 
-		if arg in self.stage_dict.keys():
-			setattr(self, arg, True)
-			self.stage = arg
-		else:
-			self.printHelp(bad_arg=arg)
+		stage = arg
 
-		if len(sys.argv) == 2:
-			self.printHelp(lone_stage=arg)
+		if stage in self.stage_dict.keys():
+			setattr(self, stage, True)
+			self.stage = stage
+		else:
+			self.printHelp(bad_stage=stage)
 
 		return self
