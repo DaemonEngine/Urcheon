@@ -83,10 +83,10 @@ class List():
 						# empty line
 						continue
 					if os.path.isfile(file_path):
-						Ui.print(file_path + ": Known rule, will " + self.inspector.action_name_dict[action_name] + " (predefined action).")
+						Ui.print(file_path + ": Known rule, will " + self.inspector.action_description_dict[action_name] + " (predefined action).")
 						self.active_action_dict[action_name].append(file_path)
 					else:
-						Ui.print(file_path + ": Known rule, will not " + self.inspector.action_name_dict[action_name] + " (missing file).")
+						Ui.print(file_path + ": Known rule, will not " + self.inspector.action_description_dict[action_name] + " (missing file).")
 						self.computed_disabled_action_dict[action_name].append(file_path)
 
 		else:
@@ -100,7 +100,7 @@ class List():
 			logging.debug("inactive actions:" + str(self.disabled_action_dict))
 			for read_action in self.active_action_dict.keys():
 				if file_path in self.active_action_dict[read_action]:
-					Ui.print(file_path + ": Known file, will " + self.inspector.action_name_dict[read_action] + ".")
+					Ui.print(file_path + ": Known file, will " + self.inspector.action_description_dict[read_action] + ".")
 					self.computed_active_action_dict[read_action].append(file_path)
 					unknown_file_path = False
 				elif file_path in self.disabled_action_dict[read_action]:
