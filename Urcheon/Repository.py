@@ -11,12 +11,12 @@
 from Urcheon import Action
 from Urcheon import Default
 from Urcheon import FileSystem
+from Urcheon import Game
 from Urcheon import Profile
 from Urcheon import Ui
 from collections import OrderedDict
 import configparser
 import fnmatch
-import importlib
 import logging
 import operator
 import os
@@ -27,37 +27,39 @@ import pytoml
 
 
 class Config():
-	def __init__(self, source_dir):
+	def __init__(self, source_dir, game_name=None):
+		self.source_dir = source_dir
 		self.profile_fs = Profile.Fs(source_dir)
 
-		self.key_dict = None
-		self.loaded = False
-		self.source_dir = source_dir
+		self.key_dict = {}
 
-		config_pak_name = Default.pak_config_base + Default.pak_config_ext
-		self.readConfig(config_pak_name)
+		config_name = Default.pak_config_base + Default.pak_config_ext
+		self.readConfig(config_name)
 
-	def readConfig(self, config_pak_name):
-		config_pak_path = self.profile_fs.getPath(config_pak_name)
+		if not game_name:
+			game_name = self.requireKey("game")
 
-		if not config_pak_path:
-			Ui.error("pak config file not found: " + config_pak_name)
+		self.game_profile = Game.Game(source_dir, game_name)
 
-		logging.debug("reading pak config file " + config_pak_path)
+	def readConfig(self, config_name):
+		config_path = self.profile_fs.getPath(config_name)
 
-		pak_config = configparser.ConfigParser()
+		if not config_path:
+			Ui.error("pak config file not found: " + config_name)
 
-		if not pak_config.read(config_pak_path):
-			Ui.error("error reading pak config file: " + config_pak_path)
+		logging.debug("reading pak config file " + config_path)
 
-		logging.debug("config sections: " + str(pak_config.sections()))
+		config_parser = configparser.ConfigParser()
 
-		if not "config" in pak_config.sections():
-			Ui.error("can't find config section in pak config file: " + config_pak_path)
+		if not config_parser.read(config_path):
+			Ui.error("error reading pak config file: " + config_path)
 
-		logging.debug("config found in pak config file: " + config_pak_path)
+		logging.debug("config sections: " + str(config_parser.sections()))
+		if not "config" in config_parser.sections():
+			Ui.error("can't find config section in pak config file: " + config_path)
 
-		self.key_dict = pak_config["config"]
+		logging.debug("config found in pak config file: " + config_path)
+		self.key_dict = config_parser["config"]
 
 	def requireKey(self, key_name):
 		# TODO: strip quotes
@@ -113,7 +115,7 @@ class Config():
 			if not test_prefix:
 				test_prefix = self.getTestPrefix(build_prefix=build_prefix)
 			pak_name = self.requireKey("name")
-			test_dir = test_prefix + os.path.sep + pak_name + "_test" + os.path.extsep + "pk3dir"
+			test_dir = test_prefix + os.path.sep + pak_name + "_test" + self.game_profile.pakdir_ext
 
 		return os.path.abspath(test_dir)
 
@@ -125,10 +127,10 @@ class Config():
 			pak_version = self.requireKey("version")
 
 			if pak_version == "@ref":
-				file_repo = Git(self.source_dir)
+				file_repo = Git(self.source_dir, self.game_profile.pak_format)
 				pak_version = file_repo.getVersion()
 
-			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + os.path.extsep + "pk3"
+			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + self.game_profile.pak_ext
 
 		return os.path.abspath(pak_file)
 
@@ -370,7 +372,7 @@ class Inspector():
 
 
 class BlackList():
-	def __init__(self, source_dir):
+	def __init__(self, source_dir, pak_format):
 		self.blacklist = [
 			"Thumbs.db",
 			"Makefile",
@@ -385,12 +387,14 @@ class BlackList():
 			"*~",
 			".*.swp",
 			".git*",
-			"DEPS",
 			Default.pakinfo_dir,
 			Default.paktrace_dir,
 			Default.build_prefix,
 		]
 		pass
+
+		if pak_format == "dpk":
+			self.blacklist.append("DEPS")
 
 		pakignore_name = Default.ignore_list_base + Default.ignore_list_ext
 		pakignore_path = os.path.join(Default.pakinfo_dir, pakignore_name)
@@ -445,11 +449,13 @@ class BlackList():
 
 
 class Tree():
-	def __init__(self, source_dir):
+	def __init__(self, source_dir, game_name=None):
 		self.source_dir = source_dir
 
+		self.pak_config = Config(source_dir, game_name=game_name)
+
 	def isValid(self):
-		return os.path.isfile(os.path.join(self.source_dir, Default.pak_config_base + Default.pak_config_ext))
+		return os.path.isfile(os.path.join(self.source_dir, Default.pakinfo_dir, Default.pak_config_base + Default.pak_config_ext))
 
 	def listFiles(self):
 		file_list = []
@@ -462,7 +468,7 @@ class Tree():
 				file_path = os.path.join(dir_name, file_name)
 				file_list.append(file_path)
 
-		blacklist = BlackList(self.source_dir)
+		blacklist = BlackList(self.source_dir, self.pak_config.game_profile.pak_format)
 		file_list = blacklist.filter(file_list)
 
 		return file_list
@@ -551,8 +557,10 @@ class Paktrace():
 		return file_list
 
 class Git():
-	def __init__(self, source_dir):
+	def __init__(self, source_dir, pak_format):
 		self.source_dir = source_dir
+		self.pak_format = pak_format
+
 		self.git = ["git", "-C", self.source_dir]
 		self.subprocess_stdout = subprocess.DEVNULL
 		self.subprocess_stderr = subprocess.DEVNULL
@@ -585,6 +593,9 @@ class Git():
 				break
 
 		if self.tag_list == []:
+			version = "0"
+
+		if version == "":
 			version = "0"
 
 		time_stamp = self.getHexTimeStamp(reference)
@@ -645,7 +656,7 @@ class Git():
 		stdout, stderr = proc.communicate()
 		file_list = stdout.decode().splitlines()
 
-		blacklist = BlackList(self.source_dir)
+		blacklist = BlackList(self.source_dir, self.pak_format)
 		file_list = blacklist.filter(file_list)
 
 		return file_list
@@ -666,7 +677,7 @@ class Git():
 			else:
 				logging.debug("file not there anymore: " + file_path)
 
-		blacklist = BlackList(self.source_dir)
+		blacklist = BlackList(self.source_dir, self.pak_format)
 		file_list = blacklist.filter(file_list)
 
 		return file_list
@@ -783,6 +794,7 @@ class Deps():
 class PakPath:
 	def __init__(self):
 		self.pakpath_list = []
+		pakdir_ext = ".dpkdir"
 
 		pakpath_env = os.getenv("PAKPATH")
 		if pakpath_env:
@@ -793,13 +805,13 @@ class PakPath:
 			for dir_name in os.listdir(pakpath):
 				full_path = os.path.abspath(os.path.join(pakpath, dir_name))
 				if os.path.isdir(full_path):
-					if dir_name.endswith(os.path.extsep + "pk3dir"):
+					if dir_name.endswith(pakdir_ext):
 						if dir_name not in self.pakdir_dict:
 							pak_name = dir_name.split('_')[0]
-							pak_version = dir_name.split('_')[1][:-len(os.path.extsep + "pk3dir")]
+							pak_version = dir_name.split('_')[1][:-len(pakdir_ext)]
 
 							if pak_version == "src":
-								git = Git(full_path)
+								git = Git(full_path, "dpk")
 								if git.test():
 									pak_version = git.getVersion()
 								else:
@@ -817,6 +829,7 @@ class PakPath:
 
 	def getPakDirVersion(self, pak_name):
 		if pak_name not in self.pakdir_dict:
+			Ui.warning("missing pakdir, can't enforce version: " + pak_name)
 			return None
 
 		return self.pakdir_dict[pak_name]["version"]

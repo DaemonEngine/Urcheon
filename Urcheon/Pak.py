@@ -11,6 +11,7 @@
 from Urcheon import Action
 from Urcheon import Default
 from Urcheon import FileSystem
+from Urcheon import Game
 from Urcheon import MapCompiler
 from Urcheon import Repository
 from Urcheon import Ui
@@ -38,7 +39,7 @@ class Builder():
 
 		# Do not look for pak configuration in temporary directories, do not build temporary stuff in system build directories
 		if not is_nested:
-			pak_config = Repository.Config(source_dir)
+			pak_config = Repository.Config(source_dir, game_name=game_name)
 
 			if not game_name:
 				game_name = pak_config.requireKey("game")
@@ -49,6 +50,7 @@ class Builder():
 			self.build_dir = build_dir
 
 		self.game_name = game_name
+		self.game_profile = Game.Game(source_dir, game_name)
 
 		if not map_profile:
 			map_config = MapCompiler.Config(source_dir, game_name=self.game_name)
@@ -117,28 +119,31 @@ class Builder():
 
 			unit_list.append(unit)
 
-		if not self.is_nested:
-			is_deps = False
+		if self.stage == "build" and not self.is_nested:
+			if self.game_profile.pak_format == "dpk":
+				is_deps = False
 
-			deps = Repository.Deps()
+				deps = Repository.Deps()
 
-			if self.since_reference:
-				is_deps = True
-				git_repo = Repository.Git(self.source_dir)
-				previous_version = git_repo.computeVersion(self.since_reference)
-				deps.set(self.pak_name, previous_version)
+				# add itself to DEPS if partial build
+				if self.since_reference:
+					is_deps = True
+					git_repo = Repository.Git(self.source_dir, "dpk")
+					previous_version = git_repo.computeVersion(self.since_reference)
+					deps.set(self.pak_name, previous_version)
 
-			if deps.read(self.source_dir):
-				is_deps = True
+				if deps.read(self.source_dir):
+					is_deps = True
 
-			if is_deps:
-				deps.translateTest()
-				deps.write(self.build_dir)
+				if is_deps:
+					# translating DEPS file
+					deps.translateTest()
+					deps.write(self.build_dir)
 
-				unit = {}
-				unit["head"] = "DEPS"
-				unit["body"] = []
-				unit_list.append(unit)
+					unit = {}
+					unit["head"] = "DEPS"
+					unit["body"] = []
+					unit_list.append(unit)
 
 		logging.debug("unit_list:" + str(unit_list))
 		return unit_list
@@ -148,12 +153,17 @@ class Builder():
 		res.append(func(*args))
 
 
-class Packer():
+class Packager():
 	# TODO: reuse paktraces, does not walk for files
-	def __init__(self, source_dir, build_dir, pak_file):
-		pak_config = Repository.Config(source_dir)
+	def __init__(self, source_dir, build_dir, pak_file, game_name=None):
+		pak_config = Repository.Config(source_dir, game_name=game_name)
 		self.build_dir = build_dir
 		self.pak_file = pak_file
+
+		if not game_name:
+			game_name = pak_config.requireKey("game")
+
+		self.game_profile = Game.Game(source_dir, game_name)
 
 	def createSubdirs(self, pak_file):
 		pak_subdir = os.path.dirname(pak_file)
@@ -194,21 +204,22 @@ class Packer():
 					continue
 
 				# ignore DEPS file, will add it later
-				if file_path == "DEPS":
+				if file_path == "DEPS" and self.game_profile.pak_format == "dpk":
 					continue
 
 				Ui.print("add file to package: " + file_path)
 				pak.write(full_path, arcname=file_path)
 
-		# translating DEPS file
-		deps = Repository.Deps()
-		if deps.read(self.build_dir):
-			deps.translateRelease()
-			# TODO: add itself if partial build
-			deps_temp_dir = tempfile.mkdtemp()
-			deps_temp_file = deps.write(deps_temp_dir)
-			Ui.print("add file to package: DEPS")
-			pak.write(deps_temp_file, arcname="DEPS")
+		if self.game_profile.pak_format == "dpk":
+			# translating DEPS file
+			deps = Repository.Deps()
+			if deps.read(self.build_dir):
+				deps.translateRelease()
+
+				deps_temp_dir = tempfile.mkdtemp()
+				deps_temp_file = deps.write(deps_temp_dir)
+				Ui.print("add file to package: DEPS")
+				pak.write(deps_temp_file, arcname="DEPS")
 
 		logging.debug("close: " + self.pak_file)
 		pak.close()
@@ -217,10 +228,14 @@ class Packer():
 
 
 class Cleaner():
-	def __init__(self, source_dir):
-		pak_config = Repository.Config(source_dir)
+	def __init__(self, source_dir, game_name=None):
+		pak_config = Repository.Config(source_dir, game_name=game_name)
 		self.pak_name = pak_config.requireKey("name")
 
+		if not game_name:
+			game_name = pak_config.requireKey("game")
+
+		self.game_profile = Game.Game(source_dir, game_name)
 
 	def cleanTest(self, build_dir):
 		for dir_name, subdir_name_list, file_name_list in os.walk(build_dir):
@@ -239,7 +254,7 @@ class Cleaner():
 	def cleanPak(self, pak_prefix):
 		for dir_name, subdir_name_list, file_name_list in os.walk(pak_prefix):
 			for file_name in file_name_list:
-				if file_name.startswith(self.pak_name) and file_name.endswith(os.path.extsep + "pk3"):
+				if file_name.startswith(self.pak_name) and file_name.endswith(self.game_profile.pak_ext):
 					pak_file = os.path.join(dir_name, file_name)
 					Ui.print("clean: " + pak_file)
 					os.remove(pak_file)
@@ -332,10 +347,10 @@ def discover(stage):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("-B", "--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("-T", "--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
-	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile")
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build %(metavar)s directory, default: %(default)s")
 
 	args = parser.parse_args()
@@ -358,12 +373,12 @@ def discover(stage):
 		Ui.notice("discover from: " + source_dir)
 		source_dir = os.path.realpath(args.source_dir[0])
 
-		source_tree = Repository.Tree(source_dir)
+		source_tree = Repository.Tree(source_dir, game_name=args.game_name)
 		if not source_tree.isValid():
 			Ui.error("not a supported tree, not going further", silent=True)
 
 		# TODO: find a way to update "prepare" actions too
-		file_tree = Repository.Tree(source_dir)
+		file_tree = Repository.Tree(source_dir, game_name=args.game_name)
 		file_list = file_tree.listFiles()
 
 		action_list = Action.List(source_dir, "build", game_name=args.game_name)
@@ -378,10 +393,10 @@ def prepare(stage):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("-B", "--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("-T", "--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
-	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile")
 	parser.add_argument("-n", "--no-auto-actions", dest="no_auto_actions", help="do not compute actions at build time", action="store_true")
 	parser.add_argument("-k", "--keep", dest="keep_dust", help="keep dust from previous build", action="store_true")
 	parser.add_argument("-s", "--sequential", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
@@ -407,7 +422,7 @@ def prepare(stage):
 		Ui.notice("prepare from: " + source_dir)
 		source_dir = os.path.realpath(source_dir)
 		
-		source_tree = Repository.Tree(source_dir)
+		source_tree = Repository.Tree(source_dir, game_name=args.game_name)
 		if not source_tree.isValid():
 			Ui.error("not a supported tree, not going further", silent=True)
 
@@ -481,20 +496,21 @@ def build(stage):
 		action_list = Action.List(source_dir, "build", game_name=args.game_name)
 		action_list.readActions()
 
+		pak_config = Repository.Config(source_dir, game_name=args.game_name)
+
 		if args.since_reference:
-			file_repo = Repository.Git(source_dir)
+			file_repo = Repository.Git(source_dir, pak_config.game_profile.pak_format)
 			file_list = file_repo.listFilesSinceReference(args.since_reference)
 		else:
-			file_tree = Repository.Tree(source_dir)
+			file_tree = Repository.Tree(source_dir, game_name=args.game_name)
 			file_list = file_tree.listFiles()
 
 		if not args.no_auto_actions:
 			action_list.computeActions(file_list)
 
-		pak_config = Repository.Config(source_dir)
 		test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 
-		cleaner = Cleaner(source_dir)
+		cleaner = Cleaner(source_dir, game_name=args.game_name)
 
 		if args.clean_map:
 			cleaner.cleanMap(test_dir)
@@ -550,12 +566,12 @@ def package(stage):
 		if not source_tree.isValid():
 			Ui.error("not a supported tree, not going further", silent=True)
 
-		pak_config = Repository.Config(source_dir)
+		pak_config = Repository.Config(source_dir, game_name=args.game_name)
 		test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 		pak_file = pak_config.getPakFile(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
 
-		packer = Packer(source_dir, test_dir, pak_file)
-		packer.pack()
+		packager = Packager(source_dir, test_dir, pak_file, game_name=args.game_name)
+		packager.pack()
 
 
 def clean(stage):
@@ -566,6 +582,7 @@ def clean(stage):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("-B", "--build-prefix", dest="build_prefix", metavar="DIRNAME", help="clean in %(metavar)s prefix, example: build")
 	parser.add_argument("-T", "--test-prefix", dest="test_prefix", metavar="DIRNAME", help="clean test pakdir in %(metavar)s prefix, example: build/test")
 	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="clean release pak in %(metavar)s prefix, example: build/pkg")
@@ -606,10 +623,10 @@ def clean(stage):
 		if not source_tree.isValid():
 			Ui.error("not a supported tree, not going further", silent=True)
 
-		cleaner = Cleaner(source_dir)
+		cleaner = Cleaner(source_dir, game_name=args.game_name)
 
 		if args.clean_map:
-			pak_config = Repository.Config(source_dir)
+			pak_config = Repository.Config(source_dir, game_name=args.game_name)
 			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 			cleaner.cleanMap(test_dir)
 
@@ -619,12 +636,12 @@ def clean(stage):
 			cleaner.cleanDust(source_dir, [], previous_file_list)
 
 		if args.clean_build or clean_all:
-			pak_config = Repository.Config(source_dir)
+			pak_config = Repository.Config(source_dir, game_name=args.game_name)
 			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 			cleaner.cleanTest(test_dir)
 
 		if args.clean_package or clean_all:
-			pak_config = Repository.Config(source_dir)
+			pak_config = Repository.Config(source_dir, game_name=args.game_name)
 			pak_prefix = pak_config.getPakPrefix(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix)
 			cleaner.cleanPak(pak_prefix)
 

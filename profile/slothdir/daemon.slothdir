@@ -1,3 +1,6 @@
+# Author:  Thomas DEBESSE <dev@illwieckz.net>
+# License: CC0 1.0
+
 [config]
 sloth = "daemon.sloth"
 
