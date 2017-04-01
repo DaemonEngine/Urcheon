@@ -448,6 +448,9 @@ class Tree():
 	def __init__(self, source_dir):
 		self.source_dir = source_dir
 
+	def isValid(self):
+		return os.path.isfile(os.path.join(self.source_dir, Default.pak_config_base + Default.pak_config_ext))
+
 	def listFiles(self):
 		file_list = []
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
