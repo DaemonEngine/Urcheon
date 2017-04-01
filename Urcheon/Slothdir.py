@@ -44,7 +44,7 @@ class Slothdir():
 
 		if self.slothdir_file_path:
 			self.read(self.slothdir_file_path, real_path=True)
-			self.base_path = self.slothdir_file_path[:-len(os.path.extsep + Default.slothdir_profile_ext)]
+			self.base_path = self.slothdir_file_path[:-len(Default.slothdir_profile_ext)]
 			self.dir_path = self.base_path
 			if "dir" in self.slothdir_dict["suffix"]:
 				self.base_path = self.base_path[:-len(self.slothdir_dict["suffix"]["dir"])]
@@ -96,7 +96,7 @@ class Slothdir():
 
 	def read(self, slothdir_profile, real_path=False):
 		if not real_path:
-			slothdir_profile_name = os.path.join(Default.slothdir_profile_dir, slothdir_profile + os.path.extsep + Default.slothdir_profile_ext)
+			slothdir_profile_name = os.path.join(Default.slothdir_profile_dir, slothdir_profile + Default.slothdir_profile_ext)
 			slothdir_profile_path = self.profile_fs.getPath(slothdir_profile_name)
 		else:
 			slothdir_profile_path = slothdir_profile
@@ -157,7 +157,7 @@ class Slothdir():
 						else:
 							logging.debug("will reuse diffuse as preview")
 
-				elif file_ext == os.path.extsep + Default.sloth_profile_ext:
+				elif file_ext == Default.sloth_profile_ext:
 					sloth_name = os.path.join(dir_name, file_name)
 					logging.debug("sloth file found: " + sloth_name)
 					sloth_list.append(sloth_name)
@@ -168,7 +168,7 @@ class Slothdir():
 
 	def getForeignPreviewName(self, diffuse_name):
 		dir_name = os.path.dirname(diffuse_name)
-		slothdir_file_name = dir_name + os.path.extsep + Default.slothdir_profile_ext
+		slothdir_file_name = dir_name + Default.slothdir_profile_ext
 		slothdir_file_path = os.path.realpath(os.path.join(self.source_dir, slothdir_file_name))
 		if not os.path.isfile(slothdir_file_path):
 			Ui.error("slothdir file not found: " + slothdir_file_path)
@@ -270,7 +270,7 @@ class Slothdir():
 		command_list = [ "sloth.py" ]
 
 		if self.game_name:
-			sloth_profile_name = os.path.join(Default.sloth_profile_dir, self.game_name + os.path.extsep + Default.sloth_profile_ext)
+			sloth_profile_name = os.path.join(Default.sloth_profile_dir, self.game_name + Default.sloth_profile_ext)
 			sloth_profile_path = self.profile_fs.getPath(sloth_profile_name)
 			if sloth_profile_path:
 				command_list += [ "-f", sloth_profile_path ]

@@ -36,7 +36,7 @@ class List():
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
-		action_list_file_name = stage + os.path.extsep + Default.stage_action_list_ext
+		action_list_file_name = stage + Default.stage_action_list_ext
 		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 

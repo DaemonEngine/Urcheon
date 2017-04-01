@@ -34,7 +34,7 @@ class Config():
 		self.loaded = False
 		self.source_dir = source_dir
 
-		config_pak_name = Default.pak_config_base + os.path.extsep + Default.pak_config_ext
+		config_pak_name = Default.pak_config_base + Default.pak_config_ext
 		self.readConfig(config_pak_name)
 
 	def readConfig(self, config_pak_name):
@@ -154,7 +154,7 @@ class FileProfile():
 		self.expandFileTypeDict()
 
 	def readProfile(self, profile_name):
-		file_profile_name = os.path.join(Default.file_profile_dir, profile_name + os.path.extsep + Default.file_profile_ext)
+		file_profile_name = os.path.join(Default.file_profile_dir, profile_name + Default.file_profile_ext)
 		file_profile_path = self.profile_fs.getPath(file_profile_name)
 
 		if not file_profile_path:
@@ -392,7 +392,7 @@ class BlackList():
 		]
 		pass
 
-		pakignore_name = Default.ignore_list_base + os.path.extsep + Default.ignore_list_ext
+		pakignore_name = Default.ignore_list_base + Default.ignore_list_ext
 		pakignore_path = os.path.join(Default.pakinfo_dir, pakignore_name)
 		pakignore_path = os.path.join(source_dir, pakignore_path)
 
@@ -525,7 +525,7 @@ class Paktrace():
 
 	def getName(self, head):
 		head_path = os.path.join(self.build_dir, head)
-		paktrace_name = head + os.path.extsep + Default.paktrace_file_ext
+		paktrace_name = head + Default.paktrace_file_ext
 		return paktrace_name
 		
 	def getPath(self, head):

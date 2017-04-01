@@ -40,21 +40,21 @@ class Config():
 		# try loading map config first
 		if map_path:
 			map_base = os.path.splitext(os.path.basename(map_path))[0]
-			map_config_path = os.path.join(Default.map_profile_dir, map_base + os.path.extsep + Default.map_profile_ext)
+			map_config_path = os.path.join(Default.map_profile_dir, map_base + Default.map_profile_ext)
 
 			if self.profile_fs.isFile(map_config_path):
 				config_path = map_config_path
 
 		# if no map config, try loading game map config
 		if not config_path and game_name:
-			game_config_path = os.path.join(Default.map_profile_dir, game_name + os.path.extsep + Default.map_profile_ext)
+			game_config_path = os.path.join(Default.map_profile_dir, game_name + Default.map_profile_ext)
 
 			if self.profile_fs.isFile(game_config_path):
 				config_path = game_config_path
 
 		# if no map config and no game config, try loading default one
 		if not config_path:
-			default_config_path = os.path.join(Default.map_profile_dir, Default.default_base + os.path.extsep + Default.map_profile_ext)
+			default_config_path = os.path.join(Default.map_profile_dir, Default.default_base + Default.map_profile_ext)
 
 			if self.profile_fs.isFile(default_config_path):
 				config_path = default_config_path
@@ -80,7 +80,7 @@ class Config():
 				game_name = config["_init_"]["extend"]
 				logging.debug("found “extend” instruction in “_init_” section: " + game_name)
 				logging.debug("loading parent game map config")
-				game_config_path = os.path.join(Default.map_profile_dir, game_name + os.path.extsep + Default.map_profile_ext)
+				game_config_path = os.path.join(Default.map_profile_dir, game_name + Default.map_profile_ext)
 				self.readConfig(game_config_path, is_parent=True)
 
 			if "default" in config["_init_"].keys():

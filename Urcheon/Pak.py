@@ -316,7 +316,7 @@ class Cleaner():
 					file_path = os.path.join(dir_name, file_name)
 					file_path = os.path.normpath(file_path)
 
-					head_name = os.path.relpath(file_path, Default.paktrace_dir)[:-len(os.path.extsep + Default.paktrace_file_ext)]
+					head_name = os.path.relpath(file_path, Default.paktrace_dir)[:-len(Default.paktrace_file_ext)]
 					if head_name not in head_list:
 						Ui.print("clean dust paktrace: " + file_path)
 						dust_paktrace_path = os.path.normpath(os.path.join(build_dir, file_path))
