@@ -140,7 +140,7 @@ class FileProfile():
 		# not yet used:
 		self.source_dir = source_dir
 
-		# for self.inspector.inspector_name_dict
+		# because of: for self.inspector.inspector_name_dict
 		self.inspector = Inspector(None, None, None)
 
 		self.profile_fs = Profile.Fs(source_dir)
@@ -271,7 +271,7 @@ class Inspector():
 	def getBaseName(self, file_path):
 		# do not use os.path.splitext() because of .xxx.xxx extensions
 		# FIXME: broken with basenames containing dots
-		return file_path.split(os.path.extsep)[0]
+		return os.path.basename(file_path).split(os.path.extsep)[0]
 
 	def inspectFileName(self, file_path, file_name):
 		return os.path.basename(file_path) == file_name

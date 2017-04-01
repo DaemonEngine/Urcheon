@@ -44,7 +44,7 @@ class Slothdir():
 
 		if self.slothdir_file_path:
 			self.read(self.slothdir_file_path, real_path=True)
-			self.base_path = self.slothdir_file_path[:-len(Default.slothdir_profile_ext)]
+			self.base_path = os.path.dirname(self.slothdir_file_path)
 			self.dir_path = self.base_path
 			if "dir" in self.slothdir_dict["suffix"]:
 				self.base_path = self.base_path[:-len(self.slothdir_dict["suffix"]["dir"])]
