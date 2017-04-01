@@ -16,12 +16,12 @@ This toolset was initially developed for the [Interstellar Oasis](https://github
 
 Shipped with Urcheon is the Esquirel tool, this is a toolset to modify `.map` and `.bsp` files. Esquirel is a bit id Tech 3 centric at this time. It works well for Unvanquished at this time and probably with many other games using id Tech 3 map and bsp format.
 
-Urcheon is the Middle English term for “hedgehog”, used to refer the related ordinary in heraldry.
+_Urcheon is the Middle English term for “hedgehog”, used to refer the related ordinary in heraldry._
 
-Esquirel is the Englo-Norman word for “squirrel”, from the Old French “escurel” who displaced Middle English “aquerne”.
+_Esquirel is the Englo-Norman word for “squirrel”, from the Old French “escurel” who displaced Middle English “aquerne”._
 
 
-Urcheon Help
+Urcheon help
 ------------
 
 This is where the beast comes. This stage handles assets in repository, being able to prepare them (sloth-driven shader generation), build them (asset compression, bspdir merge, map compilation), then package them. Each file type (lightmap, skybox, texture, model…) is recognized thanks to some profiles you can extend or modify, picking the optimal compression format for each type. If needed, you can write explicit rules for some specific files to force some format or blacklist some files. The Urcheon tool becomes more powerful when used in git-tracked asset repositories: it can build partial package given any given git reference (to build a package that contains only things since last release tag for example), and it can automatically computes the package version using tags, commits date, and commit id. It allows to define per-map compilation profile. The asset conversion and compression pass is parallelized to speed-up the process.
@@ -70,7 +70,7 @@ This stage is convenient to clean stuff, it has multiple options if you don't wa
 
 Having this `.pakinfo/pak.ini` file in your repository:
 
-````
+```
 [config]
 name = map-name
 version = @ref
@@ -97,7 +97,7 @@ Type `urcheon <stage> --help` from some help.
 The `urcheon` tool relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. You must use [daemonmap](https://github.com/Unvanquished/daemonmap) if you want to generate Unvanquished navmeshes, and [Sloth](https://github.com/Unvanquished/Sloth) if you use it to generate shader files. Other dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from Sauerbraten](http://sauerbraten.org/iqm/).
 
 
-Esquirel Help
+Esquirel help
 -------------
 
 Like Urcheon, Esquirel offers multiple stages.
