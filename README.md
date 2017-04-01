@@ -8,7 +8,7 @@ _My lovely granger needs a tender knight to care for his little flower._
 Description
 -----------
 
-This is a toolset to manage and build pk3 source directory
+This is a toolset to manage and build `pk3` or `dpk` source directories.
 
 This toolset focus on [Unvanquished](http://unvanquished.net) game support, but many things were thought to be extended.
 
@@ -49,16 +49,16 @@ If you need to prepare your source, always call this stage before the `build` on
 
 This stage is required, it produces for you a testable pakdir with final formats: compressed textures, compiled map etc. If your assets are tracked in a Git repository, you can a build partial pakdir using the `-r` or `--reference` options plus an arbitrary past Git reference (tag, commit…)
 
-You can set a `PAKPATH` environment variable to declare multiple directories containing other pakdir, it's needed if your package relies on other ones. The format is like the good old `PATH` environment variable: pathes separated with colons.
+You can set a `PAKPATH` environment variable to declare multiple directories containing other pakdir, it's needed if your package relies on other ones. The format is like the good old `PATH` environment variable: _pathes separated with colons_.
 
-If you're building a partial package, an extra entry containing your previous package version is added to `DEPS` file automatically.
+If you're building a partial `dpk` package, an extra entry containing your previous package version is added to `DEPS` file automatically.
 
 You must call this stage before the `package` one.
 
 
 ### The `package` stage
 
-This stage produces a pak file from your previously built pakdir. It automatically write the version string of the produced pak and automatically rewrites your `DEPS` file with version from other pakdir in `PAKPATH`.
+This stage produces a pak file from your previously built pakdir and your game supports `dpk` format. Urcheon automatically writes the version string of the produced pak and automatically rewrites your `DEPS` file with version from other pakdir in `PAKPATH`.
 
 
 ### The `clean` stage
