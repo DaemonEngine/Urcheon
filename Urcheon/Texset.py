@@ -176,6 +176,8 @@ class PrevRun():
 			Ui.print("Unmodified file, do nothing: " + source_path)
 			return preview_path
 
+		FileSystem.makeFileSubdirs(preview_fullpath)
+
 		command_list = [ "convert" ]
 		command_list += [ source_fullpath ]
 		command_list += [ "-quality", "75", "-background", "magenta", "-alpha", "remove", "-alpha", "off", "-resize", "256x256!>"]
@@ -369,6 +371,8 @@ class SlothRun():
 		# if FileSystem.isSame(shader_fullpath, file_reference):
 		#	logging.debug("unmodified slothrun, skipping sloth generation")
 		#	return
+
+		FileSystem.makeFileSubdirs(shader_fullpath)
 
 		command_list = [ "sloth.py" ]
 

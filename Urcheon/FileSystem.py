@@ -25,6 +25,10 @@ def removeEmptyDir(dir_name):
 			os.rmdir(dir_name)
 
 
+def makeFileSubdirs(file_name):
+	os.makedirs(os.path.dirname(file_name), exist_ok=True)
+
+
 def getNewer(file_path_list):
 	# TODO: remove files that does not exist before checking
 
