@@ -15,7 +15,6 @@ from Urcheon import Game
 from Urcheon import Profile
 from Urcheon import Ui
 from collections import OrderedDict
-import configparser
 import fnmatch
 import logging
 import operator
@@ -23,7 +22,7 @@ import os
 import re
 import shutil
 import subprocess
-import pytoml
+import toml
 
 
 class Config():
@@ -49,17 +48,15 @@ class Config():
 
 		logging.debug("reading pak config file " + config_path)
 
-		config_parser = configparser.ConfigParser()
+		config_file = open(config_path, "r")
+		config_dict = toml.load(config_file)
+		config_file.close()
 
-		if not config_parser.read(config_path):
-			Ui.error("error reading pak config file: " + config_path)
-
-		logging.debug("config sections: " + str(config_parser.sections()))
-		if not "config" in config_parser.sections():
+		if not "config" in config_dict.keys():
 			Ui.error("can't find config section in pak config file: " + config_path)
 
 		logging.debug("config found in pak config file: " + config_path)
-		self.key_dict = config_parser["config"]
+		self.key_dict = config_dict["config"]
 
 	def requireKey(self, key_name):
 		# TODO: strip quotes
@@ -164,7 +161,7 @@ class FileProfile():
 			Ui.error("file profile file not found: " + file_profile_name)
 
 		file_profile_file = open(file_profile_path, "r")
-		file_profile_dict = pytoml.load(file_profile_file)
+		file_profile_dict = toml.load(file_profile_file)
 		file_profile_file.close()
 		
 		if "_init_" in file_profile_dict.keys():
@@ -194,7 +191,7 @@ class FileProfile():
 
 	def printProfile(self):
 		logging.debug(str(self.file_type_dict))
-		print(pytoml.dumps(self.file_type_dict))
+		print(toml.dumps(self.file_type_dict))
 
 	def expandFileType(self, file_type_name):
 		logging.debug("expanding file type: " + file_type_name)
@@ -449,10 +446,15 @@ class BlackList():
 
 
 class Tree():
-	def __init__(self, source_dir, game_name=None):
+	def __init__(self, source_dir, game_name=None, transient_path=False):
 		self.source_dir = source_dir
 
-		self.pak_config = Config(source_dir, game_name=game_name)
+		if not transient_path:
+			self.pak_config = Config(source_dir, game_name=game_name)
+			self.pak_format = self.pak_config.game_profile.pak_format
+		else:
+			# HACKY: the most universal one
+			self.pak_format = "pk3"
 
 	def isValid(self):
 		return os.path.isfile(os.path.join(self.source_dir, Default.pakinfo_dir, Default.pak_config_base + Default.pak_config_ext))
@@ -468,7 +470,7 @@ class Tree():
 				file_path = os.path.join(dir_name, file_name)
 				file_list.append(file_path)
 
-		blacklist = BlackList(self.source_dir, self.pak_config.game_profile.pak_format)
+		blacklist = BlackList(self.source_dir, self.pak_format)
 		file_list = blacklist.filter(file_list)
 
 		return file_list

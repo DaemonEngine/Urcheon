@@ -136,7 +136,7 @@ class List():
 	def updateActions(self, action_list):
 		self.readActions()
 
-		file_tree = Repository.Tree(self.source_dir)
+		file_tree = Repository.Tree(self.source_dir, game_name=self.game_name)
 		file_list = file_tree.listFiles()
 		self.computeActions(file_list)
 
@@ -692,7 +692,7 @@ class DumbTransient(Action):
 		os.makedirs(self.transient_maps_path, exist_ok=True)
 
 	def buildTransientPath(self, disabled_action_list=[]):
-		file_tree = Repository.Tree(self.transient_path)
+		file_tree = Repository.Tree(self.transient_path, game_name=self.game_name, transient_path=True)
 		file_list = file_tree.listFiles()
 
 		action_list = List(self.transient_path, self.stage, game_name=self.game_name, disabled_action_list=disabled_action_list)
@@ -827,7 +827,7 @@ class CompileBsp(DumbTransient):
 		self.createSubdirs()
 
 		if not self.isDifferent():
-			Ui.print("Unmodified file " + build_path + ", will reuse: " + source_path)
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
 			return self.getOldProducedUnitList()
 
 		self.createTransientPath()

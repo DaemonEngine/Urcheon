@@ -24,6 +24,7 @@ class Fs():
 
 		self.walk(profile_dir)
 		self.walk(pakinfo_dir)
+		logging.debug("files found: " + str(self.file_dict))
 
 	def walk(self, dir_path):
 		full_dir_path = os.path.abspath(dir_path)

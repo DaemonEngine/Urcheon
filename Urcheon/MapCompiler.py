@@ -12,7 +12,6 @@ from Urcheon import Default
 from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
-import configparser
 import logging
 import re
 import shutil
@@ -20,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import os
+import toml
 from collections import OrderedDict
 
 
@@ -65,77 +65,74 @@ class Config():
 
 		self.readConfig(config_path)
 
-	def readConfig(self, config_file, is_parent=False):
-		config = configparser.ConfigParser()
-
-		config_path = self.profile_fs.getPath(config_file)
+	def readConfig(self, config_file_name, is_parent=False):
+		config_path = self.profile_fs.getPath(config_file_name)
 
 		logging.debug("reading map config: " + config_path)
-		if not config.read(config_path):
-			Ui.error("failed to load map config: " + config_file)
+		config_file = open(config_path, "r")
+		config_dict = toml.load(config_file, _dict=OrderedDict)
+		config_file.close()
 
-		if "_init_" in config.sections():
-			logging.debug("found “_init_” section in map profile: " + config_file)
-			if "extend" in config["_init_"].keys():
-				game_name = config["_init_"]["extend"]
+		if "_init_" in config_dict.keys():
+			logging.debug("found “_init_” section in map profile: " + config_file_name)
+			if "extend" in config_dict["_init_"].keys():
+				game_name = config_dict["_init_"]["extend"]
 				logging.debug("found “extend” instruction in “_init_” section: " + game_name)
 				logging.debug("loading parent game map config")
+
+				if game_name == "@game":
+					game_name = self.game_name
+
 				game_config_path = os.path.join(Default.map_profile_dir, game_name + Default.map_profile_ext)
 				self.readConfig(game_config_path, is_parent=True)
 
-			if "default" in config["_init_"].keys():
-				default = config["_init_"]["default"]
+			if "default" in config_dict["_init_"].keys():
+				default = config_dict["_init_"]["default"]
 				logging.debug("found “default” instruction in “_init_” section: " + default)
 				self.default_profile = default
 
-			if "source" in config["_init_"].keys():
-				keep_source = config["_init_"]["source"]
-				logging.debug("found “source” instruction in “_init_” section: " + keep_source)
-				if keep_source == "true":
-					# the default option is True
-					pass
-				elif keep_source == "false":
-					self.keep_source = False
-				else:
-					Ui.error("unknown “source” value: " + keep_source)
+			if "source" in config_dict["_init_"].keys():
+				keep_source = config_dict["_init_"]["source"]
+				logging.debug("found “source” instruction in “_init_” section: " + str(keep_source))
+				self.keep_source = keep_source
 
-			del config["_init_"]
+			del config_dict["_init_"]
 
-		logging.debug("build profiles found: " + str(config.sections()))
+		logging.debug("build profiles found: " + str(config_dict.keys()))
 
-		for build_profile in config.sections():
+		for build_profile in config_dict.keys():
 			logging.debug("build profile found: " + build_profile)
 
 			# overwrite parent profile
 			self.profile[build_profile] = OrderedDict()
 
-			for build_stage in config[build_profile].keys():
+			for build_stage in config_dict[build_profile].keys():
 				logging.debug("found build stage in “" + build_profile + "” profile: " + build_stage)
 
-				logging.debug("add build parameters for “" + build_stage + "” stage: " + config[build_profile][build_stage])
-				arguments = config[build_profile][build_stage].split(" ")
+				logging.debug("add build parameters for “" + build_stage + "” stage: " + config_dict[build_profile][build_stage])
+				arguments = config_dict[build_profile][build_stage].split(" ")
 				self.profile[build_profile][build_stage] = arguments
 
 		if is_parent:
 			return
 
 		# reordered empty config without "all" stuff
-		temp_config = OrderedDict()
+		temp_config_dict = OrderedDict()
 
 		for build_profile in self.profile.keys():
 			if build_profile == "all":
 				continue
 
-			temp_config[build_profile] = OrderedDict()
+			temp_config_dict[build_profile] = OrderedDict()
 
 			if "all" in self.profile.keys():
 				for build_stage in self.profile["all"].keys():
-					temp_config[build_profile][build_stage] = self.profile["all"][build_stage]
+					temp_config_dict[build_profile][build_stage] = self.profile["all"][build_stage]
 
 			for build_stage in self.profile[build_profile].keys():
-				temp_config[build_profile][build_stage] = self.profile[build_profile][build_stage]
+				temp_config_dict[build_profile][build_stage] = self.profile[build_profile][build_stage]
 
-		self.profile = temp_config
+		self.profile = temp_config_dict
 
 
 	def requireDefaultProfile(self):
@@ -145,6 +142,8 @@ class Config():
 
 
 	def printConfig(self):
+		print(toml.dumps(self.profile))
+		"""
 		print("[_init_]")
 		if self.default_profile:
 			print("default = " + self.default_profile)
@@ -162,6 +161,7 @@ class Config():
 				for build_stage in self.profile[build_profile].keys():
 					logging.debug("parameters for “" + build_stage + "” stage: " + str(self.profile[build_profile][build_stage]))
 					print(build_stage + " = " + " ".join(self.profile[build_profile][build_stage]))
+		"""
 
 
 class Compiler():

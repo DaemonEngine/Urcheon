@@ -13,9 +13,9 @@ from Urcheon import FileSystem
 from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
-import configparser
 import logging
 import os
+import toml
 
 
 class Game():
@@ -44,25 +44,24 @@ class Game():
 			Ui.error("game profile file not found: " + profile_name)
 
 		logging.debug("reading game profile file " + profile_path)
-		config_parser = configparser.ConfigParser()
+		profile_file = open(profile_path, "r")
+		profile_dict = toml.load(profile_file)
+		profile_file.close()
 
-		if not config_parser.read(profile_path):
-			Ui.error("error reading game profile file: " + profile_path)
-
-		if "_init_" in config_parser.sections():
+		if "_init_" in profile_dict.keys():
 			logging.debug("found “_init_” section in game profile: " + profile_path)
-			if "extend" in config_parser["_init_"].keys():
-				game_name = config_parser["_init_"]["extend"]
+			if "extend" in profile_dict["_init_"].keys():
+				game_name = profile_dict["_init_"]["extend"]
 				logging.debug("found “extend” instruction in “_init_” section: " + game_name)
 				logging.debug("loading parent game profile")
 				self.read(game_name)
 
-			del config_parser["_init_"]
+			del profile_dict["_init_"]
 
 		# only one section supported at this time, let's keep it simple
-		if "config" in config_parser.sections():
+		if "config" in profile_dict.keys():
 			logging.debug("config found in game profile file: " + profile_path)
-			self.key_dict = config_parser["config"]
+			self.key_dict = profile_dict["config"]
 
 
 	def requireKey(self, key_name):
