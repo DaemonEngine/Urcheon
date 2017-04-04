@@ -16,7 +16,7 @@ from Urcheon import Ui
 from collections import OrderedDict
 import logging
 import os
-import toml
+import pytoml
 import shutil
 import subprocess
 import tempfile
@@ -42,7 +42,7 @@ class PrevRun():
 
 		logging.debug("reading preview profile file: " + preview_profile_fullpath)
 		preview_profile_file = open(preview_profile_fullpath, "r")
-		prevrun_dict = toml.load(preview_profile_file)
+		prevrun_dict = pytoml.load(preview_profile_file)
 		preview_profile_file.close()
 
 		if "dir" not in self.prevrun_dict.keys():
@@ -96,7 +96,7 @@ class PrevRun():
 
 		logging.debug("reading prevrun profile file: " + prevrun_profile_fullpath)
 		prevrun_profile_file = open(prevrun_profile_fullpath, "r")
-		prevrun_dict = toml.load(prevrun_profile_file)
+		prevrun_dict = pytoml.load(prevrun_profile_file)
 		prevrun_profile_file.close()
 
 		if "_init_" in prevrun_dict.keys():
@@ -120,7 +120,7 @@ class PrevRun():
 
 	def print(self):
 		logging.debug(str(self.prevrun_dict))
-		print(toml.dumps(self.prevrun_dict))
+		print(pytoml.dumps(self.prevrun_dict))
 
 
 	def walk(self):
@@ -291,7 +291,7 @@ class SlothRun():
 
 		logging.debug("reading slothrun profile file: " + slothrun_profile_fullpath)
 		slothrun_profile_file = open(slothrun_profile_fullpath, "r")
-		slothrun_dict = toml.load(slothrun_profile_file)
+		slothrun_dict = pytoml.load(slothrun_profile_file)
 		slothrun_profile_file.close()
 
 		if "_init_" in slothrun_dict.keys():
@@ -315,7 +315,7 @@ class SlothRun():
 
 	def print(self):
 		logging.debug(str(self.slothrun_dict))
-		print(toml.dumps(self.slothrun_dict))
+		print(pytoml.dumps(self.slothrun_dict))
 
 
 	def walk(self):

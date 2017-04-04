@@ -22,7 +22,7 @@ import os
 import re
 import shutil
 import subprocess
-import toml
+import pytoml
 
 
 class Config():
@@ -49,7 +49,7 @@ class Config():
 		logging.debug("reading pak config file " + config_path)
 
 		config_file = open(config_path, "r")
-		config_dict = toml.load(config_file)
+		config_dict = pytoml.load(config_file)
 		config_file.close()
 
 		if not "config" in config_dict.keys():
@@ -161,7 +161,7 @@ class FileProfile():
 			Ui.error("file profile file not found: " + file_profile_name)
 
 		file_profile_file = open(file_profile_path, "r")
-		file_profile_dict = toml.load(file_profile_file)
+		file_profile_dict = pytoml.load(file_profile_file)
 		file_profile_file.close()
 		
 		if "_init_" in file_profile_dict.keys():
@@ -191,7 +191,7 @@ class FileProfile():
 
 	def printProfile(self):
 		logging.debug(str(self.file_type_dict))
-		print(toml.dumps(self.file_type_dict))
+		print(pytoml.dumps(self.file_type_dict))
 
 	def expandFileType(self, file_type_name):
 		logging.debug("expanding file type: " + file_type_name)

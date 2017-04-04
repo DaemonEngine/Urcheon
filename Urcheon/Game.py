@@ -15,7 +15,7 @@ from Urcheon import Repository
 from Urcheon import Ui
 import logging
 import os
-import toml
+import pytoml
 
 
 class Game():
@@ -45,7 +45,7 @@ class Game():
 
 		logging.debug("reading game profile file " + profile_path)
 		profile_file = open(profile_path, "r")
-		profile_dict = toml.load(profile_file)
+		profile_dict = pytoml.load(profile_file)
 		profile_file.close()
 
 		if "_init_" in profile_dict.keys():
