@@ -248,6 +248,7 @@ class Inspector():
 			"dir_father_ext":		self.inspectDirFatherExt,
 			"dir_grandfather_name":	self.inspectDirGrandFatherName,
 			"dir_grandfather_ext":	self.inspectDirGrandFatherExt,
+			"dir_parent_name":		self.inspectDirParentName,
 		}
 
 		self.action_description_dict = OrderedDict()
@@ -306,6 +307,17 @@ class Inspector():
 
 	def inspectDirGrandFatherExt(self, file_path, dir_ext):
 		return self.inspectFileExt(self.getDirGrandFatherName(file_path), dir_ext)
+
+	def inspectDirParentName(self, file_path, dir_name):
+		# split the file name, do not check it
+		parents, subpath = os.path.split(file_path)
+		# split the last directory, check it, etc.
+		parents, subpath = os.path.split(file_path)
+		while parents != "":
+			if subpath == dir_name:
+				return True
+			parents, subpath = os.path.split(parents)
+		return False
 
 	def inspect(self, file_path):
 		logging.debug("looking for file path:" + file_path)
