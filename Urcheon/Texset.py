@@ -185,7 +185,8 @@ class PrevRun():
 
 		Ui.print("Generate preview: " + source_path)
 
-		logging.debug("convert command line: " + str(command_list))
+		logging.debug("convert command list: " + str(command_list))
+		logging.debug("convert command line: '" + str("' '".join(command_list)) + "'")
 
 		# TODO: set something else in verbose mode
 		subprocess_stdout = subprocess.DEVNULL
@@ -394,6 +395,9 @@ class SlothRun():
 		if "specular" in self.texture_suffix_dict.keys():
 			command_list += [ "--spec", self.texture_suffix_dict["specular"] ]
 
+		if "addition" in self.texture_suffix_dict.keys():
+			command_list += [ "--add", self.texture_suffix_dict["addition"] ]
+
 		if "preview" in self.texture_suffix_dict.keys():
 			command_list += [ "--prev", self.texture_suffix_dict["preview"] ]
 
@@ -414,7 +418,8 @@ class SlothRun():
 		for texture_source_dir in self.texture_source_dir_list:
 			command_list += [ os.path.realpath(os.path.join(self.source_dir, texture_source_dir)) ]
 
-		logging.debug("sloth command line: " + str(" ".join(command_list)))
+		logging.debug("sloth command list: " + str(command_list))
+		logging.debug("sloth command line: '" + str("' '".join(command_list)) + "'")
 
 		Ui.print("Sloth shader: " + self.slothrun_file_path)
 
