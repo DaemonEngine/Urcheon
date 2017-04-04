@@ -261,10 +261,10 @@ class Inspector():
 		}
 
 	def getDirFatherName(self, file_path):
-		return os.path.split(file_path)[0]
+		return os.path.basename(os.path.split(file_path)[0])
 
 	def getDirGrandFatherName(self, file_path):
-		return os.path.split(os.path.split(file_path)[0])[0]
+		return os.path.basename(os.path.split(os.path.split(file_path)[0])[0])
 
 	def getBaseName(self, file_path):
 		# do not use os.path.splitext() because of .xxx.xxx extensions
