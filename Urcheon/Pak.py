@@ -80,14 +80,14 @@ class Builder():
 
 				if not self.parallel:
 					# explicitely requested (like in recursion)
-					produced_unit_list.append(a.run())
+					produced_unit_list.extend(a.run())
 				else:
 					if not action.parallel:
 						# action that can't be multithreaded
-						produced_unit_list.append(a.run())
+						produced_unit_list.extend(a.run())
 					else:
 						# wrapper does: produced_unit_list.append(a.run())
-						thread = threading.Thread(target=self.threadAppendRes, args=(a.run, (), produced_unit_list))
+						thread = threading.Thread(target=self.threadExtendRes, args=(a.run, (), produced_unit_list))
 						thread_list.append(thread)
 
 						while threading.active_count() > multiprocessing.cpu_count():
@@ -148,9 +148,9 @@ class Builder():
 		logging.debug("unit_list:" + str(unit_list))
 		return unit_list
 
-	def threadAppendRes(self, func, args, res):
+	def threadExtendRes(self, func, args, res):
 		# magic: only works if res is a mutable object (like a list)
-		res.append(func(*args))
+		res.extend(func(*args))
 
 
 class Packager():

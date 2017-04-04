@@ -11,7 +11,7 @@ from Urcheon import Default
 from Urcheon import FileSystem
 from Urcheon import MapCompiler
 from Urcheon import Repository
-from Urcheon import Slothdir
+from Urcheon import Texset
 from Urcheon import Ui
 from Urcheon import Pak
 from Urcheon import Bsp
@@ -156,7 +156,8 @@ def list():
 		ConvertVorbis,
 		ConvertOpus,
 		CompileIqm,
-		ExpandSlothdir,
+		PrevRun,
+		SlothRun,
 		CopyBsp,
 		MergeBsp,
 		CompileBsp,
@@ -188,7 +189,7 @@ class Action():
 
 	def run(self):
 		Ui.print("Dumb action: " + self.file_path)
-		return getProducedUnit()
+		return getProducedUnitList()
 
 	def getFileNewName(self):
 		# must be overriden in sub class
@@ -213,7 +214,7 @@ class Action():
 
 		return self.body
 
-	def getProducedUnit(self):
+	def getProducedUnitList(self):
 		head = self.getFileNewName()
 		body = self.getBody()
 
@@ -230,9 +231,10 @@ class Action():
 			"body": body
 		}
 
-		return unit
+		return [ unit ]
 
-	def getOldProducedUnit(self):
+
+	def getOldProducedUnitList(self):
 		head = self.getFileNewName()
 
 		# we are reusing already built files, reuse body
@@ -243,7 +245,7 @@ class Action():
 			"body": body
 		}
 
-		return unit
+		return [ unit ]
 
 	def getExt(self):
 		return os.path.splitext(self.file_path)[1][len(os.path.extsep):].lower()
@@ -265,14 +267,15 @@ class Action():
 			os.makedirs(build_subdir, exist_ok=True)
 
 	def setTimeStamp(self):
-		unit = self.getProducedUnit()
-		body = unit["body"]
-		for produced_file in body:
-			produced_path = os.path.join(self.build_dir, produced_file)
-			if os.path.isfile(produced_path):
-				reference_path = self.getStatReference()
-				logging.debug("setting stat from “" + reference_path + "”: " + produced_path)
-				shutil.copystat(reference_path, produced_path)
+		unit_list = self.getProducedUnitList()
+		for unit in unit_list:
+			body = unit["body"]
+			for produced_file in body:
+				produced_path = os.path.join(self.build_dir, produced_file)
+				if os.path.isfile(produced_path):
+					reference_path = self.getStatReference()
+					logging.debug("setting stat from “" + reference_path + "”: " + produced_path)
+					shutil.copystat(reference_path, produced_path)
 
 
 class Ignore(Action):
@@ -282,9 +285,9 @@ class Ignore(Action):
 
 	def run(self):
 		Ui.verbose("Ignore: " + self.file_path)
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
-	def getProducedUnit(self):
+	def getProducedUnitList(self):
 		return {}
 
 
@@ -300,13 +303,13 @@ class Keep(Action):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		Ui.print("Keep: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 
 class Copy(Action):
@@ -321,13 +324,13 @@ class Copy(Action):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		Ui.print("Copy: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 
 class ConvertJpg(Action):
@@ -342,7 +345,7 @@ class ConvertJpg(Action):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() in ("jpg", "jpeg"):
 			Ui.print("File already in jpg, copy: " + self.file_path)
@@ -353,7 +356,7 @@ class ConvertJpg(Action):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 	def getFileNewName(self):
 		return self.switchExtension("jpg")
@@ -371,7 +374,7 @@ class ConvertPng(Action):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "png":
 			Ui.print("File already in png, copy: " + self.file_path)
@@ -382,7 +385,7 @@ class ConvertPng(Action):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 	def getFileNewName(self):
 		return self.switchExtension("png")
@@ -405,7 +408,7 @@ class ConvertLossyWebp(DumbWebp):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
@@ -420,7 +423,7 @@ class ConvertLossyWebp(DumbWebp):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 
 class ConvertLosslessWebp(DumbWebp):
@@ -435,7 +438,7 @@ class ConvertLosslessWebp(DumbWebp):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
@@ -450,7 +453,7 @@ class ConvertLosslessWebp(DumbWebp):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 
 class DumbCrn(Action):
@@ -471,7 +474,7 @@ class ConvertCrn(DumbCrn):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
@@ -486,7 +489,7 @@ class ConvertCrn(DumbCrn):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 
 class ConvertNormalCrn(DumbCrn):
@@ -501,7 +504,7 @@ class ConvertNormalCrn(DumbCrn):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
@@ -516,7 +519,7 @@ class ConvertNormalCrn(DumbCrn):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 
 class ConvertVorbis(Action):
@@ -531,7 +534,7 @@ class ConvertVorbis(Action):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "ogg":
 			Ui.print("File already in vorbis, copy: " + self.file_path)
@@ -542,7 +545,7 @@ class ConvertVorbis(Action):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 	def getFileNewName(self):
 		return self.switchExtension("ogg")
@@ -560,7 +563,7 @@ class ConvertOpus(Action):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "opus":
 			Ui.print("File already in opus, copy: " + self.file_path)
@@ -571,7 +574,7 @@ class ConvertOpus(Action):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 	def getFileNewName(self):
 		return self.switchExtension("opus")
@@ -589,7 +592,7 @@ class CompileIqm(Action):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		if self.getExt() == "iqm":
 			Ui.print("File already in iqm, copy: " + self.file_path)
@@ -600,43 +603,85 @@ class CompileIqm(Action):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 	def getFileNewName(self):
 		return self.switchExtension("iqm")
 
 
 # it's a prepare stage action only
-class ExpandSlothdir(Action):
-	keyword = "expand_slothdir"
-	description = "produce previews and shader"
-	# it does parallel things itself
+class PrevRun(Action):
+	keyword = "run_prevrun"
+	description = "produce previews"
+	# must run before SlothRun
 	parallel = False
 
 	def run(self):
 		source_path = self.getSourcePath()
 
-		self.slothdir = Slothdir.Slothdir(self.source_dir, source_path, game_name=self.game_name)
+		self.prevrun = Texset.PrevRun(self.source_dir, source_path, game_name=self.game_name)
 
 		# HACK: never check because multiple files produces on reference
 		# we can detect added files, but not removed files yet
 		# if not self.isDifferent():
 		#	Ui.print("Unmodified file, do nothing: " + self.file_path)
-		#	return self.getOldProducedUnit()
+		#	return self.getOldProducedUnitList()
 
-		self.slothdir.run()
+		self.preview_list = self.prevrun.run()
 
-		self.setTimeStamp()
+		# it does it itself
+		# self.setTimeStamp()
 
-		self.body = self.slothdir.preview_list
+		return self.getProducedUnitList()
 
-		return self.getProducedUnit()
+	def getProducedUnitList(self):
+		unit_list = []
+		for head in self.preview_list:
+			body = [ head ]
+			self.paktrace.write(head, body)
+
+			unit = {
+				"head": head,
+				"body": body,
+			}
+
+			unit_list.append(unit)
+
+		return unit_list
+
+
+# it's a prepare stage action only
+class SlothRun(Action):
+	keyword = "run_slothrun"
+	description = "produce shader"
+	# must run after PrevRun
+	parallel = False
+
+	def run(self):
+		source_path = self.getSourcePath()
+
+		self.slothrun = Texset.SlothRun(self.source_dir, source_path, game_name=self.game_name)
+
+		# HACK: never check because multiple files produces on reference
+		# we can detect added files, but not removed files yet
+		# if not self.isDifferent():
+		#	Ui.print("Unmodified file, do nothing: " + self.file_path)
+		#	return self.getOldProducedUnitList()
+
+		self.slothrun.run()
+
+		self.body = [ self.getFileNewName() ]
+
+		# HACK: we don't need it because we don't rely on it
+		# self.setTimeStamp()
+
+		return self.getProducedUnitList()
 
 	def getStatReference(self):
-		return self.slothdir.getStatReference()
+		return self.slothrun.getStatReference()
 
 	def getFileNewName(self):
-		return self.slothdir.shader_name
+		return self.slothrun.shader_filename
 
 
 class DumbTransient(Action):
@@ -676,7 +721,7 @@ class CopyBsp(DumbTransient):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		self.createTransientPath()
 		bsp_path = self.getFileNewName()
@@ -694,7 +739,7 @@ class CopyBsp(DumbTransient):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 class MergeBsp(DumbTransient):
 	keyword = "merge_bsp"
@@ -716,7 +761,7 @@ class MergeBsp(DumbTransient):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		# TODO: remove target before merging, to avoid bugs when merging in place
 		# merging in place is not implemented yet
@@ -754,7 +799,7 @@ class MergeBsp(DumbTransient):
 		# in the future we will use packtrace or something like that
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 	def getSourcePath(self):
 		return os.path.join(self.source_dir, self.getBspDirName())
@@ -783,7 +828,7 @@ class CompileBsp(DumbTransient):
 
 		if not self.isDifferent():
 			Ui.print("Unmodified file " + build_path + ", will reuse: " + source_path)
-			return self.getOldProducedUnit()
+			return self.getOldProducedUnitList()
 
 		self.createTransientPath()
 
@@ -796,7 +841,7 @@ class CompileBsp(DumbTransient):
 
 		self.setTimeStamp()
 
-		return self.getProducedUnit()
+		return self.getProducedUnitList()
 
 	def getFileNewName(self):
 		return self.switchExtension("bsp")

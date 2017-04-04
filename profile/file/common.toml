@@ -91,16 +91,20 @@ file_ext = [
 description = "Common Text File"
 build = "copy"
 
-[common_slothdir]
-file_base = "slothdir"
-file_ext = ".toml"
-description = "Common Slothdir Description File"
-prepare = "expand_slothdir"
+[common_prevrun]
+file_ext = ".prevrun"
+description = "Common PrevRun Description File"
+prepare = "run_prevrun"
+
+[common_slothrun]
+file_ext = ".slothrun"
+description = "Common SlothRun Description File"
+prepare = "run_slothrun"
 
 [common_sloth]
 file_ext = ".sloth"
 description = "Common Sloth Description File"
-# handled by slothdir
+# handled by slothrun
 build = "ignore"
 
 [common_readme]

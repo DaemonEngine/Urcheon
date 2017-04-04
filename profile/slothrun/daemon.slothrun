@@ -1,12 +1,7 @@
 # Author:  Thomas DEBESSE <dev@illwieckz.net>
 # License: CC0 1.0
 
-[config]
-sloth = "daemon.sloth"
-
 [shader]
-dir = "scripts"
-ext = "shader"
 header = """
 For modifications, it is recommended that you copy this file into your map's
 file space and, inside the shader name (but not in the pathes to the texture
@@ -17,8 +12,10 @@ This file has been generated automatically with Sloth, which can be found at
 https://github.com/Unvanquished/Sloth
 """
 
-[suffix]
-dir = "_src"
+[sloth]
+config = "daemon"
+
+[texture]
 diffuse = "_d"
 normal = "_n"
 height = "_h"
