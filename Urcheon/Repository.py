@@ -801,6 +801,8 @@ class PakPath:
 		pakpath_env = os.getenv("PAKPATH")
 		if pakpath_env:
 			self.pakpath_list = pakpath_env.split(":")
+			while "" in self.pakpath_list:
+				self.pakpath_list.remove("")
 
 		self.pakdir_dict = {}
 		for pakpath in self.pakpath_list:
