@@ -189,6 +189,9 @@ class Packager():
 			logging.debug("remove existing package: " + self.pak_file)
 			os.remove(self.pak_file)
 
+		# maximum compression
+		zipfile.zlib.Z_DEFAULT_COMPRESSION = zipfile.zlib.Z_BEST_COMPRESSION
+
 		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
 
 		paktrace_dir = Default.paktrace_dir
