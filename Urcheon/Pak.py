@@ -644,7 +644,3 @@ def clean(stage):
 			pak_config = Repository.Config(source_dir, game_name=args.game_name)
 			pak_prefix = pak_config.getPakPrefix(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix)
 			cleaner.cleanPak(pak_prefix)
-
-
-if __name__ == "__main__":
-	main()
