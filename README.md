@@ -68,13 +68,13 @@ This stage is convenient to clean stuff, it has multiple options if you don't wa
 
 ### Example:
 
-Having this `.pakinfo/pak.ini` file in your repository:
+Having this `.pakinfo/pak.conf` file in your repository:
 
 ```
 [config]
-name = map-name
-version = @ref
-game = unvanquished
+name = "map-name"
+version = "@ref"
+game = "unvanquished"
 ```
 
 Running these commands:
