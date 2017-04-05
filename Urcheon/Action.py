@@ -37,7 +37,7 @@ class List():
 
 		self.source_dir = source_dir
 		self.game_name = game_name
-		action_list_file_name = stage + Default.stage_action_list_ext
+		action_list_file_name = os.path.join(Default.action_list_dir, stage + Default.action_list_ext)
 		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
