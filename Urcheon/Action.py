@@ -36,11 +36,12 @@ class List():
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
+		self.game_name = game_name
 		action_list_file_name = stage + Default.stage_action_list_ext
 		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
-		self.inspector = Repository.Inspector(source_dir, game_name, stage, disabled_action_list=disabled_action_list)
+		self.inspector = Repository.Inspector(source_dir, self.game_name, stage, disabled_action_list=disabled_action_list)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
