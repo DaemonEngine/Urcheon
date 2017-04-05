@@ -82,7 +82,9 @@ class List():
 					if action_name == "":
 						# empty line
 						continue
-					if os.path.isfile(file_path):
+
+					file_fullpath = os.path.realpath(os.path.join(self.source_dir, file_path))
+					if os.path.isfile(file_fullpath):
 						Ui.print(file_path + ": Known rule, will " + self.inspector.action_description_dict[action_name] + " (predefined action).")
 						self.active_action_dict[action_name].append(file_path)
 					else:
