@@ -94,7 +94,14 @@ Type `urcheon <stage> --help` from some help.
 
 ### Dependencies
 
+These are the Python3 modules you will need to run `urcheon`: `argparse`, `fnmatch`, `glob`, `logging`, `multiprocessing`, `operator`, `os`, `pytoml`, `re`, `shutil`, `struct`, `subprocess`, `sys`, `tempfile`, `threading`, `toml`, and `zipfile`. Currently there is two [TOML](https://github.com/toml-lang/toml) modules used: [`toml`](https://github.com/uiri/toml) and [`pytoml`](https://github.com/avakar/pytoml), the `pytoml` one is the prefered one since its TOML support is perfect and this module gives better debugging messages, badly, it does not support ordered dictionary yet and that's needed for the map compilation handling (you must be able to define your bsp compilation stage before the lightmap one etc.) that's why `toml` is used to workaround that `pytoml` limitation in this only place. Once `pytoml` get ordered dictionnary support, `toml` will be ditched.
+
 The `urcheon` tool relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. You must use [daemonmap](https://github.com/Unvanquished/daemonmap) if you want to generate Unvanquished navmeshes, and [Sloth](https://github.com/Unvanquished/Sloth) if you use it to generate shader files. Other dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from Sauerbraten](http://sauerbraten.org/iqm/).
+
+To summarize:
+
+* Python3 modules: `argparse fnmatch glob logging multiprocessing operator os pytoml re shutil struct subprocess sys tempfile threading toml zipfile`
+* Third party tools: `convert crunch cwebp daemonmap iqm opusenc q3map2 sloth.py`
 
 
 Esquirel help
@@ -109,7 +116,10 @@ It allows to parse some maps (id Tech 3 format only supported at this time): de-
 Example:
 
 ```
-esquirel map --input-map file.map --substitute-entities substitution.csv --disable-numbering --output-map file.map
+esquirel map --input-map file.map \
+	--substitute-entities substitution.csv \
+	--disable-numbering \
+	--output-map file.map
 ```
 
 This `esquirel` call updates obsolete entities keywords using the `substitution.csv` list, disabling the entity numbering to make later diffing easier.
@@ -124,7 +134,9 @@ It allows to edit some bsp (id Tech 3 format only supported at this time): impor
 Example:
 
 ```
-esquirel bsp --input-bsp file.bsp --list-lumps --output-bspdir directory.bspdir
+esquirel bsp --input-bsp file.bsp \
+	--list-lumps \
+	--output-bspdir directory.bspdir
 ```
 
 This `esquirel` call converts a `bsp` file to a `bspdir` directory, printing some lump statistics at the same time.
@@ -135,7 +147,7 @@ Type `esquirel bsp --help` for some help.
 Warning
 -------
 
-No warranty is given, use this at your own risk.
+No warranty is given, use this at your own risk. It can make you awesome in space if used inconsiderately.
 
 
 Author
