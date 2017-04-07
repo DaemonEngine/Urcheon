@@ -200,6 +200,11 @@ class Compiler():
 			"copy": self.copy,
 		}
 
+		prt_handle, self.prt_path = tempfile.mkstemp(suffix="_q3map2" + os.path.extsep + "prt")
+		srf_handle, self.srf_path = tempfile.mkstemp(suffix="_q3map2" + os.path.extsep + "srf")
+		os.close(prt_handle)
+		os.close(srf_handle)
+
 		logging.debug("building " + self.map_path + " to prefix: " + self.build_prefix)
 		os.makedirs(self.build_prefix, exist_ok=True)
 
@@ -253,24 +258,28 @@ class Compiler():
 			else:
 				Ui.error("unknown tool name: " + tool_name)
 
+		if os.path.isfile(self.prt_path):
+			os.remove(self.prt_path)
+
+		if os.path.isfile(self.srf_path):
+			os.remove(self.srf_path)
+
 
 	def q3map2(self):
 		map_base = os.path.splitext(os.path.basename(self.map_path))[0]
 		lightmapdir_path = os.path.join(self.build_prefix, map_base)
-		prt_handle, prt_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "prt")
-		srf_handle, srf_path = tempfile.mkstemp(suffix="_" + map_base + os.path.extsep + "srf")
 		bsp_path = os.path.join(self.build_prefix, map_base + os.path.extsep + "bsp")
 
 		extended_option_list = []
 
 		if self.tool_stage == "bsp":
-			extended_option_list = ["-prtfile", prt_path, "-srffile", srf_path, "-bspfile", bsp_path]
+			extended_option_list = ["-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path]
 			source_path = self.map_path
 		elif self.tool_stage == "vis":
-			extended_option_list = ["-prtfile", prt_path]
+			extended_option_list = ["-prtfile", self.prt_path]
 			source_path = bsp_path
 		elif self.tool_stage == "light":
-			extended_option_list = ["-srffile", srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
+			extended_option_list = ["-srffile", self.srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
 			source_path = self.map_path
 		elif self.tool_stage == "nav":
 			source_path = bsp_path
@@ -292,12 +301,6 @@ class Compiler():
 		# keep map source
 		if self.tool_stage == "bsp" and self.map_config.keep_source:
 			self.copy()
-
-		if os.path.isfile(prt_path):
-			os.remove(prt_path)
-
-		if os.path.isfile(srf_path):
-			os.remove(srf_path)
 
 
 	def daemonmap(self):
@@ -326,7 +329,7 @@ class Compiler():
 		maps_subpath_len = len(os.path.sep + "maps")
 		minimap_dir = self.build_prefix[:-maps_subpath_len]
 		minimap_sidecar_name = map_base + os.path.extsep + "minimap"
-		minimap_sidecar_path = os.path.join(minimap_dir, "minimap", minimap_sidecar_name)
+		minimap_sidecar_path = os.path.join(minimap_dir, "minimaps", minimap_sidecar_name)
 
 		# without ext, will be read by engine
 		minimap_image_path = os.path.join("minimaps", map_base)
