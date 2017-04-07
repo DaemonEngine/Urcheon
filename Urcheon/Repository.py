@@ -614,7 +614,7 @@ class Git():
 
 		time_stamp = self.getHexTimeStamp(reference)
 		short_id = self.getShortId(reference)
-		version += "+" + time_stamp + "~" + short_id
+		version += "+" + time_stamp + "-" + short_id
 
 		return version
 
