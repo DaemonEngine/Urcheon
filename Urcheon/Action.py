@@ -175,9 +175,6 @@ class Action():
 	description = "dumb action"
 	parallel = True
 
-	# TODO: set something else in verbose mode
-	subprocess_stdout = subprocess.DEVNULL
-	subprocess_stderr = subprocess.DEVNULL
 
 	def __init__(self, source_dir, build_dir, file_path, stage, game_name=None, map_profile=None, is_nested=False):
 		self.body = []
@@ -280,6 +277,17 @@ class Action():
 					logging.debug("setting stat from “" + reference_path + "”: " + produced_path)
 					shutil.copystat(reference_path, produced_path)
 
+	def callProcess(self, command_list):
+		if Ui.verbosely:
+			subprocess_stdout = None
+			subprocess_stderr = None
+		else:
+			subprocess_stdout = subprocess.DEVNULL
+			subprocess_stderr = subprocess.DEVNULL
+
+		if subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
+			Ui.error("command failed: '" + "' '".join(command_list) + "'")
+
 
 class Ignore(Action):
 	keyword = "ignore"
@@ -355,7 +363,7 @@ class ConvertJpg(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to jpg: " + self.file_path)
-			subprocess.call(["convert", "-verbose", "-quality", "92", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["convert", "-verbose", "-quality", "92", source_path, build_path])
 
 		self.setTimeStamp()
 
@@ -384,7 +392,7 @@ class ConvertPng(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to png: " + self.file_path)
-			subprocess.call(["convert", "-verbose", "-quality", "100", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["convert", "-verbose", "-quality", "100", source_path, build_path])
 
 		self.setTimeStamp()
 
@@ -420,8 +428,8 @@ class ConvertLossyWebp(DumbWebp):
 			Ui.print("Convert to lossy webp: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
-			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-			subprocess.call(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["convert", "-verbose", source_path, transient_path])
+			self.callProcess(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
@@ -451,8 +459,8 @@ class ConvertLosslessWebp(DumbWebp):
 			Ui.print("Convert to lossless webp: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
-			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-			subprocess.call(["cwebp", "-v", "-lossless", transient_path, "-o", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["convert", "-verbose", source_path, transient_path])
+			self.callProcess(["cwebp", "-v", "-lossless", transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
@@ -488,8 +496,8 @@ class ConvertCrn(DumbCrn):
 			Ui.print("Convert to crn: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
-			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["convert", "-verbose", source_path, transient_path])
+			self.callProcess(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
@@ -519,8 +527,8 @@ class ConvertNormalCrn(DumbCrn):
 			Ui.print("Convert to normalized crn: " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
-			subprocess.call(["convert", "-verbose", source_path, transient_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
-			subprocess.call(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["convert", "-verbose", source_path, transient_path])
+			self.callProcess(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
@@ -548,7 +556,7 @@ class ConvertVorbis(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to vorbis: " + self.file_path)
-			subprocess.call(["ffmpeg", "-acodec", "libvorbis", "-i", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["ffmpeg", "-acodec", "libvorbis", "-i", source_path, build_path])
 
 		self.setTimeStamp()
 
@@ -577,7 +585,7 @@ class ConvertOpus(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to opus: " + self.file_path)
-			subprocess.call(["opusenc", source_path, build_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["opusenc", source_path, build_path])
 
 		self.setTimeStamp()
 
@@ -606,7 +614,7 @@ class CompileIqm(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Compile to iqm: " + self.file_path)
-			subprocess.call(["iqm", build_path, source_path], stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			self.callProcess(["iqm", build_path, source_path])
 
 		self.setTimeStamp()
 

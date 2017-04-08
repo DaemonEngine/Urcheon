@@ -288,15 +288,16 @@ class Compiler():
 		else:
 			Ui.error("bad q3map2 stage: " + stage)
 
-		call_list = ["q3map2", "-" + self.tool_stage] + self.pakpath_list + extended_option_list + self.stage_option_list + [source_path]
-		logging.debug("call list: " + str(call_list))
-		Ui.verbose("Build command: " + " ".join(call_list))
+		command_list = ["q3map2", "-" + self.tool_stage] + self.pakpath_list + extended_option_list + self.stage_option_list + [source_path]
+		logging.debug("call list: " + str(command_list))
+		Ui.verbose("Build command: " + " ".join(command_list))
 
 		# TODO: remove that ugly workaround
 		if self.tool_stage == "minimap" and self.game_name == "unvanquished":
 			self.q3map2MiniMap()
 		else:
-			subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			if subprocess.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
+				Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		# keep map source
 		if self.tool_stage == "bsp" and self.map_config.keep_source:
@@ -309,11 +310,12 @@ class Compiler():
 		if self.tool_stage == "nav":
 			source_path = bsp_path
 
-			call_list = ["daemonmap", "-" + self.tool_stage] + self.stage_option_list + [source_path]
-			logging.debug("call list: " + str(call_list))
-			Ui.verbose("Build command: " + " ".join(call_list))
+			command_list = ["daemonmap", "-" + self.tool_stage] + self.stage_option_list + [source_path]
+			logging.debug("call list: " + str(command_list))
+			Ui.verbose("Build command: " + " ".join(command_list))
 
-			subprocess.call(call_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr)
+			if subprocess.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
+				Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		else:
 				Ui.error("bad daemonmap stage: " + tool_stage)
@@ -324,7 +326,7 @@ class Compiler():
 		bsp_path = os.path.join(self.build_prefix, map_base + os.path.extsep + "bsp")
 
 		source_path = bsp_path
-		call_list = ["q3map2", "-" + self.tool_stage] + self.pakpath_list + self.stage_option_list + [source_path]
+		command_list = ["q3map2", "-" + self.tool_stage] + self.pakpath_list + self.stage_option_list + [source_path]
 
 		maps_subpath_len = len(os.path.sep + "maps")
 		minimap_dir = self.build_prefix[:-maps_subpath_len]
@@ -340,13 +342,18 @@ class Compiler():
 		tex_coords_pattern = re.compile(r"^size_texcoords (?P<c1>[0-9.-]*) (?P<c2>[0-9.-]*) [0-9.-]* (?P<c3>[0-9.-]*) (?P<c4>[0-9.-]*) [0-9.-]*$")
 
 		tex_coords = None
-		proc = subprocess.Popen(call_list, stdout=subprocess.PIPE, stderr=self.subprocess_stderr)
+		proc = subprocess.Popen(command_list, stdout=subprocess.PIPE, stderr=self.subprocess_stderr)
 		with proc.stdout as stdout:
 			for line in stdout:
 				line = line.decode()
 				match = tex_coords_pattern.match(line)
 				if match:
 					tex_coords = " ".join([match.group("c1"), match.group("c2"), match.group("c3"), match.group("c4")])
+
+		proc.wait()
+
+		if proc.returncode != 0:
+				Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		if not tex_coords:
 			Ui.error("failed to get coords from minimap generation")

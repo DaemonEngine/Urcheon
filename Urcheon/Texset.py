@@ -190,8 +190,9 @@ class PrevRun():
 
 		# TODO: set something else in verbose mode
 		subprocess_stdout = subprocess.DEVNULL
-		subprocess_stderr = subprocess.DEVNULL
-		subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr)
+		subprocess_stderr = subprocess.STDOUT
+		if subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
+			Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		shutil.copystat(source_fullpath, preview_fullpath)
 
@@ -425,7 +426,9 @@ class SlothRun():
 
 		# TODO: set something else in verbose mode
 		subprocess_stdout = subprocess.DEVNULL
-		subprocess.call(command_list, stdout=subprocess_stdout)
+		subprocess_stderr = None
+		if subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
+			Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		if sloth_header_file:
 			os.remove(sloth_header_file)
