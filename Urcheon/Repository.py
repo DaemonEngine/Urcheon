@@ -19,10 +19,11 @@ import fnmatch
 import logging
 import operator
 import os
+import pytoml
 import re
 import shutil
 import subprocess
-import pytoml
+import time
 
 
 class Config():
@@ -612,15 +613,21 @@ class Git():
 		if version == "":
 			version = "0"
 
-		time_stamp = self.getHexTimeStamp(reference)
+		time_stamp = self.getCompactHumanTimeStamp(reference)
 		short_id = self.getShortId(reference)
-		version += "+" + time_stamp + "-" + short_id
+		version += "+" + time_stamp + "+" + short_id
 
 		return version
 
 	def getHexTimeStamp(self, reference):
+		# not used
 		commit_date = self.getDate(reference)
 		time_stamp = "0" + hex(int(commit_date))[2:]
+		return time_stamp
+
+	def getCompactHumanTimeStamp(self, reference):
+		commit_date = self.getDate(reference)
+		time_stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime(int(commit_date)))
 		return time_stamp
 		
 	def isAncestor(self, parent, child):
