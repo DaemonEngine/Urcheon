@@ -180,7 +180,7 @@ class PrevRun():
 
 		command_list = [ "convert" ]
 		command_list += [ source_fullpath ]
-		command_list += [ "-quality", "75", "-background", "magenta", "-alpha", "remove", "-alpha", "off", "-resize", "256x256!>"]
+		command_list += [ "-quality", "75", "-background", "magenta", "-alpha", "remove", "-alpha", "off", "-resize", "256x256>"]
 		command_list += [ preview_fullpath ]
 
 		Ui.print("Generate preview: " + source_path)
