@@ -114,6 +114,7 @@ class Entities():
 				keyword = bytes.decode(almost_keyword.split(b'\"')[1:2][0])
 				value = bytes.decode(almost_value.split(b'\"')[0:1][0])
 				# TODO: do not use a dictionary in the future: each time we write down the entities the order change
+				# OrdredDict fixed it?
 				entity_dict[keyword] = value
 			self.entity_list.append(entity_dict)
 
