@@ -73,6 +73,11 @@ class PrevRun():
 
 		self.preview_suf = self.prevrun_dict["suffix"]["preview"]
 
+		self.preview_downscale = False
+		if "format" in self.prevrun_dict.keys():
+			if "downscale" in self.prevrun_dict["format"].keys():
+				self.preview_downscale = self.prevrun_dict["format"]["downscale"]
+
 
 	def run(self):
 		source_list = self.walk()
@@ -180,7 +185,11 @@ class PrevRun():
 
 		command_list = [ "convert" ]
 		command_list += [ source_fullpath ]
-		command_list += [ "-quality", "75", "-background", "magenta", "-alpha", "remove", "-alpha", "off", "-resize", "256x256>"]
+		command_list += [ "-quality", "75", "-background", "magenta", "-alpha", "remove", "-alpha", "off" ]
+
+		if self.preview_downscale:
+			command_list += [ "-resize", "256x256>" ]
+
 		command_list += [ preview_fullpath ]
 
 		Ui.print("Generate preview: " + source_path)
