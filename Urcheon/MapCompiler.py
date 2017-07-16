@@ -270,6 +270,11 @@ class Compiler():
 		lightmapdir_path = os.path.join(self.build_prefix, map_base)
 		bsp_path = os.path.join(self.build_prefix, map_base + os.path.extsep + "bsp")
 
+		# needed for some advanced lightstyle (generated q3map2_ shader)
+		# q3map2 is not able to create the “scripts/” directory itself
+		scriptdir_path = os.path.realpath(os.path.join(self.build_prefix, "..", "scripts"))
+		os.makedirs(scriptdir_path, exist_ok=True)
+
 		extended_option_list = []
 
 		if self.tool_stage == "bsp":
