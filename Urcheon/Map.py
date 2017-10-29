@@ -34,10 +34,7 @@ class File():
 
 		map_lines = str.splitlines(bytes.decode(map_bstring))
 
-		start_entity = False
 		in_entity = False
-
-		start_shape = False
 		in_shape = False
 
 		in_brush = False
@@ -55,9 +52,12 @@ class File():
 		# empty line
 		empty_line_pattern = re.compile(r"^[ \t]*$")
 
-		# entity start
+		# generic comment
+		generic_comment_pattern = re.compile("[ \t]*//.*$")
+
+		# entity comment
 		# // entity num
-		entity_start_pattern = re.compile(r"^[ \t]*//[ \t]+entity[ \t]+(?P<entity_num>[0-9]+)[ \t]*$")
+		# entity_comment_pattern = re.compile(r"^[ \t]*//[ \t]+entity[ \t]+(?P<entity_num>[0-9]+)[ \t]*$")
 
 		# block opening
 		# {
@@ -67,9 +67,9 @@ class File():
 		# "key" "value"
 		keyvalue_pattern = re.compile(r"^[ \t]*\"(?P<key>[^\"]*)\"[ \t]+\"(?P<value>[^\"]*)\"[ \t]*$")
 
-		# shape start
+		# shape comment
 		# // brush num
-		shape_start_pattern = re.compile(r"^[ \t]*//[ \t]+brush[ \t]+(?P<brush_num>[0-9]+)[ \t]*$")
+		# shape_comment_pattern = re.compile(r"^[ \t]*//[ \t]+brush[ \t]+(?P<brush_num>[0-9]+)[ \t]*$")
 
 		# plane line
 		# coord, textures
@@ -134,6 +134,8 @@ class File():
 		# }
 		block_ending_pattern = re.compile(r"^[ \t]*}[ \t]*$")
 
+		entity_num = -1;
+
 		for line in map_lines:
 			debug("Reading: " + line)
 
@@ -142,181 +144,170 @@ class File():
 				debug("Empty line")
 				continue
 
+			# Comments
+			if generic_comment_pattern.match(line):
+				debug("Comment")
+				continue
+
 			# Entity start
 			if not in_entity:
-				if not start_entity:
-					match = entity_start_pattern.match(line)
-					if match:
-						entity_num = int(match.group("entity_num"))
-						debug("Start Entity #" + str(entity_num))
-						self.entity_list.append(Entity())
-						start_entity = True
-						continue
+				match = block_opening_pattern.match(line)
+				if match:
+					entity_num += 1
+					debug("Start Entity #" + str(entity_num))
+					self.entity_list.append(Entity())
+					in_entity = True
+					brush_num = -1;
+					continue
 
-				# Entity opening
-				if start_entity:
-					if block_opening_pattern.match(line):
-						debug("In Entity")
-						start_entity = False
-						in_entity = True
-						continue
+			# In Entity
 
-			if in_entity:
-
+			# We can only find KeyValue Pair or Shape opening block yet
+			if not in_shape and not in_brush and not start_patch and not in_patch:
 				# KeyValue pair
-				if not start_shape and not  in_shape and not in_brush and not start_patch and not in_patch:
-					match = keyvalue_pattern.match(line)
-					if match:
-						key = match.group("key")
-						value = match.group("value")
-						debug("KeyValue pair [“" + key + "”, “" + value + "”]")
-						self.entity_list[-1].keyvalue_dict[key] = value
-						continue
+				match = keyvalue_pattern.match(line)
+				if match:
+					key = match.group("key")
+					value = match.group("value")
+					debug("KeyValue pair [“" + key + "”, “" + value + "”]")
+					self.entity_list[-1].keyvalue_dict[key] = value
+					continue
 
 				# Shape start
-				if not start_shape and not in_shape and not in_brush and not in_patch:
-					match = shape_start_pattern.match(line)
-					if match:
-						brush_num = match.group("brush_num")
-						debug("Start Shape #" + str(brush_num))
-						start_shape = True
-						continue
-
-				# Shape opening
-				if start_shape and not in_shape and not in_brush and not in_patch:
-					if block_opening_pattern.match(line):
-						debug("In Shape")
-						start_shape = False
-						in_shape = True
-						continue
-
-				# Patch start
-				if in_shape and not in_brush and not start_patch and not in_patch:
-					if patch_start_pattern.match(line):
-						debug("Start Patch")
-						self.entity_list[-1].shape_list.append(Patch())
-						in_shape = False
-						start_patch = True
-						continue
-
-					# if we are not a patch, and not a ending patch (ending shape)
-					if not block_ending_pattern.match(line):
-						debug("In Brush")
-						self.entity_list[-1].shape_list.append(Brush())
-						in_shape = False
-						in_brush = True
-						# do not continue! this line must be read one more time!
-						# this is brush content!
-
-				# Patch opening
-				if start_patch and not in_patch:
-					if block_opening_pattern.match(line):
-						debug("In Patch")
-						start_patch = False
-						in_patch = True
-						in_shader = True
-						continue
-
-				# Brush content
-				if in_brush:
-
-					# Plane content
-					match = plane_pattern.match(line)
-					if match:
-						debug("Add Plane to Brush")
-						plane = OrderedDict()
-						plane["coord0_x"] = match.group("coord0_x")
-						plane["coord0_y"] = match.group("coord0_y")
-						plane["coord0_z"] = match.group("coord0_z")
-						plane["coord1_x"] = match.group("coord1_x")
-						plane["coord1_y"] = match.group("coord1_y")
-						plane["coord1_z"] = match.group("coord1_z")
-						plane["coord2_x"] = match.group("coord2_x")
-						plane["coord2_y"] = match.group("coord2_y")
-						plane["coord2_z"] = match.group("coord2_z")
-						plane["shader"] = match.group("shader")
-						plane["shift_x"] = match.group("shift_x")
-						plane["shift_y"] = match.group("shift_y")
-						plane["scale_x"] = match.group("scale_x")
-						plane["scale_y"] = match.group("scale_y")
-						plane["rotation"] = match.group("rotation")
-						plane["flag_content"] = match.group("flag_content")
-						plane["flag_surface"] = match.group("flag_surface")
-						plane["value"] = match.group("value")
-
-						self.entity_list[-1].shape_list[-1].plane_list.append(plane)
-						continue
-
-					# Brush End
-					if block_ending_pattern.match(line):
-						debug("End Brush")
-						in_brush = False
-						continue
-
-				# Patch content
-				if in_patch:
-					# Stub
-					# vertexe: ( orig_x orig_y orig_z texcoord_x texcoord_y )
-
-					# Patch shader
-					if in_shader:
-						match = patch_shader_pattern.match(line)
-						if match:
-							debug("Add Shader name to Patch")
-							self.entity_list[-1].shape_list[-1].shader = match.group("shader")
-							in_shader = False
-							in_matrix_info = True
-							continue
-
-					if in_matrix_info:
-						match = vertex_matrix_info_pattern.match(line)
-						if match:
-							debug("Add Vertex matrix info to Patch")
-							self.entity_list[-1].shape_list[-1].vertex_matrix_info["width"] = match.group("width")
-							self.entity_list[-1].shape_list[-1].vertex_matrix_info["height"] = match.group("height")
-							self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved0"] = match.group("reserved0")
-							self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved1"] = match.group("reserved1")
-							self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved2"] = match.group("reserved2")
-							in_matrix_info = False
-							start_matrix = True
-							continue
-
-					if start_matrix:
-						if vertex_matrix_opening_pattern.match(line):
-							start_matrix = False
-							in_matrix = True
-							continue
-
-					if in_matrix:
-						if not vertex_matrix_ending_pattern.match(line):
-							# Stub
-							debug("Add line to patch")
-							self.entity_list[-1].shape_list[-1].raw_vertex_matrix_line_list.append(line)
-							continue
-
-						if vertex_matrix_ending_pattern.match(line):
-							in_matrix = False
-							continue
-
-					# Patch End
-					if block_ending_pattern.match(line):
-						debug("End Patch")
-						in_patch = False
-						in_shape = True
-						continue
-
-				if in_shape:
-					# Shape End
-					if block_ending_pattern.match(line):
-						debug("End Shape")
-						in_shape = False
-						continue
-
-				# Entity End
-				if block_ending_pattern.match(line):
-					debug("End Entity")
-					in_entity = False
+				match = block_opening_pattern.match(line)
+				if match:
+					brush_num += 1
+					debug("Start Shape #" + str(brush_num))
+					in_shape = True
 					continue
+
+			# Patch start
+			if in_shape and not in_brush and not start_patch and not in_patch:
+				if patch_start_pattern.match(line):
+					debug("Start Patch")
+					self.entity_list[-1].shape_list.append(Patch())
+					in_shape = False
+					start_patch = True
+					continue
+
+				# if we are not a patch, and not a ending patch (ending shape)
+				if not block_ending_pattern.match(line):
+					debug("In Brush")
+					self.entity_list[-1].shape_list.append(Brush())
+					in_shape = False
+					in_brush = True
+					# do not continue! this line must be read one more time!
+					# this is brush content!
+
+			# Patch opening
+			if start_patch and not in_patch:
+				if block_opening_pattern.match(line):
+					debug("In Patch")
+					start_patch = False
+					in_patch = True
+					in_shader = True
+					continue
+
+			# Brush content
+			if in_brush:
+
+				# Plane content
+				match = plane_pattern.match(line)
+				if match:
+					debug("Add Plane to Brush")
+					plane = OrderedDict()
+					plane["coord0_x"] = match.group("coord0_x")
+					plane["coord0_y"] = match.group("coord0_y")
+					plane["coord0_z"] = match.group("coord0_z")
+					plane["coord1_x"] = match.group("coord1_x")
+					plane["coord1_y"] = match.group("coord1_y")
+					plane["coord1_z"] = match.group("coord1_z")
+					plane["coord2_x"] = match.group("coord2_x")
+					plane["coord2_y"] = match.group("coord2_y")
+					plane["coord2_z"] = match.group("coord2_z")
+					plane["shader"] = match.group("shader")
+					plane["shift_x"] = match.group("shift_x")
+					plane["shift_y"] = match.group("shift_y")
+					plane["scale_x"] = match.group("scale_x")
+					plane["scale_y"] = match.group("scale_y")
+					plane["rotation"] = match.group("rotation")
+					plane["flag_content"] = match.group("flag_content")
+					plane["flag_surface"] = match.group("flag_surface")
+					plane["value"] = match.group("value")
+
+					self.entity_list[-1].shape_list[-1].plane_list.append(plane)
+					continue
+
+				# Brush End
+				if block_ending_pattern.match(line):
+					debug("End Brush")
+					in_brush = False
+					continue
+
+			# Patch content
+			if in_patch:
+				# Stub
+				# vertexe: ( orig_x orig_y orig_z texcoord_x texcoord_y )
+
+				# Patch shader
+				if in_shader:
+					match = patch_shader_pattern.match(line)
+					if match:
+						debug("Add Shader name to Patch")
+						self.entity_list[-1].shape_list[-1].shader = match.group("shader")
+						in_shader = False
+						in_matrix_info = True
+						continue
+
+				if in_matrix_info:
+					match = vertex_matrix_info_pattern.match(line)
+					if match:
+						debug("Add Vertex matrix info to Patch")
+						self.entity_list[-1].shape_list[-1].vertex_matrix_info["width"] = match.group("width")
+						self.entity_list[-1].shape_list[-1].vertex_matrix_info["height"] = match.group("height")
+						self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved0"] = match.group("reserved0")
+						self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved1"] = match.group("reserved1")
+						self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved2"] = match.group("reserved2")
+						in_matrix_info = False
+						start_matrix = True
+						continue
+
+				if start_matrix:
+					if vertex_matrix_opening_pattern.match(line):
+						start_matrix = False
+						in_matrix = True
+						continue
+
+				if in_matrix:
+					if not vertex_matrix_ending_pattern.match(line):
+						# Stub
+						debug("Add line to patch")
+						self.entity_list[-1].shape_list[-1].raw_vertex_matrix_line_list.append(line)
+						continue
+
+					if vertex_matrix_ending_pattern.match(line):
+						in_matrix = False
+						continue
+
+				# Patch End
+				if block_ending_pattern.match(line):
+					debug("End Patch")
+					in_patch = False
+					in_shape = True
+					continue
+
+			if in_shape:
+				# Shape End
+				if block_ending_pattern.match(line):
+					debug("End Shape")
+					in_shape = False
+					continue
+
+			# Entity End
+			if block_ending_pattern.match(line):
+				debug("End Entity")
+				in_entity = False
+				continue
 
 			# No match
 			Ui.error("Unknown line: " + line)
@@ -336,7 +327,7 @@ class File():
 			if self.numbering == True:
 				map_string += "// entity " + str(i) + "\n"
 			else:
-				map_string += "// entity 0\n"
+				map_string += "// entity\n"
 
 			map_string += "{\n"
 			if len(self.entity_list[i].keyvalue_dict) > 0:
@@ -349,11 +340,11 @@ class File():
 					if self.numbering == True:
 						map_string += "// brush " + str(shape_count) + "\n"
 					else:
-						map_string += "// brush 0\n"
+						map_string += "// brush\n"
 					map_string += "{\n"
 					debug("Exporting Shape #" + str(shape_count))
 					if type(shape) is Brush:
-						debug("Exporting Prush")
+						debug("Exporting Brush")
 						for plane in shape.plane_list:
 							map_string += "( "
 							map_string += plane["coord0_x"] + " "
