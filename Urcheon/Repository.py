@@ -80,7 +80,12 @@ class Config():
 				Ui.notice("BUILDPREFIX set, will use: " + env_build_prefix)
 				build_prefix = env_build_prefix
 			else:
-				build_prefix = self.source_dir + os.path.sep + Default.build_prefix
+				# ugly quick&dirty .setinfo implementation
+				# TODO: please fix
+				if os.path.isfile(os.path.join(os.getcwd(), ".setinfo", "set.conf")):
+					build_prefix = os.path.join(os.getcwd(), Default.build_prefix)
+				else:
+					build_prefix = self.source_dir + os.path.sep + Default.build_prefix
 
 		return os.path.abspath(build_prefix)
 
@@ -817,9 +822,15 @@ class PakPath:
 		self.pakpath_list = []
 		pakdir_ext = ".dpkdir"
 
+		# ugly quick&dirty .setinfo implementation
+		# TODO: please fix
+		if os.path.isfile(os.path.join(os.getcwd(), ".setinfo", "set.conf")):
+			pakpath = os.path.join(os.getcwd(), Default.source_prefix)
+			self.pakpath_list.append(pakpath)
+
 		pakpath_env = os.getenv("PAKPATH")
 		if pakpath_env:
-			self.pakpath_list = pakpath_env.split(":")
+			self.pakpath_list.extend(pakpath_env.split(":"))
 
 			while "" in self.pakpath_list:
 				self.pakpath_list.remove("")
