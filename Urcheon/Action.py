@@ -9,6 +9,7 @@
 
 from Urcheon import Default
 from Urcheon import FileSystem
+from Urcheon import IqmConfig
 from Urcheon import MapCompiler
 from Urcheon import Repository
 from Urcheon import Texset
@@ -613,8 +614,25 @@ class CompileIqm(Action):
 			Ui.print("File already in iqm, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Compile to iqm: " + self.file_path)
-			self.callProcess(["iqm", build_path, source_path])
+			# TODO: the iqe command file must be taken in account while
+			# comparing timestamps, currently if the command file is
+			# modified but the model not, the iqm file is not rebuilt
+			iqe_command_file = source_path + os.path.extsep + "cfg"
+			if os.path.isfile(iqe_command_file):
+				iqm_config = IqmConfig.File()
+				iqm_config.readFile(iqe_command_file)
+				iqm_config.translate(self.source_dir, self.build_dir)
+
+				transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "iqe.cfg")
+				os.close(transient_handle)
+
+				iqm_config.writeFile(transient_path)
+
+				Ui.print("Compile to iqm using a command file: " + self.file_path)
+				self.callProcess(["iqm", "--cmd", transient_path])
+			else:
+				Ui.print("Compile to iqm: " + self.file_path)
+				self.callProcess(["iqm", build_path, source_path])
 
 		self.setTimeStamp()
 
