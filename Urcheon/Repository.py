@@ -389,12 +389,13 @@ class Inspector():
 class BlackList():
 	def __init__(self, source_dir, pak_format):
 		self.blacklist = [
-			"Thumbs.db",
 			"Makefile",
 			"CMakeLists.txt",
+			"Thumbs.db",
 			"__MACOSX",
 			"*.DS_Store",
 			"*.autosave",
+			"*.autosave.map",
 			"*.bak",
 			"*.lin",
 			"*.prt",
