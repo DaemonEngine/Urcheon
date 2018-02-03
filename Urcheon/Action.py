@@ -617,9 +617,6 @@ class CompileIqm(Action):
 			Ui.print("File already in iqm, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			# TODO: the iqe command file must be taken in account while
-			# comparing timestamps, currently if the command file is
-			# modified but the model not, the iqm file is not rebuilt
 			iqe_command_file = source_path + os.path.extsep + "cfg"
 			if os.path.isfile(iqe_command_file):
 				iqm_config = IqmConfig.File()
@@ -643,6 +640,16 @@ class CompileIqm(Action):
 
 	def getFileNewName(self):
 		return self.switchExtension("iqm")
+
+	def getStatReference(self):
+		source_path = self.getSourcePath()
+		file_reference_list = [source_path]
+
+		iqe_command_file = source_path + os.path.extsep + "cfg"
+		if os.path.isfile(iqe_command_file):
+			file_reference_list.append(iqe_command_file)
+
+		return FileSystem.getNewer(file_reference_list)
 
 
 # it's a prepare stage action only
