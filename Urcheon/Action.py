@@ -150,23 +150,35 @@ class List():
 # I want actions printed and executed in this order
 def list():
 	action_list = [
+		# quick stuff to be consumed quickly
+		Ignore,
 		Copy,
-		ConvertJpg,
-		ConvertPng,
-		ConvertCrn,
-		ConvertNormalCrn,
-		ConvertLossyWebp,
-		ConvertLosslessWebp,
-		ConvertVorbis,
-		ConvertOpus,
-		CompileIqm,
+		Keep,
+		# sloth needs previews to be done first
 		PrevRun,
 		SlothRun,
+		# usually quick
+		CompileIqm,
+		# can take some time but not blocking
+		ConvertVorbis,
+		ConvertOpus,
+		# quick
+		ConvertJpg,
+		ConvertPng,
+		ConvertLossyWebp,
+		ConvertLosslessWebp,
+		# this is slow, do it in last so the thread manager
+		# can allocate more threads to the task if there is
+		# less remaining tasks than cpu cores available
+		ConvertCrn,
+		ConvertNormalCrn,
+		# even bsp copying can be slow if it triggers minimap
+		# and navmesh generation
 		CopyBsp,
-		MergeBsp,
 		CompileBsp,
-		Keep,
-		Ignore,
+		# MergeBsp can be run on a copied bsp so it must be
+		# called lately
+		MergeBsp,
 	]
 	return action_list
 
@@ -175,9 +187,9 @@ class Action():
 	keyword = "dumb"
 	description = "dumb action"
 	parallel = True
+	threaded = False
 
-
-	def __init__(self, source_dir, build_dir, file_path, stage, game_name=None, map_profile=None, is_nested=False):
+	def __init__(self, source_dir, build_dir, file_path, stage, game_name=None, map_profile=None, thread_count=1, is_nested=False):
 		self.body = []
 		self.source_dir = source_dir
 		self.build_dir = build_dir
@@ -185,6 +197,7 @@ class Action():
 		self.game_name = game_name
 		self.stage = stage
 		self.map_profile = map_profile
+		self.thread_count = thread_count
 		self.is_nested = is_nested
 		self.paktrace = Repository.Paktrace(self.build_dir)
 
@@ -293,7 +306,6 @@ class Action():
 class Ignore(Action):
 	keyword = "ignore"
 	description = "ignore file"
-	parallel = True
 
 	def run(self):
 		Ui.verbose("Ignore: " + self.file_path)
@@ -306,7 +318,6 @@ class Ignore(Action):
 class Keep(Action):
 	keyword = "keep"
 	description = "keep file"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -327,7 +338,6 @@ class Keep(Action):
 class Copy(Action):
 	keyword = "copy"
 	description = "copy file"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -348,7 +358,6 @@ class Copy(Action):
 class ConvertJpg(Action):
 	keyword = "convert_jpg"
 	description = "convert to jpg format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -377,7 +386,6 @@ class ConvertJpg(Action):
 class ConvertPng(Action):
 	keyword = "convert_png"
 	description = "convert to png format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -411,7 +419,6 @@ class DumbWebp(Action):
 class ConvertLossyWebp(DumbWebp):
 	keyword = "convert_lossy_webp"
 	description = "convert to lossy webp format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -442,7 +449,6 @@ class ConvertLossyWebp(DumbWebp):
 class ConvertLosslessWebp(DumbWebp):
 	keyword = "convert_lossless_webp"
 	description = "convert to lossless webp format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -471,6 +477,8 @@ class ConvertLosslessWebp(DumbWebp):
 
 
 class DumbCrn(Action):
+	threaded = True
+
 	def getFileNewName(self):
 		return self.switchExtension("crn")
 
@@ -479,7 +487,6 @@ class DumbCrn(Action):
 class ConvertCrn(DumbCrn):
 	keyword = "convert_crn"
 	description = "convert to crn format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -498,7 +505,7 @@ class ConvertCrn(DumbCrn):
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
 			self.callProcess(["convert", "-verbose", source_path, transient_path])
-			self.callProcess(["crunch", "-helperThreads", "1", "-file", transient_path, "-quality", "255", "-out", build_path])
+			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path, "-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
@@ -510,7 +517,6 @@ class ConvertCrn(DumbCrn):
 class ConvertNormalCrn(DumbCrn):
 	keyword = "convert_normalized_crn"
 	description = "convert to normalized crn format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -529,7 +535,7 @@ class ConvertNormalCrn(DumbCrn):
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
 			self.callProcess(["convert", "-verbose", source_path, transient_path])
-			self.callProcess(["crunch", "-helperThreads", "1", "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
+			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
@@ -541,7 +547,6 @@ class ConvertNormalCrn(DumbCrn):
 class ConvertVorbis(Action):
 	keyword = "convert_vorbis"
 	description = "convert to vorbis format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -570,7 +575,6 @@ class ConvertVorbis(Action):
 class ConvertOpus(Action):
 	keyword = "convert_opus"
 	description = "convert to opus format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -599,7 +603,6 @@ class ConvertOpus(Action):
 class CompileIqm(Action):
 	keyword = "compile_iqm"
 	description = "compile to iqm format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -745,7 +748,6 @@ class DumbTransient(Action):
 class CopyBsp(DumbTransient):
 	keyword = "copy_bsp"
 	description = "copy bsp file"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -850,7 +852,6 @@ class MergeBsp(DumbTransient):
 class CompileBsp(DumbTransient):
 	keyword = "compile_bsp"
 	description = "compile to bsp format"
-	parallel = True
 
 	def run(self):
 		source_path = self.getSourcePath()

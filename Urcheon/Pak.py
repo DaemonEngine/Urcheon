@@ -68,6 +68,11 @@ class Builder():
 			logging.debug("create build dir: " + self.build_dir)
 			os.makedirs(self.build_dir, exist_ok=True)
 
+		task_num = 0
+		task_count = len(Action.list())
+		cpu_count = multiprocessing.cpu_count()
+		common_thread_count = 1
+		thread_active = threading.active_count()
 		thread_list = []
 		produced_unit_list = []
 		for action in Action.list():
@@ -75,25 +80,47 @@ class Builder():
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
-				# the is_nested argument is just there to tell that action to not do specific stuff because recursion
-				a = action(self.source_dir, self.build_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
+				if not self.parallel:
+					# tasks are run sequentially but they can use multiple threads themselves
+					thread_count = cpu_count
+				else:
+					# if there is less tasks than cpu available, tell the task to use the remaining threads
+					# HACK: this simple compute can spawn one more thread than cpu core in some corner case,
+					# especially on the end of the tasklist and this is really fair because it's exactly when
+					# we want to avoid to run less threads than cpu cores and one more is really not a problem
+					task_remain = task_count - task_num
+					slot_available = max(1, cpu_count - thread_active - task_remain)
+					thread_count = max(common_thread_count, slot_available)
+
+				# the is_nested argument is just there to tell that action to not do specific stuff because of recursion
+				a = action(self.source_dir, self.build_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, thread_count=thread_count, is_nested=self.is_nested)
 
 				if not self.parallel:
 					# explicitely requested (like in recursion)
 					produced_unit_list.extend(a.run())
 				else:
 					if not action.parallel:
-						# action that can't be multithreaded
+						# action that can't be run concurrently to others
 						produced_unit_list.extend(a.run())
 					else:
 						# wrapper does: produced_unit_list.append(a.run())
 						thread = threading.Thread(target=self.threadExtendRes, args=(a.run, (), produced_unit_list))
 						thread_list.append(thread)
 
-						while threading.active_count() > multiprocessing.cpu_count():
+						while threading.active_count() > cpu_count:
 							pass
 
 						thread.start()
+
+						# HACK: spawn a NOP thread for every unmanaged thread the subprocess
+						# will spawn, this way the thread manager knows how many threads we run
+						# for real
+						if a.threaded:
+							for i in range(1, thread_count):
+								dummy_thread_observer = threading.Thread(target=thread.join)
+								dummy_thread_observer.start()
+
+			task_num = task_num + 1
 
 		# wait for all threads ending, otherwise it will start packaging next
 		# package while the building task for the current one is not ended
