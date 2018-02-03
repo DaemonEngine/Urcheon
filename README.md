@@ -96,7 +96,16 @@ Type `urcheon <stage> --help` from some help.
 
 These are the Python3 modules you will need to run `urcheon`: `argparse`, `fnmatch`, `glob`, `logging`, `multiprocessing`, `operator`, `os`, `pytoml`, `re`, `shutil`, `struct`, `subprocess`, `sys`, `tempfile`, `threading`, `toml`, and `zipfile`. Currently there is two [TOML](https://github.com/toml-lang/toml) modules used: [`toml`](https://github.com/uiri/toml) and [`pytoml`](https://github.com/avakar/pytoml), the `pytoml` one is the prefered one since its TOML support is perfect and this module gives better debugging messages, badly, it does not support ordered dictionary yet and that's needed for the map compilation handling (you must be able to define your bsp compilation stage before the lightmap one etc.) that's why `toml` is used to workaround that `pytoml` limitation in this only place. Once `pytoml` get ordered dictionnary support, `toml` will be ditched.
 
-The `urcheon` tool relies on [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team. You must use [daemonmap](https://github.com/Unvanquished/daemonmap) if you want to generate Unvanquished navmeshes, and [Sloth](https://github.com/Unvanquished/Sloth) if you use it to generate shader files. Other dependencies are: [`convert` from ImageMagick](https://www.imagemagick.org/), [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp), [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch) (the one from BinomialLLC or the one from Unity are lacking required features), [`opusenc` from Xiph](http://opus-codec.org), and if you need to convert iqe models, [`iqm` from FTE QuakeWorld](https://sourceforge.net/p/fteqw/code/HEAD/tree/trunk/iqm/) (the one from Sauerbraten is lacking required features).
+The `urcheon` tool relies on:
+
+- [`q3map2` from netradiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team, to compile maps (the one from GtkRadiant is lacking required features);
+- [`daemonmap`](https://github.com/Unvanquished/daemonmap) if you want to generate Unvanquished navmeshes;
+- [Sloth](https://github.com/Unvanquished/Sloth) if you need it to generate shader files;
+- [`convert` from ImageMagick](https://www.imagemagick.org/) to convert from and to various image formats;
+- [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp) to convert images to webp format;
+- [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch) to convert images to crn format (the one from BinomialLLC or the one from Unity are lacking required features);
+- [`opusenc` from Xiph](http://opus-codec.org) to convert sound files to opus format;
+- [`iqm` from FTE QuakeWorld](https://sourceforge.net/p/fteqw/code/HEAD/tree/trunk/iqm/) to convert iqe models (the one from Sauerbraten is lacking required features).
 
 To summarize:
 
