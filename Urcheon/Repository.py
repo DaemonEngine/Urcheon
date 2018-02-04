@@ -472,7 +472,7 @@ class Tree():
 			self.pak_config = Config(source_dir, game_name=game_name)
 			self.pak_format = self.pak_config.game_profile.pak_format
 		else:
-			# HACKY: the most universal one
+			# HACK: the most universal one
 			self.pak_format = "pk3"
 
 	def isValid(self):
