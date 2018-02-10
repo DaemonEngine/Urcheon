@@ -380,6 +380,7 @@ class Compiler():
 	def copy(self):
 		Ui.print("Copying map source: " + self.map_path)
 		source_path = os.path.join(self.source_dir, self.map_path)
-		copy_path = os.path.join(self.build_prefix, os.path.basename(self.map_path))
-		shutil.copyfile(source_path, copy_path)
-		shutil.copystat(source_path, copy_path)
+		if os.path.isfile(source_path):
+			copy_path = os.path.join(self.build_prefix, os.path.basename(self.map_path))
+			shutil.copyfile(source_path, copy_path)
+			shutil.copystat(source_path, copy_path)
