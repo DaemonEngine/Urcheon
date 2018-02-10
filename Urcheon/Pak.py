@@ -180,12 +180,63 @@ class Builder():
 		res.extend(func(*args))
 
 
+class MultiPackager():
+	def __init__(self, source_dir_list, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None, game_name=None, no_compress=False, parallel=False):
+		self.source_dir_list = source_dir_list
+		self.build_prefix = build_prefix
+		self.test_prefix = test_prefix
+		self.test_dir = test_dir
+		self.pak_prefix = pak_prefix
+		self.pak_file = pak_file
+		self.game_name = game_name
+		self.no_compress = no_compress
+
+		if parallel and len(source_dir_list) > 1:
+			Ui.warning("parallel packaging is abnormally slow using zipfile/zlib, disabling")
+			self.parallel = False
+		else:
+			self.parallel = parallel
+
+	def pack(self):
+		cpu_count = multiprocessing.cpu_count()
+		thread_list = []
+		for source_dir in self.source_dir_list:
+			# FIXME: because of this code Urcheon must be run from package set directory
+			Ui.notice("package from: " + source_dir)
+			source_dir = os.path.realpath(source_dir)
+
+			source_tree = Repository.Tree(source_dir)
+			if not source_tree.isValid():
+				Ui.error("not a supported tree, not going further", silent=True)
+
+			pak_config = Repository.Config(source_dir, game_name=self.game_name)
+			test_dir = pak_config.getTestDir(build_prefix=self.build_prefix, test_prefix=self.test_prefix, test_dir=self.test_dir)
+			pak_file = pak_config.getPakFile(build_prefix=self.build_prefix, pak_prefix=self.pak_prefix, pak_file=self.pak_file)
+
+			p = Packager(source_dir, test_dir, pak_file, game_name=self.game_name, no_compress=self.no_compress)
+			if not self.parallel:
+				p.pack()
+			else:
+				thread = threading.Thread(target=p.pack)
+				thread_list.append(thread)
+
+				while threading.active_count() > cpu_count:
+					pass
+
+				thread.start()
+
+		# wait for all threads ending
+		for thread in thread_list:
+			thread.join()
+
+
 class Packager():
 	# TODO: reuse paktraces, does not walk for files
-	def __init__(self, source_dir, build_dir, pak_file, game_name=None):
+	def __init__(self, source_dir, build_dir, pak_file, game_name=None, no_compress=False):
 		pak_config = Repository.Config(source_dir, game_name=game_name)
 		self.build_dir = build_dir
 		self.pak_file = pak_file
+		self.no_compress = no_compress
 
 		if not game_name:
 			game_name = pak_config.requireKey("game")
@@ -216,8 +267,12 @@ class Packager():
 			logging.debug("remove existing package: " + self.pak_file)
 			os.remove(self.pak_file)
 
-		# maximum compression
-		zipfile.zlib.Z_DEFAULT_COMPRESSION = zipfile.zlib.Z_BEST_COMPRESSION
+		if self.no_compress:
+			# why zlib.Z_NO_COMPRESSION not defined?
+			zipfile.zlib.Z_DEFAULT_COMPRESSION = 0
+		else:
+			# maximum compression
+			zipfile.zlib.Z_DEFAULT_COMPRESSION = zipfile.zlib.Z_BEST_COMPRESSION
 
 		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
 
@@ -237,7 +292,7 @@ class Packager():
 				if file_path == "DEPS" and self.game_profile.pak_format == "dpk":
 					continue
 
-				Ui.print("add file to package: " + file_path)
+				Ui.print("add file to package " + os.path.basename(self.pak_file) + ": " + file_path)
 				pak.write(full_path, arcname=file_path)
 
 		if self.game_profile.pak_format == "dpk":
@@ -248,7 +303,7 @@ class Packager():
 
 				deps_temp_dir = tempfile.mkdtemp()
 				deps_temp_file = deps.write(deps_temp_dir)
-				Ui.print("add file to package: DEPS")
+				Ui.print("add file to package " + os.path.basename(self.pak_file) + ": DEPS")
 				pak.write(deps_temp_file, arcname="DEPS")
 
 		logging.debug("close: " + self.pak_file)
@@ -515,6 +570,9 @@ def build(stage):
 	else:
 		source_dir_list = args.source_dir
 
+	if args.test_dir and len(source_dir_list) > 1:
+		Ui.error("--test-dir can't be used while building more than one source directory", silent=True)
+
 	for source_dir in source_dir_list:
 		Ui.notice("build from: " + source_dir)
 		source_dir = os.path.realpath(source_dir)
@@ -570,6 +628,8 @@ def package(stage):
 	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in %(metavar)s prefix, example: build/pkg")
 	parser.add_argument("--test_dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
 	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as %(metavar)s file")
+	parser.add_argument("-s", "--sequential", dest="sequential_package", help="package sequentially (disable parallel package)", action="store_true")
+	parser.add_argument("-n", "--no-compress", dest="no_compress", help="package without compression", action="store_true")
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build from %(metavar)s directory, default: %(default)s")
 
 	args = parser.parse_args()
@@ -588,20 +648,15 @@ def package(stage):
 	else:
 		source_dir_list = args.source_dir
 
-	for source_dir in source_dir_list:
-		Ui.notice("package from: " + source_dir)
-		source_dir = os.path.realpath(source_dir)
+	if args.test_dir and len(source_dir_list) > 1:
+		Ui.error("--test-dir can't be used while packaging more than one source directory", silent=True)
 
-		source_tree = Repository.Tree(source_dir)
-		if not source_tree.isValid():
-			Ui.error("not a supported tree, not going further", silent=True)
+	if args.pak_file and len(source_dir_list) > 1:
+		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
-		pak_config = Repository.Config(source_dir, game_name=args.game_name)
-		test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
-		pak_file = pak_config.getPakFile(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix, pak_file=args.pak_file)
-
-		packager = Packager(source_dir, test_dir, pak_file, game_name=args.game_name)
-		packager.pack()
+	parallel_package = not args.sequential_package
+	multi_packager = MultiPackager(source_dir_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, no_compress=args.no_compress, parallel=parallel_package)
+	multi_packager.pack()
 
 
 def clean(stage):
@@ -644,6 +699,9 @@ def clean(stage):
 		source_dir_list = [ "." ]
 	else:
 		source_dir_list = args.source_dir
+
+	if args.test_dir and len(source_dir_list) > 1:
+		Ui.error("--test-dir can't be used while cleaning more than one source directory", silent=True)
 
 	for source_dir in source_dir_list:
 		Ui.notice("clean from: " + source_dir)
