@@ -190,15 +190,14 @@ class MultiPackager():
 		self.pak_file = pak_file
 		self.game_name = game_name
 		self.no_compress = no_compress
-
-		if parallel and len(source_dir_list) > 1:
-			Ui.warning("parallel packaging is abnormally slow using zipfile/zlib, disabling")
-			self.parallel = False
-		else:
-			self.parallel = parallel
+		self.parallel = parallel
 
 	def pack(self):
 		cpu_count = multiprocessing.cpu_count()
+		# HACK: zipfile/zlib looks to also spawn as much threads as there is cpu
+		# so to package as much archive as there is cpu at same time, we must
+		# multiply it
+		cpu_count = cpu_count * cpu_count
 		thread_list = []
 		for source_dir in self.source_dir_list:
 			# FIXME: because of this code Urcheon must be run from package set directory
