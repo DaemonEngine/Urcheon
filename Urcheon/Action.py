@@ -164,6 +164,7 @@ def list():
 		ConvertOpus,
 		# quick
 		ConvertJpg,
+		ConvertBadJpg,
 		ConvertPng,
 		ConvertLossyWebp,
 		ConvertLosslessWebp,
@@ -358,6 +359,7 @@ class Copy(Action):
 class ConvertJpg(Action):
 	keyword = "convert_jpg"
 	description = "convert to jpg format"
+	quality = 92
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -373,7 +375,7 @@ class ConvertJpg(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to jpg: " + self.file_path)
-			self.callProcess(["convert", "-verbose", "-quality", "92", source_path, build_path])
+			self.callProcess(["convert", "-verbose", "-quality", str(self.quality), source_path, build_path])
 
 		self.setTimeStamp()
 
@@ -381,6 +383,12 @@ class ConvertJpg(Action):
 
 	def getFileNewName(self):
 		return self.switchExtension("jpg")
+
+
+class ConvertBadJpg(ConvertJpg):
+	keyword = "convert_bad_jpg"
+	description = "convert to bad jpg format"
+	quality = 50
 
 
 class ConvertPng(Action):

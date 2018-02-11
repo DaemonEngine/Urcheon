@@ -185,7 +185,7 @@ class PrevRun():
 
 		command_list = [ "convert" ]
 		command_list += [ source_fullpath ]
-		command_list += [ "-quality", "75", "-background", "magenta", "-alpha", "remove", "-alpha", "off" ]
+		command_list += [ "-quality", "50", "-background", "magenta", "-alpha", "remove", "-alpha", "off" ]
 
 		if self.preview_downscale:
 			command_list += [ "-resize", "256x256>" ]
