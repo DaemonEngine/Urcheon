@@ -543,7 +543,7 @@ class ConvertNormalCrn(DumbCrn):
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
 			self.callProcess(["convert", "-verbose", source_path, transient_path])
-			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path, "-dxn", "-renormalize", "-quality", "255", "-out", build_path])
+			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path, "-dxn", "-renormalize", "-rtopmip", "-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 

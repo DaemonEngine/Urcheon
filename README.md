@@ -103,7 +103,7 @@ The `urcheon` tool relies on:
 - [Sloth](https://github.com/Unvanquished/Sloth) if you need it to generate shader files;
 - [`convert` from ImageMagick](https://www.imagemagick.org/) to convert from and to various image formats;
 - [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp) to convert images to webp format;
-- [`crunch` from Unvanquished](https://github.com/Unvanquished/crunch) to convert images to crn format (the one from BinomialLLC or the one from Unity are lacking required features);
+- [`crunch` from Dæmon](https://github.com/DaemonEngine/crunch) to convert images to crn format (the one from BinomialLLC is not compatible and the one from Unity lacks required features);
 - [`opusenc` from Xiph](http://opus-codec.org) to convert sound files to opus format;
 - [`iqm` from FTE QuakeWorld](https://sourceforge.net/p/fteqw/code/HEAD/tree/trunk/iqm/) to convert iqe models (the one from Sauerbraten is lacking required features).
 
