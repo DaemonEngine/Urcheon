@@ -28,14 +28,14 @@ from collections import OrderedDict
 
 
 class Builder():
-	def __init__(self, source_dir, action_list, stage, build_dir, game_name=None, map_profile=None, is_nested=False, since_reference=None, parallel=True):
+	def __init__(self, source_dir, action_list, stage, build_dir, game_name=None, map_profile=None, is_nested=False, since_reference=None, is_parallel=True):
 		self.source_dir = source_dir
 		self.action_list = action_list
 		self.stage = stage
 		self.build_dir = build_dir
 		self.is_nested = is_nested
 		self.since_reference = since_reference
-		self.parallel = parallel
+		self.is_parallel = is_parallel
 
 		# Do not look for pak configuration in temporary directories, do not build temporary stuff in system build directories
 		if not is_nested:
@@ -80,7 +80,7 @@ class Builder():
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
-				if not self.parallel:
+				if not self.is_parallel:
 					# tasks are run sequentially but they can use multiple threads themselves
 					thread_count = cpu_count
 				else:
@@ -95,11 +95,11 @@ class Builder():
 				# the is_nested argument is just there to tell that action to not do specific stuff because of recursion
 				a = action(self.source_dir, self.build_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, thread_count=thread_count, is_nested=self.is_nested)
 
-				if not self.parallel:
+				if not self.is_parallel:
 					# explicitely requested (like in recursion)
 					produced_unit_list.extend(a.run())
 				else:
-					if not action.parallel:
+					if not action.is_parallel:
 						# action that can't be run concurrently to others
 						produced_unit_list.extend(a.run())
 					else:
@@ -181,7 +181,7 @@ class Builder():
 
 
 class MultiPackager():
-	def __init__(self, source_dir_list, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None, game_name=None, no_compress=False, parallel=False):
+	def __init__(self, source_dir_list, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None, game_name=None, no_compress=False, is_parallel=False):
 		self.source_dir_list = source_dir_list
 		self.build_prefix = build_prefix
 		self.test_prefix = test_prefix
@@ -190,7 +190,7 @@ class MultiPackager():
 		self.pak_file = pak_file
 		self.game_name = game_name
 		self.no_compress = no_compress
-		self.parallel = parallel
+		self.is_parallel = is_parallel
 
 	def pack(self):
 		cpu_count = multiprocessing.cpu_count()
@@ -213,7 +213,7 @@ class MultiPackager():
 			pak_file = pak_config.getPakFile(build_prefix=self.build_prefix, pak_prefix=self.pak_prefix, pak_file=self.pak_file)
 
 			p = Packager(source_dir, test_dir, pak_file, game_name=self.game_name, no_compress=self.no_compress)
-			if not self.parallel:
+			if not self.is_parallel:
 				p.pack()
 			else:
 				thread = threading.Thread(target=p.pack)
@@ -523,7 +523,7 @@ def prepare(stage):
 		previous_file_list = paktrace.listAll()
 
 		parallel_build = not args.sequential_build
-		builder = Builder(source_dir, action_list, "prepare", source_dir, game_name=args.game_name, parallel=parallel_build)
+		builder = Builder(source_dir, action_list, "prepare", source_dir, game_name=args.game_name, is_parallel=parallel_build)
 		produced_unit_list = builder.build()
 
 		cleaner = Cleaner(source_dir)
@@ -606,7 +606,7 @@ def build(stage):
 		previous_file_list = paktrace.listAll()
 
 		parallel_build = not args.sequential_build
-		builder = Builder(source_dir, action_list, "build", test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, parallel=parallel_build)
+		builder = Builder(source_dir, action_list, "build", test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, is_parallel=parallel_build)
 		produced_unit_list = builder.build()
 
 		if not args.keep_dust:
@@ -654,7 +654,7 @@ def package(stage):
 		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
 	parallel_package = not args.sequential_package
-	multi_packager = MultiPackager(source_dir_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, no_compress=args.no_compress, parallel=parallel_package)
+	multi_packager = MultiPackager(source_dir_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, no_compress=args.no_compress, is_parallel=parallel_package)
 	multi_packager.pack()
 
 

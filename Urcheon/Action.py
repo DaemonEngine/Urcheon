@@ -187,10 +187,10 @@ def list():
 class Action():
 	keyword = "dumb"
 	description = "dumb action"
-	parallel = True
+	is_parallel = True
 	threaded = False
 
-	def __init__(self, source_dir, build_dir, file_path, stage, game_name=None, map_profile=None, thread_count=1, is_nested=False):
+	def __init__(self, source_dir, build_dir, file_path, stage, game_name=None, map_profile=None, thread_count=1, is_parallel=True, is_nested=False):
 		self.body = []
 		self.source_dir = source_dir
 		self.build_dir = build_dir
@@ -199,6 +199,7 @@ class Action():
 		self.stage = stage
 		self.map_profile = map_profile
 		self.thread_count = thread_count
+		self.is_parallel = is_parallel
 		self.is_nested = is_nested
 		self.paktrace = Repository.Paktrace(self.build_dir)
 
@@ -665,7 +666,7 @@ class PrevRun(Action):
 	keyword = "run_prevrun"
 	description = "produce previews"
 	# must run before SlothRun
-	parallel = False
+	is_parallel = False
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -706,7 +707,7 @@ class SlothRun(Action):
 	keyword = "run_slothrun"
 	description = "produce shader"
 	# must run after PrevRun
-	parallel = False
+	is_parallel = False
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -749,7 +750,7 @@ class DumbTransient(Action):
 		action_list = List(self.transient_path, self.stage, game_name=self.game_name, disabled_action_list=disabled_action_list)
 		action_list.computeActions(file_list)
 
-		builder = Pak.Builder(self.transient_path, action_list, self.stage, self.build_dir, game_name=self.game_name, is_nested=True, parallel=False)
+		builder = Pak.Builder(self.transient_path, action_list, self.stage, self.build_dir, game_name=self.game_name, is_nested=True, is_parallel=False)
 		# keep track of built files
 		produced_unit_list = builder.build()
 
@@ -782,8 +783,8 @@ class CopyBsp(DumbTransient):
 		# TODO: isn't it done in setTimeStamp()?
 		shutil.copystat(source_path, bsp_transient_path)
 
-		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
-		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
+		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile, is_parallel=self.is_parallel)
+		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_done=["bsp", "vis", "light"])
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp"])
 
@@ -794,7 +795,7 @@ class CopyBsp(DumbTransient):
 class MergeBsp(DumbTransient):
 	keyword = "merge_bsp"
 	description = "merge into a bsp file"
-	parallel = False
+	is_parallel = False
 
 	def run(self):
 		# TODO: ensure bsp is already copied/compiled if modifying copied/compiled bsp
@@ -839,7 +840,7 @@ class MergeBsp(DumbTransient):
 		shutil.copystat(source_path, bsp_transient_path)
 
 		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
-		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_list=["nav", "minimap"])
+		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_done=["bsp", "vis", "light"])
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])
 
