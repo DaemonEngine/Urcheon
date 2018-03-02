@@ -13,12 +13,12 @@ from Urcheon import Default
 from Urcheon import FileSystem
 from Urcheon import Game
 from Urcheon import MapCompiler
+from Urcheon import ThreadCounter
 from Urcheon import Repository
 from Urcheon import Ui
 import __main__ as m
 import argparse
 import logging
-import multiprocessing
 import os
 import sys
 import tempfile
@@ -68,66 +68,56 @@ class Builder():
 			logging.debug("create build dir: " + self.build_dir)
 			os.makedirs(self.build_dir, exist_ok=True)
 
-		task_num = 0
-		task_count = len(Action.list())
-		cpu_count = multiprocessing.cpu_count()
-		common_thread_count = 1
-		thread_active = threading.active_count()
-		thread_list = []
+		cpu_count = ThreadCounter.countCPU()
+		action_thread_list = []
 		produced_unit_list = []
-		for action in Action.list():
-			for file_path in self.action_list.active_action_dict[action.keyword]:
+		for action_type in Action.list():
+			for file_path in self.action_list.active_action_dict[action_type.keyword]:
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
+				# the is_nested argument is there to tell action to not do specific stuff because of recursion
+				action = action_type(self.source_dir, self.build_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
+
+				# check if task is already done (usually comparing timestamps the make way)
+				if action.isDone():
+					produced_unit_list.extend(action.getOldProducedUnitList())
+					continue
+
 				if not self.is_parallel:
-					# tasks are run sequentially but they can use multiple threads themselves
+					# tasks are run sequentially but they can
+					# use multiple threads themselves
 					thread_count = cpu_count
 				else:
-					# if there is less tasks than cpu available, tell the task to use the remaining threads
-					# HACK: this simple compute can spawn one more thread than cpu core in some corner case,
-					# especially on the end of the tasklist and this is really fair because it's exactly when
-					# we want to avoid to run less threads than cpu cores and one more is really not a problem
-					task_remain = task_count - task_num
-					slot_available = max(1, cpu_count - thread_active - task_remain)
-					thread_count = max(common_thread_count, slot_available)
+					# this compute is super slow
+					child_thread_count = ThreadCounter.countChildThread(ThreadCounter.getProcess())
+					thread_count = max(0, cpu_count - child_thread_count)
 
-				# the is_nested argument is just there to tell that action to not do specific stuff because of recursion
-				a = action(self.source_dir, self.build_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, thread_count=thread_count, is_nested=self.is_nested)
+				action.thread_count = thread_count
 
 				if not self.is_parallel:
 					# explicitely requested (like in recursion)
-					produced_unit_list.extend(a.run())
+					produced_unit_list.extend(action.run())
 				else:
 					if not action.is_parallel:
 						# action that can't be run concurrently to others
-						produced_unit_list.extend(a.run())
+						produced_unit_list.extend(action.run())
 					else:
 						# wrapper does: produced_unit_list.append(a.run())
-						thread = threading.Thread(target=self.threadExtendRes, args=(a.run, (), produced_unit_list))
-						thread_list.append(thread)
+						action_thread = threading.Thread(target=self.threadExtendRes, args=(action.run, (), produced_unit_list))
+						action_thread_list.append(action_thread)
 
-						while threading.active_count() > cpu_count:
+						while cpu_count < ThreadCounter.countChildThread(ThreadCounter.getProcess()):
 							pass
 
-						thread.start()
-
-						# HACK: spawn a NOP thread for every unmanaged thread the subprocess
-						# will spawn, this way the thread manager knows how many threads we run
-						# for real
-						if a.threaded:
-							for i in range(1, thread_count):
-								dummy_thread_observer = threading.Thread(target=thread.join)
-								dummy_thread_observer.start()
-
-			task_num = task_num + 1
+						action_thread.start()
 
 		# wait for all threads ending, otherwise it will start packaging next
 		# package while the building task for the current one is not ended
 		# and well, we now have to read that list to purge old files, so we
 		# must wait
-		for thread in thread_list:
-			thread.join()
+		for action_thread in action_thread_list:
+			action_thread.join()
 
 		# deduplication
 		unit_list = []
@@ -193,11 +183,7 @@ class MultiPackager():
 		self.is_parallel = is_parallel
 
 	def pack(self):
-		cpu_count = multiprocessing.cpu_count()
-		# HACK: zipfile/zlib looks to also spawn as much threads as there is cpu
-		# so to package as much archive as there is cpu at same time, we must
-		# multiply it
-		cpu_count = cpu_count * cpu_count
+		cpu_count = ThreadCounter.countCPU()
 		thread_list = []
 		for source_dir in self.source_dir_list:
 			# FIXME: because of this code Urcheon must be run from package set directory
@@ -206,7 +192,7 @@ class MultiPackager():
 
 			source_tree = Repository.Tree(source_dir)
 			if not source_tree.isValid():
-				Ui.error("not a supported tree, not going further", silent=True)
+				Ui.error("not a supported tree: " + source_dir)
 
 			pak_config = Repository.Config(source_dir, game_name=self.game_name)
 			test_dir = pak_config.getTestDir(build_prefix=self.build_prefix, test_prefix=self.test_prefix, test_dir=self.test_dir)
@@ -219,18 +205,20 @@ class MultiPackager():
 				thread = threading.Thread(target=p.pack)
 				thread_list.append(thread)
 
-				while threading.active_count() > cpu_count:
+				while len(thread_list) > cpu_count:
+					# forget ended threads
+					thread_list = [t for t in thread_list if t.is_alive()]
 					pass
 
 				thread.start()
 
-		# wait for all threads ending
+		# wait for all remaining threads ending
 		for thread in thread_list:
 			thread.join()
 
 
 class Packager():
-	# TODO: reuse paktraces, does not walk for files
+	# TODO: reuse paktraces, do not walk for files
 	def __init__(self, source_dir, build_dir, pak_file, game_name=None, no_compress=False):
 		pak_config = Repository.Config(source_dir, game_name=game_name)
 		self.build_dir = build_dir

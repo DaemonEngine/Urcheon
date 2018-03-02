@@ -149,12 +149,26 @@ class List():
 
 # I want actions printed and executed in this order
 def list():
+	# do slow things at first so the thread manager
+	# can fill the slot with quicker things
+	# when the slow tasks are not very well
+	# multithreaded
 	action_list = [
-		# quick stuff to be consumed quickly
-		Ignore,
-		Copy,
-		Keep,
-		# sloth needs previews to be done first
+		# even bsp copying can be slow if it triggers minimap
+		# and navmesh generation
+		CopyBsp,
+		CompileBsp,
+		# perhaps one day MergeBsp will be run on a copied bsp
+		# so it must be called after that
+		MergeBsp,
+		# this is probably the slowest compression image
+		# format we know
+		ConvertCrn,
+		ConvertNormalCrn,
+		# sloth needs previews to be done before sloth
+		# TODO: be sure Sloth is not run before
+		# all previews are generated
+		# currently prepare stage is always sequential
 		PrevRun,
 		SlothRun,
 		# usually quick
@@ -162,24 +176,16 @@ def list():
 		# can take some time but not blocking
 		ConvertVorbis,
 		ConvertOpus,
-		# quick
+		# quick tasks
 		ConvertJpg,
 		ConvertBadJpg,
 		ConvertPng,
 		ConvertLossyWebp,
 		ConvertLosslessWebp,
-		# this is slow, do it in last so the thread manager
-		# can allocate more threads to the task if there is
-		# less remaining tasks than cpu cores available
-		ConvertCrn,
-		ConvertNormalCrn,
-		# even bsp copying can be slow if it triggers minimap
-		# and navmesh generation
-		CopyBsp,
-		CompileBsp,
-		# MergeBsp can be run on a copied bsp so it must be
-		# called lately
-		MergeBsp,
+		# very quick tasks
+		Copy,
+		Keep,
+		Ignore,
 	]
 	return action_list
 
@@ -202,6 +208,11 @@ class Action():
 		self.is_parallel = is_parallel
 		self.is_nested = is_nested
 		self.paktrace = Repository.Paktrace(self.build_dir)
+
+	def isDone(self):
+		if not self.isDifferent():
+			Ui.print("Unmodified file, do nothing: " + self.file_path)
+			return self.getOldProducedUnitList()
 
 	def run(self):
 		Ui.print("Dumb action: " + self.file_path)
@@ -309,8 +320,13 @@ class Ignore(Action):
 	keyword = "ignore"
 	description = "ignore file"
 
-	def run(self):
+	def isDone(self):
+		# trick, the task is done in test stage to bypass the available thread compute
 		Ui.verbose("Ignore: " + self.file_path)
+		return True
+
+	def run(self):
+		# trick, the task is done it test stage to bypass the available thread compute
 		return self.getProducedUnitList()
 
 	def getProducedUnitList(self):
@@ -325,10 +341,6 @@ class Keep(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
-
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
 
 		Ui.print("Keep: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
@@ -346,10 +358,6 @@ class Copy(Action):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
-
 		Ui.print("Copy: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		self.setTimeStamp()
@@ -366,10 +374,6 @@ class ConvertJpg(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
-
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
 
 		if self.getExt() in ("jpg", "jpeg"):
 			Ui.print("File already in jpg, copy: " + self.file_path)
@@ -401,10 +405,6 @@ class ConvertPng(Action):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
-
 		if self.getExt() == "png":
 			Ui.print("File already in png, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -434,10 +434,6 @@ class ConvertLossyWebp(DumbWebp):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
-
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -463,10 +459,6 @@ class ConvertLosslessWebp(DumbWebp):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
-
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
 
 		if self.getExt() == "webp":
 			Ui.print("File already in webp, copy: " + self.file_path)
@@ -502,10 +494,6 @@ class ConvertCrn(DumbCrn):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
-
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -531,10 +519,6 @@ class ConvertNormalCrn(DumbCrn):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
-
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
 
 		if self.getExt() == "crn":
 			Ui.print("File already in crn, copy: " + self.file_path)
@@ -562,10 +546,6 @@ class ConvertVorbis(Action):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
-
 		if self.getExt() == "ogg":
 			Ui.print("File already in vorbis, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -590,10 +570,6 @@ class ConvertOpus(Action):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
-
 		if self.getExt() == "opus":
 			Ui.print("File already in opus, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
@@ -617,10 +593,6 @@ class CompileIqm(Action):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
-
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
 
 		if self.getExt() == "iqm":
 			Ui.print("File already in iqm, copy: " + self.file_path)
@@ -668,17 +640,15 @@ class PrevRun(Action):
 	# must run before SlothRun
 	is_parallel = False
 
+	def isDone(self):
+		# HACK: always consider it's not already done because
+		# we can detect added files, but not removed files yet
+		return False
+
 	def run(self):
 		source_path = self.getSourcePath()
 
 		self.prevrun = Texset.PrevRun(self.source_dir, source_path, game_name=self.game_name)
-
-		# HACK: never check because multiple files produces on reference
-		# we can detect added files, but not removed files yet
-		# if not self.isDifferent():
-		#	Ui.print("Unmodified file, do nothing: " + self.file_path)
-		#	return self.getOldProducedUnitList()
-
 		self.preview_list = self.prevrun.run()
 
 		# it does it itself
@@ -709,17 +679,15 @@ class SlothRun(Action):
 	# must run after PrevRun
 	is_parallel = False
 
+	def isDone(self):
+		# HACK: always consider it's not already done because
+		# we can detect added files, but not removed files yet
+		return False
+
 	def run(self):
 		source_path = self.getSourcePath()
 
 		self.slothrun = Texset.SlothRun(self.source_dir, source_path, game_name=self.game_name)
-
-		# HACK: never check because multiple files produces on reference
-		# we can detect added files, but not removed files yet
-		# if not self.isDifferent():
-		#	Ui.print("Unmodified file, do nothing: " + self.file_path)
-		#	return self.getOldProducedUnitList()
-
 		self.slothrun.run()
 
 		self.body = [ self.getFileNewName() ]
@@ -770,10 +738,6 @@ class CopyBsp(DumbTransient):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
-
 		self.createTransientPath()
 		bsp_path = self.getFileNewName()
 		bsp_transient_path = os.path.join(self.transient_path, bsp_path)
@@ -809,10 +773,6 @@ class MergeBsp(DumbTransient):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
-
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
 
 		# TODO: remove target before merging, to avoid bugs when merging in place
 		# merging in place is not implemented yet
@@ -875,10 +835,6 @@ class CompileBsp(DumbTransient):
 		build_path = self.getTargetPath()
 		bsp_path = self.getFileNewName()
 		self.createSubdirs()
-
-		if not self.isDifferent():
-			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
 
 		self.createTransientPath()
 
