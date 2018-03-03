@@ -27,17 +27,119 @@ import zipfile
 from collections import OrderedDict
 
 
-class Builder():
-	def __init__(self, source_dir, action_list, stage, build_dir, game_name=None, map_profile=None, is_nested=False, since_reference=None, is_parallel=True):
-		self.source_dir = source_dir
-		self.action_list = action_list
-		self.stage = stage
-		self.build_dir = build_dir
-		self.is_nested = is_nested
+class MultiRunner():
+	def __init__(self, source_dir_list, stage_name, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, since_reference=None, no_auto_actions=False, clean_map=False, keep_dust=False, pak_prefix=None, pak_file=None, no_compress=False, is_parallel=True):
+		# common
+		self.source_dir_list = source_dir_list
+		self.stage_name = stage_name
+		self.game_name = game_name
+		self.is_parallel = is_parallel
+		# prepare, build, package
+		self.build_prefix = build_prefix
+		# build
+		self.test_prefix = test_prefix
+		self.test_dir = test_dir
+		# prepare, build
+		self.map_profile = map_profile
 		self.since_reference = since_reference
+		self.no_auto_actions = no_auto_actions
+		self.clean_map = clean_map
+		self.keep_dust = keep_dust
+		# package
+		self.pak_prefix = pak_prefix
+		self.pak_file = pak_file
+		self.no_compress = no_compress
+
+	def run(self):
+		cpu_count = ThreadCounter.countCPU()
+		runner_thread_list = []
+
+		for source_dir in self.source_dir_list:
+			# FIXME: because of this code Urcheon must run within package set directory
+			Ui.notice(self.stage_name + " from: " + source_dir)
+			source_dir = os.path.realpath(source_dir)
+
+			source_tree = Repository.Tree(source_dir)
+			if not source_tree.isValid():
+				Ui.error("not a supported tree: " + source_dir)
+
+			pak_config = Repository.Config(source_dir, game_name=self.game_name)
+
+			if self.stage_name in ["prepare"]:
+				dest_dir = source_dir
+			elif self.stage_name in ["build", "package"]:
+				dest_dir = pak_config.getTestDir(build_prefix=self.build_prefix, test_prefix=self.test_prefix, test_dir=self.test_dir)
+
+			# FIXME: currently the prepare stage
+			# can't be parallel (for example SlothRun task
+			# needs all PrevRun tasks to be finished first)
+			# btw all packages can be prepared in parallel
+			if self.stage_name in ["prepare"]:
+				is_parallel_runner = False
+			else:
+				is_parallel_runner = True
+
+			if self.stage_name in ["prepare", "build"]:
+				runner = Builder(source_dir, self.stage_name, dest_dir, game_name=self.game_name, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
+			elif self.stage_name in ["package"]:
+				runner = Packager(source_dir, dest_dir, self.pak_file, game_name=self.game_name, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, no_compress=self.no_compress)
+
+			if not self.is_parallel:
+				runner.build()
+			else:
+				runner_thread = threading.Thread(target=runner.run)
+				runner_thread_list.append(runner_thread)
+
+				while len(runner_thread_list) > cpu_count:
+					# forget ended threads
+					runner_thread_list = [t for t in runner_thread_list if t.is_alive()]
+					pass
+
+				runner_thread.start()
+
+		# wait for all remaining threads ending
+		for runner_thread in runner_thread_list:
+			runner_thread.join()
+
+
+class Builder():
+	def __init__(self, source_dir, stage_name, test_dir, game_name=None, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
+		self.run = self.build
+
+		self.source_dir = source_dir
+		self.stage_name = stage_name
+		self.test_dir = test_dir
+		self.is_nested = is_nested
+		self.game_name = game_name
+		self.since_reference = since_reference
+		self.no_auto_actions = no_auto_actions
+		self.clean_map = clean_map
+		self.keep_dust = keep_dust
 		self.is_parallel = is_parallel
 
-		# Do not look for pak configuration in temporary directories, do not build temporary stuff in system build directories
+		action_list = Action.List(source_dir, stage_name, game_name=game_name, disabled_action_list=disabled_action_list)
+
+		if not is_nested:
+			action_list.readActions()
+
+		if not file_list:
+			# FIXME: only if one package?
+			# same reference for multiple packages
+			# makes sense when using tags
+			if since_reference:
+				file_repo = Repository.Git(source_dir, pak_config.game_profile.pak_format)
+				file_list = file_repo.listFilesSinceReference(since_reference)
+			else:
+				file_tree = Repository.Tree(source_dir, game_name=self.game_name, is_nested=is_nested)
+				file_list = file_tree.listFiles()
+
+		if not self.no_auto_actions:
+			action_list.computeActions(file_list)
+		
+		self.action_list = action_list
+
+		# do not look for pak configuration in temporary directories
+		# do not build temporary stuff in system build directories
 		if not is_nested:
 			pak_config = Repository.Config(source_dir, game_name=game_name)
 
@@ -47,7 +149,7 @@ class Builder():
 			self.pak_name = pak_config.requireKey("name")
 
 		else:
-			self.build_dir = build_dir
+			self.test_dir = test_dir
 
 		self.game_name = game_name
 		self.game_profile = Game.Game(source_dir, game_name)
@@ -62,22 +164,40 @@ class Builder():
 
 	def build(self):
 		# TODO: check if not a directory
-		if os.path.isdir(self.build_dir):
-			logging.debug("found build dir: " + self.build_dir)
+		if os.path.isdir(self.test_dir):
+			logging.debug("found build dir: " + self.test_dir)
 		else:
-			logging.debug("create build dir: " + self.build_dir)
-			os.makedirs(self.build_dir, exist_ok=True)
+			logging.debug("create build dir: " + self.test_dir)
+			os.makedirs(self.test_dir, exist_ok=True)
+
+		if not self.is_nested and not self.keep_dust:
+			clean_dust = True
+		else:
+			clean_dust = False
+
+		if clean_dust:
+			# do not read paktrace from temporary directories
+			# do not read paktrace if dust will be kept
+			paktrace = Repository.Paktrace(self.test_dir)
+			previous_file_list = paktrace.listAll()
+
+		if self.clean_map or clean_dust:
+			cleaner = Cleaner(self.source_dir, game_name=self.game_name)
+
+		if self.clean_map:
+			cleaner.cleanMap(self.test_dir)
 
 		cpu_count = ThreadCounter.countCPU()
 		action_thread_list = []
 		produced_unit_list = []
+
 		for action_type in Action.list():
 			for file_path in self.action_list.active_action_dict[action_type.keyword]:
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
 				# the is_nested argument is there to tell action to not do specific stuff because of recursion
-				action = action_type(self.source_dir, self.build_dir, file_path, self.stage, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
+				action = action_type(self.source_dir, self.test_dir, file_path, self.stage_name, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
 
 				# check if task is already done (usually comparing timestamps the make way)
 				if action.isDone():
@@ -112,7 +232,7 @@ class Builder():
 
 						action_thread.start()
 
-		# wait for all threads ending, otherwise it will start packaging next
+		# wait for all threads to end, otherwise it will start packaging next
 		# package while the building task for the current one is not ended
 		# and well, we now have to read that list to purge old files, so we
 		# must wait
@@ -130,13 +250,15 @@ class Builder():
 			head = unit["head"]
 			body = unit["body"]
 
-			# if multiple calls produces the same files (like merge_bsp)
+			# if multiple calls produce the same files (like merge_bsp)
 			if head in unit:
 				continue
 
 			unit_list.append(unit)
 
-		if self.stage == "build" and not self.is_nested:
+		produced_unit_list = unit_list
+
+		if self.stage_name == "build" and not self.is_nested:
 			if self.game_profile.pak_format == "dpk":
 				is_deps = False
 
@@ -155,80 +277,45 @@ class Builder():
 				if is_deps:
 					# translating DEPS file
 					deps.translateTest()
-					deps.write(self.build_dir)
+					deps.write(self.test_dir)
 
 					unit = {}
 					unit["head"] = "DEPS"
 					unit["body"] = []
-					unit_list.append(unit)
+					produced_unit_list.append(unit)
 
-		logging.debug("unit_list:" + str(unit_list))
-		return unit_list
+		logging.debug("produced unit list:" + str(produced_unit_list))
+
+		# do not clean-up if building from temporary directories
+		# or if user asked to not clean-up
+		if clean_dust:
+			cleaner.cleanDust(self.test_dir, produced_unit_list, previous_file_list)
+
+		return produced_unit_list
 
 	def threadExtendRes(self, func, args, res):
 		# magic: only works if res is a mutable object (like a list)
 		res.extend(func(*args))
 
 
-class MultiPackager():
-	def __init__(self, source_dir_list, build_prefix=None, test_prefix=None, test_dir=None, pak_prefix=None, pak_file=None, game_name=None, no_compress=False, is_parallel=False):
-		self.source_dir_list = source_dir_list
-		self.build_prefix = build_prefix
-		self.test_prefix = test_prefix
-		self.test_dir = test_dir
-		self.pak_prefix = pak_prefix
-		self.pak_file = pak_file
-		self.game_name = game_name
-		self.no_compress = no_compress
-		self.is_parallel = is_parallel
-
-	def pack(self):
-		cpu_count = ThreadCounter.countCPU()
-		thread_list = []
-		for source_dir in self.source_dir_list:
-			# FIXME: because of this code Urcheon must be run from package set directory
-			Ui.notice("package from: " + source_dir)
-			source_dir = os.path.realpath(source_dir)
-
-			source_tree = Repository.Tree(source_dir)
-			if not source_tree.isValid():
-				Ui.error("not a supported tree: " + source_dir)
-
-			pak_config = Repository.Config(source_dir, game_name=self.game_name)
-			test_dir = pak_config.getTestDir(build_prefix=self.build_prefix, test_prefix=self.test_prefix, test_dir=self.test_dir)
-			pak_file = pak_config.getPakFile(build_prefix=self.build_prefix, pak_prefix=self.pak_prefix, pak_file=self.pak_file)
-
-			p = Packager(source_dir, test_dir, pak_file, game_name=self.game_name, no_compress=self.no_compress)
-			if not self.is_parallel:
-				p.pack()
-			else:
-				thread = threading.Thread(target=p.pack)
-				thread_list.append(thread)
-
-				while len(thread_list) > cpu_count:
-					# forget ended threads
-					thread_list = [t for t in thread_list if t.is_alive()]
-					pass
-
-				thread.start()
-
-		# wait for all remaining threads ending
-		for thread in thread_list:
-			thread.join()
-
-
 class Packager():
 	# TODO: reuse paktraces, do not walk for files
-	def __init__(self, source_dir, build_dir, pak_file, game_name=None, no_compress=False):
+	def __init__(self, source_dir, test_dir, pak_file, game_name=None, build_prefix=None, test_prefix=None, pak_prefix=None, no_compress=False):
+		self.run = self.pack
+
 		pak_config = Repository.Config(source_dir, game_name=game_name)
-		self.build_dir = build_dir
-		self.pak_file = pak_file
 		self.no_compress = no_compress
+
+		pak_config = Repository.Config(source_dir, game_name=game_name)
+
+		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
+		self.pak_file = pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file)
 
 		if not game_name:
 			game_name = pak_config.requireKey("game")
 
 		self.game_profile = Game.Game(source_dir, game_name)
+
 
 	def createSubdirs(self, pak_file):
 		pak_subdir = os.path.dirname(pak_file)
@@ -241,11 +328,12 @@ class Packager():
 			logging.debug("create pak subdir: " + pak_subdir)
 			os.makedirs(pak_subdir, exist_ok=True)
 
+
 	def pack(self):
-		if not os.path.isdir(self.build_dir):
+		if not os.path.isdir(self.test_dir):
 			Ui.error("test pakdir not built")
 
-		Ui.print("Packing " + self.build_dir + " to: " + self.pak_file)
+		Ui.print("Packing " + self.test_dir + " to: " + self.pak_file)
 		self.createSubdirs(self.pak_file)
 		logging.debug("opening: " + self.pak_file)
 
@@ -264,12 +352,13 @@ class Packager():
 		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
 
 		paktrace_dir = Default.paktrace_dir
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.build_dir):
+
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
-				rel_dir_name = os.path.relpath(dir_name, self.build_dir)
+				rel_dir_name = os.path.relpath(dir_name, self.test_dir)
 
 				full_path = os.path.join(dir_name, file_name)
-				file_path = os.path.relpath(full_path, self.build_dir)
+				file_path = os.path.relpath(full_path, self.test_dir)
 
 				# ignore paktrace files
 				if file_path.startswith(paktrace_dir + os.path.sep):
@@ -285,7 +374,7 @@ class Packager():
 		if self.game_profile.pak_format == "dpk":
 			# translating DEPS file
 			deps = Repository.Deps()
-			if deps.read(self.build_dir):
+			if deps.read(self.test_dir):
 				deps.translateRelease()
 
 				deps_temp_dir = tempfile.mkdtemp()
@@ -309,8 +398,9 @@ class Cleaner():
 
 		self.game_profile = Game.Game(source_dir, game_name)
 
-	def cleanTest(self, build_dir):
-		for dir_name, subdir_name_list, file_name_list in os.walk(build_dir):
+
+	def cleanTest(self, test_dir):
+		for dir_name, subdir_name_list, file_name_list in os.walk(test_dir):
 			for file_name in file_name_list:
 				that_file = os.path.join(dir_name, file_name)
 				Ui.print("clean: " + that_file)
@@ -320,7 +410,7 @@ class Cleaner():
 				that_dir = dir_name + os.path.sep + dir_name
 				FileSystem.removeEmptyDir(that_dir)
 			FileSystem.removeEmptyDir(dir_name)
-		FileSystem.removeEmptyDir(build_dir)
+		FileSystem.removeEmptyDir(test_dir)
 
 
 	def cleanPak(self, pak_prefix):
@@ -334,9 +424,9 @@ class Cleaner():
 		FileSystem.removeEmptyDir(pak_prefix)
 
 
-	def cleanMap(self, build_dir):
+	def cleanMap(self, test_dir):
 		# TODO: use paktrace abilities?
-		for dir_name, subdir_name_list, file_name_list in os.walk(build_dir):
+		for dir_name, subdir_name_list, file_name_list in os.walk(test_dir):
 			for file_name in file_name_list:
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "bsp"):
 					bsp_file = os.path.join(dir_name, file_name)
@@ -368,10 +458,11 @@ class Cleaner():
 					os.remove(minimap_file)
 					FileSystem.removeEmptyDir(dir_name)
 
-		FileSystem.removeEmptyDir(build_dir)
+		FileSystem.removeEmptyDir(test_dir)
 
 
-	def cleanDust(self, build_dir, produced_unit_list, previous_file_list):
+	def cleanDust(self, test_dir, produced_unit_list, previous_file_list):
+		# TODO: remove extra files that are not tracked in paktraces?
 		produced_file_list = []
 		head_list = []
 		for unit in produced_unit_list:
@@ -380,7 +471,7 @@ class Cleaner():
 
 		for file_name in previous_file_list:
 			if file_name not in produced_file_list:
-				dust_file_path = os.path.normpath(os.path.join(build_dir, file_name))
+				dust_file_path = os.path.normpath(os.path.join(test_dir, file_name))
 				Ui.print("clean dust file: " + file_name)
 				dust_file_fullpath = os.path.realpath(dust_file_path)
 
@@ -391,12 +482,12 @@ class Cleaner():
 				FileSystem.cleanRemoveFile(dust_file_fullpath)
 			
 		paktrace_dir = Default.paktrace_dir
-		paktrace_fulldir = os.path.join(build_dir, paktrace_dir)
+		paktrace_fulldir = os.path.join(test_dir, paktrace_dir)
 
 		if os.path.isdir(paktrace_fulldir):
 			logging.debug("look for dust in directory: " + paktrace_dir)
 			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_fulldir):
-				dir_name = os.path.relpath(dir_name, build_dir)
+				dir_name = os.path.relpath(dir_name, test_dir)
 				logging.debug("found paktrace dir: " + dir_name)
 
 				for file_name in file_name_list:
@@ -406,13 +497,13 @@ class Cleaner():
 					head_name = os.path.relpath(file_path, Default.paktrace_dir)[:-len(Default.paktrace_file_ext)]
 					if head_name not in head_list:
 						Ui.print("clean dust paktrace: " + file_path)
-						dust_paktrace_path = os.path.normpath(os.path.join(build_dir, file_path))
+						dust_paktrace_path = os.path.normpath(os.path.join(test_dir, file_path))
 						dust_paktrace_fullpath = os.path.realpath(dust_paktrace_path)
 						FileSystem.cleanRemoveFile(dust_paktrace_fullpath)
 
 
-def discover(stage):
-	prog_name = os.path.basename(m.__file__) + " " + stage
+def discover(stage_name):
+	prog_name = os.path.basename(m.__file__) + " " + stage_name
 	description = "%(prog)s discover files and write down action lists."
 
 	parser = argparse.ArgumentParser(description=description, prog=prog_name)
@@ -457,8 +548,8 @@ def discover(stage):
 		action_list.updateActions(action_list)
 
 
-def prepare(stage):
-	prog_name = os.path.basename(m.__file__) + " " + stage
+def prepare(stage_name):
+	prog_name = os.path.basename(m.__file__) + " " + stage_name
 	description = "%(prog)s prepare source pakdir."
 
 	parser = argparse.ArgumentParser(description=description, prog=prog_name)
@@ -490,38 +581,13 @@ def prepare(stage):
 	else:
 		source_dir_list = args.source_dir
 
-	for source_dir in source_dir_list:
-		Ui.notice("prepare from: " + source_dir)
-		source_dir = os.path.realpath(source_dir)
-		
-		source_tree = Repository.Tree(source_dir, game_name=args.game_name)
-		if not source_tree.isValid():
-			Ui.error("not a supported tree, not going further", silent=True)
-
-		action_list = Action.List(source_dir, "prepare", game_name=args.game_name)
-		action_list.readActions()
-
-		file_tree = Repository.Tree(source_dir)
-		file_list = file_tree.listFiles()
-
-		if not args.no_auto_actions:
-			action_list.computeActions(file_list)
-
-		paktrace = Repository.Paktrace(source_dir)
-		previous_file_list = paktrace.listAll()
-
-		parallel_build = not args.sequential_build
-		builder = Builder(source_dir, action_list, "prepare", source_dir, game_name=args.game_name, is_parallel=parallel_build)
-		produced_unit_list = builder.build()
-
-		cleaner = Cleaner(source_dir)
-
-		if not args.keep_dust:
-			cleaner.cleanDust(source_dir, produced_unit_list, previous_file_list)
+	is_parallel = not args.sequential_build
+	multi_runner = MultiRunner(source_dir_list, stage_name, game_name=args.game_name, no_auto_actions=args.no_auto_actions, keep_dust=args.keep_dust, is_parallel=is_parallel)
+	multi_runner.run()
 
 
-def build(stage):
-	prog_name = os.path.basename(m.__file__) + " " + stage
+def build(stage_name):
+	prog_name = os.path.basename(m.__file__) + " " + stage_name
 	description = "%(prog)s produces test pakdir."
 
 	parser = argparse.ArgumentParser(description=description, prog=prog_name)
@@ -560,49 +626,13 @@ def build(stage):
 	if args.test_dir and len(source_dir_list) > 1:
 		Ui.error("--test-dir can't be used while building more than one source directory", silent=True)
 
-	for source_dir in source_dir_list:
-		Ui.notice("build from: " + source_dir)
-		source_dir = os.path.realpath(source_dir)
-
-		source_tree = Repository.Tree(source_dir)
-		if not source_tree.isValid():
-			Ui.error("not a supported tree, not going further", silent=True)
-
-		action_list = Action.List(source_dir, "build", game_name=args.game_name)
-		action_list.readActions()
-
-		pak_config = Repository.Config(source_dir, game_name=args.game_name)
-
-		if args.since_reference:
-			file_repo = Repository.Git(source_dir, pak_config.game_profile.pak_format)
-			file_list = file_repo.listFilesSinceReference(args.since_reference)
-		else:
-			file_tree = Repository.Tree(source_dir, game_name=args.game_name)
-			file_list = file_tree.listFiles()
-
-		if not args.no_auto_actions:
-			action_list.computeActions(file_list)
-
-		test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
-
-		cleaner = Cleaner(source_dir, game_name=args.game_name)
-
-		if args.clean_map:
-			cleaner.cleanMap(test_dir)
-
-		paktrace = Repository.Paktrace(test_dir)
-		previous_file_list = paktrace.listAll()
-
-		parallel_build = not args.sequential_build
-		builder = Builder(source_dir, action_list, "build", test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, is_parallel=parallel_build)
-		produced_unit_list = builder.build()
-
-		if not args.keep_dust:
-			cleaner.cleanDust(test_dir, produced_unit_list, previous_file_list)
+	is_parallel = not args.sequential_build
+	multi_runner = MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, no_auto_actions=args.no_auto_actions, clean_map=args.clean_map, keep_dust=args.keep_dust, is_parallel=is_parallel)
+	multi_runner.run()
 
 
-def package(stage):
-	prog_name = os.path.basename(m.__file__) + " " + stage
+def package(stage_name):
+	prog_name = os.path.basename(m.__file__) + " " + stage_name
 	description = "%(prog)s produces release pak."
 
 	parser = argparse.ArgumentParser(description=description, prog=prog_name)
@@ -641,13 +671,13 @@ def package(stage):
 	if args.pak_file and len(source_dir_list) > 1:
 		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
-	parallel_package = not args.sequential_package
-	multi_packager = MultiPackager(source_dir_list, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, no_compress=args.no_compress, is_parallel=parallel_package)
-	multi_packager.pack()
+	is_parallel = not args.sequential_package
+	multi_runner = MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, no_compress=args.no_compress, is_parallel=is_parallel)
+	multi_runner.run()
 
 
-def clean(stage):
-	prog_name = os.path.basename(m.__file__) + " " + stage
+def clean(stage_name):
+	prog_name = os.path.basename(m.__file__) + " " + stage_name
 	description = "%(prog)s cleans build directory and previously generated package."
 
 	parser = argparse.ArgumentParser(description=description, prog=prog_name)

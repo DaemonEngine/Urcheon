@@ -466,10 +466,10 @@ class BlackList():
 
 
 class Tree():
-	def __init__(self, source_dir, game_name=None, transient_path=False):
+	def __init__(self, source_dir, game_name=None, is_nested=False):
 		self.source_dir = source_dir
 
-		if not transient_path:
+		if not is_nested:
 			self.pak_config = Config(source_dir, game_name=game_name)
 			self.pak_format = self.pak_config.game_profile.pak_format
 		else:

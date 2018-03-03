@@ -5,6 +5,7 @@ Urcheon
 ![Cute Granger](doc/cute-granger.512.png)  
 _My lovely granger needs a tender knight to care for his little flower._
 
+
 Description
 -----------
 
@@ -94,7 +95,7 @@ Type `urcheon <stage> --help` from some help.
 
 ### Dependencies
 
-These are the Python3 modules you will need to run `urcheon`: `argparse`, `fnmatch`, `glob`, `logging`, `multiprocessing`, `operator`, `os`, `pytoml`, `re`, `shutil`, `struct`, `subprocess`, `sys`, `tempfile`, `threading`, `toml`, and `zipfile`. Currently there is two [TOML](https://github.com/toml-lang/toml) modules used: [`toml`](https://github.com/uiri/toml) and [`pytoml`](https://github.com/avakar/pytoml), the `pytoml` one is the prefered one since its TOML support is perfect and this module gives better debugging messages, badly, it does not support ordered dictionary yet and that's needed for the map compilation handling (you must be able to define your bsp compilation stage before the lightmap one etc.) that's why `toml` is used to workaround that `pytoml` limitation in this only place. Once `pytoml` get ordered dictionnary support, `toml` will be ditched.
+These are the Python3 modules you will need to run `urcheon`: `argparse`, `fnmatch`, `glob`, `logging`, `multiprocessing`, `operator`, `os`, `pytoml`, `re`, `shutil`, `struct`, `subprocess`, `sys`, `tempfile`, `threading`, and `zipfile`.
 
 The `urcheon` tool relies on:
 
@@ -109,7 +110,7 @@ The `urcheon` tool relies on:
 
 To summarize:
 
-* Python3 modules: `argparse fnmatch glob logging multiprocessing operator os pytoml re shutil struct subprocess sys tempfile threading toml zipfile`
+* Python3 modules: `argparse fnmatch glob logging multiprocessing operator os pytoml re shutil struct subprocess sys tempfile threading zipfile`
 * Third party tools: `convert crunch cwebp daemonmap iqm opusenc q3map2 sloth.py`
 
 
@@ -117,6 +118,7 @@ Esquirel help
 -------------
 
 Like Urcheon, Esquirel offers multiple stages.
+
 
 ### The `map` stage
 
@@ -131,7 +133,7 @@ esquirel map --input-map file.map \
 	--output-map file.map
 ```
 
-This `esquirel` call updates obsolete entities keywords using the `substitution.csv` list, disabling the entity numbering to make later diffing easier.
+This `esquirel` call updates obsolete entities keywords using the `substitution.csv` list, disabling the entity numbering to make lately diffing easier.
 
 Type `esquirel map --help` for some help.
 

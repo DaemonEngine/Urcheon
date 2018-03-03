@@ -31,18 +31,18 @@ from collections import OrderedDict
 
 
 class List():
-	def __init__(self, source_dir, stage, game_name=None, disabled_action_list=[]):
+	def __init__(self, source_dir, stage_name, game_name=None, disabled_action_list=[]):
 		if not game_name:
 			pak_config = Repository.Config(source_dir)
 			game_name = pak_config.requireKey("game")
 
 		self.source_dir = source_dir
 		self.game_name = game_name
-		action_list_file_name = os.path.join(Default.action_list_dir, stage + Default.action_list_ext)
+		action_list_file_name = os.path.join(Default.action_list_dir, stage_name + Default.action_list_ext)
 		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
-		self.inspector = Repository.Inspector(source_dir, self.game_name, stage, disabled_action_list=disabled_action_list)
+		self.inspector = Repository.Inspector(source_dir, self.game_name, stage_name, disabled_action_list=disabled_action_list)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
@@ -196,13 +196,13 @@ class Action():
 	is_parallel = True
 	threaded = False
 
-	def __init__(self, source_dir, build_dir, file_path, stage, game_name=None, map_profile=None, thread_count=1, is_parallel=True, is_nested=False):
+	def __init__(self, source_dir, build_dir, file_path, stage_name, game_name=None, map_profile=None, thread_count=1, is_parallel=True, is_nested=False):
 		self.body = []
 		self.source_dir = source_dir
 		self.build_dir = build_dir
 		self.file_path = file_path
 		self.game_name = game_name
-		self.stage = stage
+		self.stage_name = stage_name
 		self.map_profile = map_profile
 		self.thread_count = thread_count
 		self.is_parallel = is_parallel
@@ -712,20 +712,20 @@ class DumbTransient(Action):
 		os.makedirs(self.transient_maps_path, exist_ok=True)
 
 	def buildTransientPath(self, disabled_action_list=[]):
-		file_tree = Repository.Tree(self.transient_path, game_name=self.game_name, transient_path=True)
+		file_tree = Repository.Tree(self.transient_path, game_name=self.game_name, is_nested=True)
 		file_list = file_tree.listFiles()
 
-		action_list = List(self.transient_path, self.stage, game_name=self.game_name, disabled_action_list=disabled_action_list)
+		action_list = List(self.transient_path, self.stage_name, game_name=self.game_name, disabled_action_list=disabled_action_list)
 		action_list.computeActions(file_list)
 
-		builder = Pak.Builder(self.transient_path, action_list, self.stage, self.build_dir, game_name=self.game_name, is_nested=True, is_parallel=False)
+		builder = Pak.Builder(self.transient_path, self.stage_name, self.build_dir, game_name=self.game_name, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
 		# keep track of built files
 		produced_unit_list = builder.build()
 
 		self.body = []
 		for unit in produced_unit_list:
 			self.body.extend(unit["body"])
-			
+
 		shutil.rmtree(self.transient_path)
 
 
