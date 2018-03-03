@@ -24,6 +24,7 @@ import tempfile
 
 class PrevRun():
 	def __init__(self, source_dir, preview_profile_path, game_name=None):
+		# BEWARE: this is not the repository source dir, but the texture source dir!
 		self.source_dir = source_dir
 		self.source_dir_fullpath = os.path.realpath(self.source_dir)
 		preview_profile_fullpath = os.path.join(self.source_dir_fullpath, preview_profile_path)
@@ -66,7 +67,13 @@ class PrevRun():
 		if "source" not in self.prevrun_dict["suffix"].keys():
 			Ui.error("missing “suffix” key: source")
 
-		self.source_suf = self.prevrun_dict["suffix"]["source"]
+		suffix_value = self.prevrun_dict["suffix"]["source"]
+		if isinstance(suffix_value, str):
+			self.source_suf = [suffix_value]
+		elif isinstance(suffix_value, list):
+			self.source_suf = suffix_value
+		else:
+			Ui.error("suffix must be a string or a list of string")
 
 		if "preview" not in self.prevrun_dict["suffix"].keys():
 			Ui.error("missing “suffix” key: preview")
@@ -81,7 +88,7 @@ class PrevRun():
 
 	def run(self):
 		source_list = self.walk()
-		
+
 		preview_list = []
 		for preview_source_name in source_list:
 			preview_list.append(self.convert(preview_source_name))
@@ -140,31 +147,52 @@ class PrevRun():
 				file_ext = os.path.splitext(file_name)[1]
 				if file_ext in [ ".bmp", ".jpg", ".jpeg", ".png", ".tga", ".webp" ]:
 					base_name = file_name[:-len(file_ext)]
-					if base_name.endswith(self.source_suf):	
-						source_path = os.path.normpath(os.path.join(dir_relpath, file_name))
-						logging.debug("preview source texture found: " + source_path)
+					for source_suffix in self.source_suf:
+						if base_name.endswith(source_suffix):	
+							source_path = os.path.normpath(os.path.join(dir_relpath, file_name))
+							logging.debug("preview source texture found: " + source_path)
 
-						preview_path = self.getPreviewPath(source_path)
-						if preview_path:
-							logging.debug("will generate preview: " + preview_path)
-							source_list.append(source_path)
-						else:
-							logging.debug("will reuse source as preview")
+							preview_path = self.getPreviewPath(source_path)
+							if preview_path:
+								source_list.append(source_path)
 
 			return source_list
 
 
 	def getPreviewPath(self, source_path):
 		file_ext = os.path.splitext(source_path)[1]
-		base_name = os.path.basename(source_path[:-len(file_ext)])
-		preview_name = base_name[:-len(self.source_suf)] + self.preview_suf + os.path.extsep + "jpg"
+		source_basename = os.path.basename(source_path[:-len(file_ext)])
+
+		suffix_found = False;
+		for source_suffix in self.source_suf:
+			if source_basename.endswith(source_suffix):
+				suffix_found = True
+				break;
+
+		if not suffix_found:
+			Ui.error("suffix not found for preview: " + source_path)
+
+		preview_basename = source_basename[:-len(source_suffix)] + self.preview_suf
 		
+		preview_name = preview_basename + os.path.extsep + "jpg"
 		preview_path = os.path.normpath(os.path.join(self.preview_dir_name, preview_name))
 
 		if preview_path == source_path:
+			logging.debug("will reuse source as preview")
 			return None
-		else:
-			return preview_path
+		
+		for file_ext in [ ".bmp", ".jpg", ".jpeg", ".png", ".tga" ]:
+			# FIXME: it preserves existing preview but also prevent
+			# to overwrite the ones we generate
+			existing_preview_name = preview_basename + file_ext
+			existing_preview_path = os.path.normpath(os.path.join(self.preview_dir_fullpath, existing_preview_name))
+			logging.debug("testing preview: " + existing_preview_path)
+			if os.path.isfile(existing_preview_path):
+				logging.debug("will reuse preview: " + existing_preview_path)
+				return None
+
+		logging.debug("will generate preview: " + preview_path)
+		return preview_path
 
 
 	def convert(self, source_path):
