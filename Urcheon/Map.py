@@ -326,8 +326,6 @@ class File():
 			debug("Exporting Entity #" + str(i))
 			if self.numbering == True:
 				map_string += "// entity " + str(i) + "\n"
-			else:
-				map_string += "// entity\n"
 
 			map_string += "{\n"
 			if len(self.entity_list[i].keyvalue_dict) > 0:
@@ -339,8 +337,7 @@ class File():
 				for shape in self.entity_list[i].shape_list:
 					if self.numbering == True:
 						map_string += "// brush " + str(shape_count) + "\n"
-					else:
-						map_string += "// brush\n"
+
 					map_string += "{\n"
 					debug("Exporting Shape #" + str(shape_count))
 					if type(shape) is Brush:
