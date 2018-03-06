@@ -360,7 +360,7 @@ class Compiler():
 				logging.debug("stage name: " + stage_name)
 
 		if "-bsp" in option_list:
-			extended_option_list = [ "-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path ]
+			extended_option_list = [ "-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path, "-custinfoparms" ]
 			source_path = self.map_path
 		elif "-vis" in option_list:
 			extended_option_list = [ "-prtfile", self.prt_path, "-saveprt" ]
