@@ -116,7 +116,7 @@ class PrevRun():
 			if "extend" in prevrun_dict["_init_"].keys():
 				parent_prevrun_name = prevrun_dict["_init_"]["extend"]
 
-				if parent_prevrun_name == "@game":
+				if parent_prevrun_name == "${game}":
 					parent_prevrun_name = self.game_name
 
 				logging.debug("found “extend” instruction in “_init_” section: " + parent_prevrun_name)
@@ -340,7 +340,7 @@ class SlothRun():
 			if "extend" in slothrun_dict["_init_"].keys():
 				parent_slothrun_name = slothrun_dict["_init_"]["extend"]
 
-				if parent_slothrun_name == "@game":
+				if parent_slothrun_name == "${game}":
 					parent_slothrun_name = self.game_name
 
 				logging.debug("found “extend” instruction in “_init_” section: " + parent_slothrun_name)

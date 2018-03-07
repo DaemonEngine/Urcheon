@@ -129,7 +129,7 @@ class Config():
 			pak_name = self.requireKey("name")
 			pak_version = self.requireKey("version")
 
-			if pak_version == "@ref":
+			if pak_version == "${ref}":
 				file_repo = Git(self.source_dir, self.game_profile.pak_format)
 				pak_version = file_repo.getVersion()
 

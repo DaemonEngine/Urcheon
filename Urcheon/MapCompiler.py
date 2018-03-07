@@ -103,7 +103,7 @@ class Config():
 		if "_q3map2_" in config_dict.keys():
 			for key in config_dict["_q3map2_"].keys():
 				value = config_dict["_q3map2_"][key]
-				if value == "@game":
+				if value == "${game}":
 					value = self.game_name
 				self.q3map2_config[key] = value
 			del config_dict["_q3map2_"]
