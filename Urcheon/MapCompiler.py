@@ -146,12 +146,12 @@ class Config():
 				else:
 					profile_build_stage_dict["prerequisites"] = []
 				
-				if "opts" in config_stage_dict.keys():
-					if isinstance(config_stage_dict["opts"], str):
-						logging.debug("found options for “" + build_stage + "” stage: " + config_stage_dict["opts"])
-						profile_build_stage_dict["options"] = config_stage_dict["opts"].split(" ")
+				if "options" in config_stage_dict.keys():
+					if isinstance(config_stage_dict["options"], str):
+						logging.debug("found options for “" + build_stage + "” stage: " + config_stage_dict["options"])
+						profile_build_stage_dict["options"] = config_stage_dict["options"].split(" ")
 					else:
-						logging.error("in map build profile stage, \"opts\" key must be a string")
+						logging.error("in map build profile stage, \"options\" key must be a string")
 				else:
 					profile_build_stage_dict["options"] = []
 
