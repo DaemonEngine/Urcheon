@@ -85,6 +85,9 @@ class Config():
 				logging.debug("found “extend” instruction in “_init_” section: " + extend_game_name)
 				logging.debug("loading parent game map config")
 
+				if extend_game_name == "${game}":
+					extend_game_name = self.game_name
+
 				game_config_path = os.path.join(Default.map_profile_dir, extend_game_name + Default.map_profile_ext)
 				self.readConfig(game_config_path, is_parent=True)
 
