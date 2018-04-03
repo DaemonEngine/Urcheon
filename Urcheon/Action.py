@@ -326,7 +326,7 @@ class Ignore(Action):
 		return True
 
 	def run(self):
-		# trick, the task is done it test stage to bypass the available thread compute
+		# trick, the task is done in test stage to bypass the available thread compute
 		return self.getProducedUnitList()
 
 	def getProducedUnitList(self):
