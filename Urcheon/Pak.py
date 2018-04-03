@@ -13,7 +13,7 @@ from Urcheon import Default
 from Urcheon import FileSystem
 from Urcheon import Game
 from Urcheon import MapCompiler
-from Urcheon import ThreadCounter
+from Urcheon import Parallelism
 from Urcheon import Repository
 from Urcheon import Ui
 import __main__ as m
@@ -52,7 +52,7 @@ class MultiRunner():
 		self.no_compress = no_compress
 
 	def run(self):
-		cpu_count = ThreadCounter.countCPU()
+		cpu_count = Parallelism.countCPU()
 		runner_thread_list = []
 
 		for source_dir in self.source_dir_list:
@@ -88,19 +88,18 @@ class MultiRunner():
 			if not self.is_parallel:
 				runner.build()
 			else:
-				runner_thread = threading.Thread(target=runner.run)
+				runner_thread = Parallelism.Thread(target=runner.run)
 				runner_thread_list.append(runner_thread)
 
 				while len(runner_thread_list) > cpu_count:
+					# join dead thread early to raise thread exceptions early
 					# forget ended threads
-					runner_thread_list = [t for t in runner_thread_list if t.is_alive()]
-					pass
+					runner_thread_list = Parallelism.joinDeadThreads(runner_thread_list)
 
 				runner_thread.start()
 
 		# wait for all remaining threads ending
-		for runner_thread in runner_thread_list:
-			runner_thread.join()
+		Parallelism.joinThreads(runner_thread_list)
 
 
 class Builder():
@@ -188,11 +187,11 @@ class Builder():
 		if self.clean_map:
 			cleaner.cleanMap(self.test_dir)
 
-		cpu_count = ThreadCounter.countCPU()
+		cpu_count = Parallelism.countCPU()
 		action_thread_list = []
 		produced_unit_list = []
 
-		main_process = ThreadCounter.getProcess()
+		main_process = Parallelism.getProcess()
 
 		for action_type in Action.list():
 			for file_path in self.action_list.active_action_dict[action_type.keyword]:
@@ -213,7 +212,7 @@ class Builder():
 					thread_count = cpu_count
 				else:
 					# this compute is super slow because of process.children()
-					child_thread_count = ThreadCounter.countChildThread(main_process)
+					child_thread_count = Parallelism.countChildThread(main_process)
 					thread_count = max(1, cpu_count - child_thread_count)
 
 				action.thread_count = thread_count
@@ -231,22 +230,29 @@ class Builder():
 						while child_thread_count > cpu_count:
 							# no need to loop at full cpu speed
 							time.sleep(.05)
-							child_thread_count = ThreadCounter.countChildThread(main_process)
+							child_thread_count = Parallelism.countChildThread(main_process)
 							pass
+
+						# join dead thread early to raise thread exceptions early
+						# forget ended threads
+						action_thread_list = Parallelism.joinDeadThreads(action_thread_list)
 
 						action.thread_count = max(2, cpu_count - child_thread_count)
 
 						# wrapper does: produced_unit_list.append(a.run())
-						action_thread = threading.Thread(target=self.threadExtendRes, args=(action.run, (), produced_unit_list))
+						action_thread = Parallelism.Thread(target=self.threadExtendRes, args=(action.run, (), produced_unit_list))
 						action_thread_list.append(action_thread)
 						action_thread.start()
+
+				# join dead thread early to raise thread exceptions early
+				# forget ended threads
+				action_thread_list = Parallelism.joinDeadThreads(action_thread_list)
 
 		# wait for all threads to end, otherwise it will start packaging next
 		# package while the building task for the current one is not ended
 		# and well, we now have to read that list to purge old files, so we
 		# must wait
-		for action_thread in action_thread_list:
-			action_thread.join()
+		Parallelism.joinThreads(action_thread_list)
 
 		# deduplication
 		unit_list = []

@@ -8,10 +8,12 @@
 #
 
 import psutil
+import threading
+
 
 getProcess = psutil.Process
-
 countCPU = psutil.cpu_count
+
 
 def countThread(process):
 	# process can disappear between the time
@@ -21,6 +23,7 @@ def countThread(process):
 		return process.num_threads()
 	except (psutil.NoSuchProcess, psutil.ZombieProcess):
 		return 0
+
 
 def countChildThread(process):
 	# process can disappear between the time
@@ -34,3 +37,38 @@ def countChildThread(process):
 		return thread_count
 	except (psutil.NoSuchProcess, psutil.ZombieProcess):
 		return 0
+
+
+def joinDeadThreads(thread_list):
+	for thread in thread_list:
+		if not thread.is_alive():
+			thread.join()
+			thread_list.remove(thread)
+
+	return thread_list
+
+
+def joinThreads(thread_list):
+	for thread in thread_list:
+		thread.join()
+
+
+# this extends threading.Thread to transmit exceptions
+# back to the parent, best used with joinDeadThreads()
+# on active thread list to raise exceptions early
+class Thread(threading.Thread):
+	def run(self):
+		self._exception = None
+
+		try:
+			self._return = self._target(*self._args, **self._kwargs)
+		except BaseException as exception:
+			self._exception = exception
+
+	def join(self):
+		super(Thread, self).join()
+
+		if self._exception:
+			raise self._exception
+
+		return self._return

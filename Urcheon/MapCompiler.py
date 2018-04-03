@@ -9,6 +9,7 @@
 
 
 from Urcheon import Default
+from Urcheon import Parallelism
 from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
@@ -313,7 +314,7 @@ class Compiler():
 						if "game" in self.map_config.q3map2_config.keys():
 							option_list = [ "-game", self.map_config.q3map2_config["game"]] + option_list
 
-				subprocess_dict[stage_name] = threading.Thread(target=tool_dict[tool_name], args=(option_list,))
+				subprocess_dict[stage_name] = Parallelism.Thread(target=tool_dict[tool_name], args=(option_list,))
 				subprocess_dict[stage_name].start()
 
 				# wait for this task to finish if sequential build
