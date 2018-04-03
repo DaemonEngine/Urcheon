@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 import tempfile
+import time
 import threading
 import zipfile
 from collections import OrderedDict
@@ -191,6 +192,8 @@ class Builder():
 		action_thread_list = []
 		produced_unit_list = []
 
+		main_process = ThreadCounter.getProcess()
+
 		for action_type in Action.list():
 			for file_path in self.action_list.active_action_dict[action_type.keyword]:
 				# no need to use multiprocessing module to manage task contention, since each task will call its own process
@@ -209,9 +212,9 @@ class Builder():
 					# use multiple threads themselves
 					thread_count = cpu_count
 				else:
-					# this compute is super slow
-					child_thread_count = ThreadCounter.countChildThread(ThreadCounter.getProcess())
-					thread_count = max(0, cpu_count - child_thread_count)
+					# this compute is super slow because of process.children()
+					child_thread_count = ThreadCounter.countChildThread(main_process)
+					thread_count = max(1, cpu_count - child_thread_count)
 
 				action.thread_count = thread_count
 
@@ -223,13 +226,19 @@ class Builder():
 						# action that can't be run concurrently to others
 						produced_unit_list.extend(action.run())
 					else:
+						# do not use >= in case of there is some extra thread we don't think about
+						# it's better to spawn an extra one than looping forever
+						while child_thread_count > cpu_count:
+							# no need to loop at full cpu speed
+							time.sleep(.05)
+							child_thread_count = ThreadCounter.countChildThread(main_process)
+							pass
+
+						action.thread_count = max(2, cpu_count - child_thread_count)
+
 						# wrapper does: produced_unit_list.append(a.run())
 						action_thread = threading.Thread(target=self.threadExtendRes, args=(action.run, (), produced_unit_list))
 						action_thread_list.append(action_thread)
-
-						while cpu_count < ThreadCounter.countChildThread(ThreadCounter.getProcess()):
-							pass
-
 						action_thread.start()
 
 		# wait for all threads to end, otherwise it will start packaging next
