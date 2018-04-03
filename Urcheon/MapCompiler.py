@@ -307,6 +307,7 @@ class Compiler():
 				logging.debug("stage options: " + str(option_list))
 
 				if tool_name in [ "q3map2", "daemonmap" ]:
+					option_list = [ "-v" ] + option_list
 					# default game
 					if not "-game" in option_list:
 						if "game" in self.map_config.q3map2_config.keys():
@@ -320,7 +321,7 @@ class Compiler():
 					subprocess_dict[stage_name].join()
 
 			# no need to loop at full cpu speed
-			time.sleep(.1)
+			time.sleep(.05)
 
 		# when the last stage is running, find it and wait for it
 		for stage_name in subprocess_dict.keys():
