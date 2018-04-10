@@ -41,7 +41,7 @@ def countChildThread(process):
 
 def joinDeadThreads(thread_list):
 	for thread in thread_list:
-		if not thread.is_alive():
+		if not thread.is_alive() and thread._started.is_set():
 			thread.join()
 			thread_list.remove(thread)
 
@@ -50,6 +50,8 @@ def joinDeadThreads(thread_list):
 
 def joinThreads(thread_list):
 	for thread in thread_list:
+		if not thread._started.is_set():
+			thread.start()
 		thread.join()
 
 
