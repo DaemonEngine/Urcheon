@@ -526,9 +526,9 @@ def discover(stage_name):
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
-	parser.add_argument("-B", "--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
-	parser.add_argument("-T", "--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
-	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
+	parser.add_argument("--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
+	parser.add_argument("--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
+	parser.add_argument("--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build %(metavar)s directory, default: %(default)s")
 
 	args = parser.parse_args()
@@ -572,12 +572,12 @@ def prepare(stage_name):
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
-	parser.add_argument("-B", "--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
-	parser.add_argument("-T", "--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
-	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
+	parser.add_argument("--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
+	parser.add_argument("--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
+	parser.add_argument("--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("-n", "--no-auto-actions", dest="no_auto_actions", help="do not compute actions at build time", action="store_true")
 	parser.add_argument("-k", "--keep", dest="keep_dust", help="keep dust from previous build", action="store_true")
-	parser.add_argument("-s", "--sequential", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
+	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="build sequentially (disable parallel build)", action="store_true")
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build %(metavar)s directory, default: %(default)s")
 
 	args = parser.parse_args()
@@ -596,7 +596,7 @@ def prepare(stage_name):
 	else:
 		source_dir_list = args.source_dir
 
-	is_parallel = not args.sequential_build
+	is_parallel = not args.no_parallel
 	multi_runner = MultiRunner(source_dir_list, stage_name, game_name=args.game_name, no_auto_actions=args.no_auto_actions, keep_dust=args.keep_dust, is_parallel=is_parallel)
 	multi_runner.run()
 
@@ -610,15 +610,15 @@ def build(stage_name):
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
-	parser.add_argument("-B", "--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
-	parser.add_argument("-T", "--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in %(metavar)s prefix, example: build/test")
-	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
+	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in %(metavar)s prefix, example: build/test")
+	parser.add_argument("--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="build test pakdir as %(metavar)s directory")
 	parser.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with %(metavar)s profile, default: %(default)s")
 	parser.add_argument("-n", "--no-auto", dest="no_auto_actions", help="do not compute actions", action="store_true")
 	parser.add_argument("-k", "--keep", dest="keep_dust", help="keep dust from previous build", action="store_true")
-	parser.add_argument("-c", "--clean-map", dest="clean_map", help="clean previous map build", action="store_true")
-	parser.add_argument("-s", "--sequential", dest="sequential_build", help="build sequentially (disable parallel build)", action="store_true")
+	parser.add_argument("-cm", "--clean-map", dest="clean_map", help="clean previous map build", action="store_true")
+	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="build sequentially (disable parallel build)", action="store_true")
 	parser.add_argument("-r", "--reference", dest="since_reference", metavar="REFERENCE", help="build partial pakdir since given reference")
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build from %(metavar)s directory, default: %(default)s")
 
@@ -641,7 +641,7 @@ def build(stage_name):
 	if args.test_dir and len(source_dir_list) > 1:
 		Ui.error("--test-dir can't be used while building more than one source directory", silent=True)
 
-	is_parallel = not args.sequential_build
+	is_parallel = not args.no_parallel
 	multi_runner = MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, no_auto_actions=args.no_auto_actions, clean_map=args.clean_map, keep_dust=args.keep_dust, is_parallel=is_parallel)
 	multi_runner.run()
 
@@ -655,13 +655,13 @@ def package(stage_name):
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use %(metavar)s game profile, example: unvanquished")
-	parser.add_argument("-B", "--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
-	parser.add_argument("-T", "--test-prefix", dest="test_prefix", metavar="DIRNAME", help="use test pakdir from %(metavar)s prefix, example: build/test")
-	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in %(metavar)s prefix, example: build/pkg")
-	parser.add_argument("--test_dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
+	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="use test pakdir from %(metavar)s prefix, example: build/test")
+	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in %(metavar)s prefix, example: build/pkg")
+	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
 	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as %(metavar)s file")
-	parser.add_argument("-s", "--sequential", dest="sequential_package", help="package sequentially (disable parallel package)", action="store_true")
-	parser.add_argument("-n", "--no-compress", dest="no_compress", help="package without compression", action="store_true")
+	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="package sequentially (disable parallel package)", action="store_true")
+	parser.add_argument("-nc", "--no-compress", dest="no_compress", help="package without compression", action="store_true")
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build from %(metavar)s directory, default: %(default)s")
 
 	args = parser.parse_args()
@@ -686,7 +686,7 @@ def package(stage_name):
 	if args.pak_file and len(source_dir_list) > 1:
 		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
-	is_parallel = not args.sequential_package
+	is_parallel = not args.no_parallel
 	multi_runner = MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, no_compress=args.no_compress, is_parallel=is_parallel)
 	multi_runner.run()
 
@@ -700,9 +700,9 @@ def clean(stage_name):
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
-	parser.add_argument("-B", "--build-prefix", dest="build_prefix", metavar="DIRNAME", help="clean in %(metavar)s prefix, example: build")
-	parser.add_argument("-T", "--test-prefix", dest="test_prefix", metavar="DIRNAME", help="clean test pakdir in %(metavar)s prefix, example: build/test")
-	parser.add_argument("-P", "--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="clean release pak in %(metavar)s prefix, example: build/pkg")
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="clean in %(metavar)s prefix, example: build")
+	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="clean test pakdir in %(metavar)s prefix, example: build/test")
+	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="clean release pak in %(metavar)s prefix, example: build/pkg")
 	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="clean test pakdir as %(metavar)s directory")
 	parser.add_argument("-a", "--all", dest="clean_all", help="clean all (default)", action="store_true")
 	parser.add_argument("-s", "--source", dest="clean_source", help="clean previous source preparation", action="store_true")
