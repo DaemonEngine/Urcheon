@@ -80,8 +80,7 @@ class Config():
 				Ui.notice("BUILDPREFIX set, will use: " + env_build_prefix)
 				build_prefix = env_build_prefix
 			else:
-				# ugly quick&dirty .setinfo implementation
-				# TODO: please fix
+				# HACK: FIXME: ugly quick&dirty .setinfo implementation
 				if os.path.isfile(os.path.join(os.getcwd(), ".setinfo", "set.conf")):
 					build_prefix = os.path.join(os.getcwd(), Default.build_prefix)
 				else:
