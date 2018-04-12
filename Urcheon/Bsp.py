@@ -387,7 +387,7 @@ class File():
 					lump_file = open(file_path, "rb")
 					self.lump_dict[file_name] = lump_file.read()
 				else:
-					Ui.error("unknown lump format: " + filename)
+					Ui.error("unknown lump format: " + file_name)
 
 			elif file_ext == "csv":
 				if file_name == "textures":
