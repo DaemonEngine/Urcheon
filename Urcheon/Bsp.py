@@ -501,6 +501,8 @@ class File():
 				for missing_byte in range(0, 4 - (lump_length % 4)):
 					lumps_blob += b'\0'
 					lump_start += 1
+					# silence pylint on unused variable
+					missing_byte
 
 		# extra empty lump
 		directory_blob += lump_start.to_bytes(4, "little") + b"\0\0\0\0"
