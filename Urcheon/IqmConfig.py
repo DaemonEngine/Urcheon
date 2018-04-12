@@ -19,7 +19,7 @@ class File():
 	def readFile(self, file_name):
 		config_file = open(file_name, "r")
 
-		self.line_list = config_file.readlines();
+		self.line_list = config_file.readlines()
 		config_file.close()
 
 	def translate(self, scene_dir, output_dir):

@@ -134,7 +134,7 @@ class File():
 		# }
 		block_ending_pattern = re.compile(r"^[ \t]*}[ \t]*$")
 
-		entity_num = -1;
+		entity_num = -1
 
 		for line in map_lines:
 			debug("Reading: " + line)
@@ -157,7 +157,7 @@ class File():
 					debug("Start Entity #" + str(entity_num))
 					self.entity_list.append(Entity())
 					in_entity = True
-					brush_num = -1;
+					brush_num = -1
 					continue
 
 			# In Entity
