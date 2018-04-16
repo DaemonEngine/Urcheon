@@ -390,7 +390,7 @@ class Compiler():
 		# TODO: remove that ugly workaround
 		# it must be done by q3map2
 		# and the following test is very ugly
-		if "-minimap" in option_list == "minimap" and "-game unvanquished" in " ".join(option_list):
+		if "-minimap" in option_list and "-game unvanquished" in " ".join(option_list):
 			self.unvanquishedMinimap(option_list)
 		else:
 			if subprocess.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
