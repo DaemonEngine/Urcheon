@@ -23,7 +23,6 @@ import os
 import sys
 import tempfile
 import time
-import threading
 import zipfile
 from collections import OrderedDict
 

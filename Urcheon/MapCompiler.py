@@ -20,7 +20,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import threading
 import os
 import pytoml
 from collections import OrderedDict
