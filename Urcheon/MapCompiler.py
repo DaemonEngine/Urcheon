@@ -204,6 +204,7 @@ class Config():
 		# TODO: order it?
 		print(pytoml.dumps(self.profile_dict))
 
+
 class Compiler():
 	def __init__(self, source_dir, game_name=None, map_profile=None, is_parallel=True):
 		self.source_dir = source_dir

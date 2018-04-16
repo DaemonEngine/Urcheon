@@ -756,6 +756,7 @@ class CopyBsp(DumbTransient):
 
 		return self.getProducedUnitList()
 
+
 class MergeBsp(DumbTransient):
 	keyword = "merge_bsp"
 	description = "merge into a bsp file"
