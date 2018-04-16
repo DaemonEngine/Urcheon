@@ -137,7 +137,7 @@ class Config():
 				if "after" in config_stage_dict.keys():
 					if isinstance(config_stage_dict["after"], str):
 						logging.debug("found prerequisite, stage “" + build_stage + "” must run after: " + config_stage_dict["after"])
-						profile_build_stage_dict["prerequisites"] = [ config_stage_dict["after"] ]
+						profile_build_stage_dict["prerequisites"] = [config_stage_dict["after"]]
 					elif isinstance(config_stage_dict["after"], list):
 						logging.debug("found prerequisites, stage “" + build_stage + "” must run after: " + ", ".join(config_stage_dict["after"]))
 						profile_build_stage_dict["prerequisites"] = config_stage_dict["after"]
@@ -307,12 +307,12 @@ class Compiler():
 				option_list = stage_option_list["options"]
 				logging.debug("stage options: " + str(option_list))
 
-				if tool_name in [ "q3map2", "daemonmap" ]:
-					option_list = [ "-v" ] + option_list
+				if tool_name in ["q3map2", "daemonmap"]:
+					option_list = ["-v"] + option_list
 					# default game
 					if not "-game" in option_list:
 						if "game" in self.map_config.q3map2_config.keys():
-							option_list = [ "-game", self.map_config.q3map2_config["game"]] + option_list
+							option_list = ["-game", self.map_config.q3map2_config["game"]] + option_list
 
 				subprocess_dict[stage_name] = Parallelism.Thread(target=tool_dict[tool_name], args=(option_list,))
 				subprocess_dict[stage_name].start()
@@ -359,31 +359,31 @@ class Compiler():
 		extended_option_list = []
 
 		# bsp stage is the one that calls -bsp, etc.
-		for stage in [ "bsp", "vis", "light", "minimap", "nav" ]:
+		for stage in ["bsp", "vis", "light", "minimap", "nav"]:
 			if "-" + stage in option_list:
 				stage_name = stage
 				logging.debug("stage name: " + stage_name)
 
 		if "-bsp" in option_list:
-			extended_option_list = [ "-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path, "-custinfoparms" ]
+			extended_option_list = ["-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path, "-custinfoparms"]
 			source_path = self.map_path
 		elif "-vis" in option_list:
-			extended_option_list = [ "-prtfile", self.prt_path, "-saveprt" ]
+			extended_option_list = ["-prtfile", self.prt_path, "-saveprt"]
 			source_path = bsp_path
 		elif "-light" in option_list:
-			extended_option_list = [ "-srffile", self.srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path ]
+			extended_option_list = ["-srffile", self.srf_path, "-bspfile", bsp_path, "-lightmapdir", lightmapdir_path]
 			source_path = self.map_path
 		elif "-nav" in option_list:
 			source_path = bsp_path
 		elif "-minimap" in option_list:
 			source_path = bsp_path
 		else:
-			extended_option_list = [ "-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path ]
+			extended_option_list = ["-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path]
 			# TODO: define the name somewhere
 			Ui.warning("unknown q3map2 stage in command line, remind that -bsp is required by Urcheon: " + " ".join(option_list))
 			source_path = self.map_path
 
-		command_list = [ "q3map2" ] + option_list + pakpath_option_list + extended_option_list + [source_path]
+		command_list = ["q3map2"] + option_list + pakpath_option_list + extended_option_list + [source_path]
 		logging.debug("call list: " + str(command_list))
 		Ui.verbose("Build command: " + " ".join(command_list))
 
