@@ -77,7 +77,7 @@ class MultiRunner():
 			if self.stage_name in ["prepare"]:
 				is_parallel_runner = False
 			else:
-				is_parallel_runner = True
+				is_parallel_runner = self.is_parallel
 
 			if self.stage_name in ["prepare", "build"]:
 				runner = Builder(source_dir, self.stage_name, dest_dir, game_name=self.game_name, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
@@ -205,7 +205,7 @@ class Builder():
 					produced_unit_list.extend(action.getOldProducedUnitList())
 					continue
 
-				if not self.is_parallel:
+				if not self.is_parallel or not action_type.is_parallel:
 					# tasks are run sequentially but they can
 					# use multiple threads themselves
 					thread_count = cpu_count
@@ -216,32 +216,29 @@ class Builder():
 
 				action.thread_count = thread_count
 
-				if not self.is_parallel:
-					# explicitely requested (like in recursion)
+				if not self.is_parallel or not action_type.is_parallel:
+					# sequential build explicitely requested (like in recursion)
+					# or action that can't be run concurrently to others (like MergeBs)
 					produced_unit_list.extend(action.run())
 				else:
-					if not action.is_parallel:
-						# action that can't be run concurrently to others
-						produced_unit_list.extend(action.run())
-					else:
-						# do not use >= in case of there is some extra thread we don't think about
-						# it's better to spawn an extra one than looping forever
-						while child_thread_count > cpu_count:
-							# no need to loop at full cpu speed
-							time.sleep(.05)
-							child_thread_count = Parallelism.countChildThread(main_process)
-							pass
+					# do not use >= in case of there is some extra thread we don't think about
+					# it's better to spawn an extra one than looping forever
+					while child_thread_count > cpu_count:
+						# no need to loop at full cpu speed
+						time.sleep(.05)
+						child_thread_count = Parallelism.countChildThread(main_process)
+						pass
 
-						# join dead thread early to raise thread exceptions early
-						# forget ended threads
-						action_thread_list = Parallelism.joinDeadThreads(action_thread_list)
+					# join dead thread early to raise thread exceptions early
+					# forget ended threads
+					action_thread_list = Parallelism.joinDeadThreads(action_thread_list)
 
-						action.thread_count = max(2, cpu_count - child_thread_count)
+					action.thread_count = max(2, cpu_count - child_thread_count)
 
-						# wrapper does: produced_unit_list.append(a.run())
-						action_thread = Parallelism.Thread(target=self.threadExtendRes, args=(action.run, (), produced_unit_list))
-						action_thread_list.append(action_thread)
-						action_thread.start()
+					# wrapper does: produced_unit_list.append(a.run())
+					action_thread = Parallelism.Thread(target=self.threadExtendRes, args=(action.run, (), produced_unit_list))
+					action_thread_list.append(action_thread)
+					action_thread.start()
 
 				# join dead thread early to raise thread exceptions early
 				# forget ended threads

@@ -763,6 +763,11 @@ class MergeBsp(DumbTransient):
 	is_parallel = False
 
 	def run(self):
+		# HACK: it's called on all the files but called for every file
+		# that's why this action is not callable in parallel:
+		# once the first run is done for one file, it's done
+		# for others files too
+
 		# TODO: ensure bsp is already copied/compiled if modifying copied/compiled bsp
 		# TODO: this is not yet possible to merge over something built
 		# Ui.warning("Bsp file already there, will reuse: " + source_path)
