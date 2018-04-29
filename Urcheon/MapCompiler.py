@@ -349,8 +349,10 @@ class Compiler():
 		scriptdir_path = os.path.realpath(os.path.join(self.build_prefix, "..", "scripts"))
 		os.makedirs(scriptdir_path, exist_ok=True)
 
+		pakpath_option_list = ["-fs_nomagicpath"]
+
 		# FIXME: is os.path.abspath() needed?
-		pakpath_option_list = ["-fs_pakpath", self.source_dir]
+		pakpath_option_list += ["-fs_pakpath", self.source_dir]
 
 		for pakpath in self.pakpath_list:
 			# FIXME: is os.path.abspath() needed?
