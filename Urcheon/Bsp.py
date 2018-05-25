@@ -13,7 +13,6 @@ import argparse
 import glob
 import logging
 import os
-import re
 import struct
 import sys
 from collections import OrderedDict
