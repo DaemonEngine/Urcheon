@@ -24,9 +24,6 @@ from PIL import Image
 class Lump():
 	bsp_parser_dict = None
 
-	def __init__(self):
-		pass
-
 	def readBspDirLump(self, dir_name, lump_name):
 		file_list = glob.glob(dir_name + os.path.sep + lump_name + os.path.extsep + "*")
 
@@ -59,8 +56,7 @@ class Lump():
 
 
 class Blob(Lump):
-	def __init__(self):
-		self.blob_stream = None
+	blob_stream = None
 
 	def isEmpty(self):
 		return not self.blob_stream
@@ -273,11 +269,18 @@ class Q3Textures(Lump):
 
 class Q3Lightmaps(Lump):
 	lightmap_list = []
+	lightmap_colorspace = "RGB"
+	lightmap_width = 128
+	lightmap_height = 128
+	lightmap_depth = 3
+	lightmap_size = lightmap_width * lightmap_height * lightmap_depth
+	lightmap_line_size = lightmap_width * lightmap_depth
+	lightmap_resolution = str(lightmap_width) + "x" + str(lightmap_height) + "x" + str(lightmap_depth)
 
 	def printList(self):
 		print("*** Lightmaps:")
 		for i in range(0, len(self.lightmap_list)):
-			print("#" + str(i) + ": [128x128x24, RGB, " + str(len(self.lightmap_list[i])) + "]")
+			print("#" + str(i) + ": [" + self.lightmap_resolution + ", " + self.lightmap_colorspace + ", " + str(len(self.lightmap_list[i])) + "]")
 		print("")
 		return True
 
@@ -294,15 +297,11 @@ class Q3Lightmaps(Lump):
 		for file_name in file_list:
 			debug("loading lightmap: " + file_name)
 			image = Image.open(file_name)
-			lightmap = image.convert("RGB").tobytes()
+			lightmap = image.convert(self.lightmap_colorspace).tobytes()
 
-			# 49152: Lightmap size (128x128x3 bytes)
-			# 128: Number of lines
-			# 3: Bytes per pixels
-			# 384: Lightmap line size (128x3 bytes)
-
-			if int(len(lightmap) != 49152):
-				Ui.error("bad file, must be a 128x128x3 picture")
+			lightmap_size = int(len(lightmap))
+			if lightmap_size != self.lightmap_size:
+				Ui.error("bad file " + file_name + ", must be a " + self.lightmap_resolution + " picture, found " + str(lightmap_size) + ", expected " + str(self.lightmap_size))
 
 			self.lightmap_list.append(lightmap)
 
@@ -326,28 +325,26 @@ class Q3Lightmaps(Lump):
 			# 2: Origin X
 			# 2: Origin Y
 			header += b'\0\0\0\0'
-			# 2: Width (128)
-			# 2: Height (128)
-			header += b'\x80\0\x80\0'
-			# 2: Bits per pixels (24)
-			# 2: Attribute bits (0 for 24)
-			header += b'\x18\0'
+			# 2: Width
+			# 2: Height
+			header += self.lightmap_width.to_bytes(2, "little")
+			header += self.lightmap_height.to_bytes(2, "little")
+			# 1: Bits per pixels (24)
+			header += (self.lightmap_depth * 8).to_bytes(1, "little")
+			# 1: Attribute bits (0 for 24)
+			header += b'\0'
 			header += b'Granger loves you\0'
 
 			raw = self.lightmap_list[i]
 
-			# 49152: Size (128x128x3 bytes)
-			# 384: Line size (128x3 bytes)
-			# 3: Bits per pixels
-
 			data = b''
 			# Last line is first line
-			for j in range(0, 49152, 384):
-				line = raw[49152 - 384 - j : 49152 - j]
+			for j in range(0, self.lightmap_size, self.lightmap_line_size):
+				line = raw[self.lightmap_size - self.lightmap_line_size - j : self.lightmap_size - j]
 
 				# RGB → BGR
-				for k in range(0, 384, 3):
-					data += line[k : k + 3][::-1]
+				for k in range(0, self.lightmap_line_size, self.lightmap_depth):
+					data += line[k : k + self.lightmap_depth][::-1]
 
 			debug("header length: " + str(len(header)))
 			debug("data length: " + str(len(data)))
@@ -362,12 +359,11 @@ class Q3Lightmaps(Lump):
 
 	def importLump(self, blob):
 		self.lightmap_list = []
-		# 49152: Size (128x128x3 bytes)
-		lightmap_size = 49152
-		lump_count = int(len(blob) / lightmap_size)
+		lump_count = int(len(blob) / self.lightmap_size)
 
 		for i in range(0, lump_count):
-			self.lightmap_list.append(blob[i * lightmap_size:(i + 1) * lightmap_size])
+			self.lightmap_list.append(blob[i * self.lightmap_size : (i + 1) * self.lightmap_size])
+
 		return True
 
 	def exportLump(self):
@@ -377,6 +373,17 @@ class Q3Lightmaps(Lump):
 			blob += self.lightmap_list[i]
 
 		return blob
+
+
+class QFLightmaps(Q3Lightmaps):
+	lightmap_list = []
+	lightmap_colorspace = "RGB"
+	lightmap_width = 512
+	lightmap_height = 512
+	lightmap_depth = 3
+	lightmap_size = lightmap_width * lightmap_height * lightmap_depth
+	lightmap_line_size = lightmap_width * lightmap_depth
+	lightmap_resolution = str(lightmap_width) + "x" + str(lightmap_height) + "x" + str(lightmap_depth)
 
 
 class File():
@@ -574,7 +581,16 @@ class File():
 		# 4 bytes integer lump size per lump
 		# 17 lumps + 1 extra empty lump (Quake Live advertisements)
 
-		lump_start = 160 + len(metadata_blob)
+		lump_count = len(self.bsp_parser_dict["lump_name_list"])
+		# Hack: if IBSP 46 (Quake 3), add extra empty lump because q3map2 loads
+		# advertisements lump from Quake Live even if not there, mistakenly
+		# computing lump offset from random data (usually from custom string).
+		# This way we ensure q3map2 will not load garbage by mistake
+		# and produced bsp are always fine even when read by broken tools.
+		if self.bsp_magic_number == "IBSP" and self.bsp_version == 46:
+			lump_count += 1
+
+		lump_start = 8 + lump_count * 8 + len(metadata_blob)
 		for lump_name in self.bsp_parser_dict["lump_name_list"]:
 			if lump_name in self.lump_dict:
 				lump_content = self.lump_dict[lump_name]
@@ -590,18 +606,21 @@ class File():
 
 			lumps_blob += lump_content
 
-			# Align lump to 4 bytes
+			# Align lump to 4 bytes if not empty
 			# For reference, q3map2 does not count these extra bytes in lump length
 			# This happens for entities string for example
-			if (lump_length % 4 != 0):
+			if lump_length != 0 and lump_length % 4 != 0:
 				for missing_byte in range(0, 4 - (lump_length % 4)):
 					lumps_blob += b'\0'
 					lump_start += 1
 					# silence pylint on unused variable
 					missing_byte
 
-		# extra empty lump
-		directory_blob += lump_start.to_bytes(4, "little") + b"\0\0\0\0"
+		# Hack: see above for more explanations,
+		# if IBSP 46 (Quake 3), add extra empty lump because q3map2 loads
+		# advertisements lump from Quake Live even if not there.
+		if self.bsp_magic_number == "IBSP" and self.bsp_version == 46:
+			directory_blob += lump_start.to_bytes(4, "little") + b"\0\0\0\0"
 
 		blob = self.bsp_magic_number.encode()
 		blob += self.bsp_version.to_bytes(4, "little")
@@ -638,7 +657,10 @@ class File():
 		self.lump_dict[lump_name] = blob
 
 	def exportLump(self, lump_name):
-		return self.lump_dict[lump_name]
+		if lump_name in self.lump_dict.keys():
+			return self.lump_dict[lump_name]
+		else:
+			return b""
 
 
 # must be defined after classes otherwise Python will not find references
@@ -664,9 +686,18 @@ q3_lump_dict["lightvols"] = Blob
 q3_lump_dict["visdata"] = Blob
 q3_lump_name_list = list(q3_lump_dict.keys())
 
-ql_lump_dict = q3_lump_dict
+ql_lump_dict = q3_lump_dict.copy()
 ql_lump_dict["advertisements"] = Blob
 ql_lump_name_list = list(ql_lump_dict.keys())
+
+ja_lump_dict = q3_lump_dict.copy()
+ja_lump_dict["lightarray"] = Blob
+ja_lump_name_list = list(ja_lump_dict.keys())
+
+qf_lump_dict = q3_lump_dict.copy()
+qf_lump_dict["lightmaps"] = QFLightmaps
+qf_lump_dict["lightarray"] = Blob
+qf_lump_name_list = list(qf_lump_dict.keys())
 
 # see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
 q3_sound_keyword_list = [
@@ -676,6 +707,15 @@ q3_sound_keyword_list = [
 	"soundPos1",
 	"soundPos2",
 ]
+
+fbsp_dict = {
+	# Warsow uses version 1
+	# it's an RBSP derivative with larger lightmaps
+	1: {
+		"lump_dict": qf_lump_dict,
+		"lump_name_list": qf_lump_name_list,
+	}
+}
 
 ibsp_dict = {
 	# Quake 2, not supported yet
@@ -687,25 +727,30 @@ ibsp_dict = {
 		"lump_name_list": q3_lump_name_list,
 	},
 
-	# RCTW, Wolf:ET, QuakeLive, etc.
+	# RCTW, Wolf:ET, Quake Live, etc.
 	47: {
 		"lump_dict": ql_lump_dict,
 		"lump_name_list": ql_lump_name_list,
 	},
 }
 
+rbsp_dict = {
+	# Both JA, JK2, Soldier of Fortune use version 1
+	1: {
+		"lump_dict": ja_lump_dict,
+		"lump_name_list": ja_lump_name_list,
+	}
+}
+
 bsp_dict = {
-	# QFusion, not supported yet
-	# Warsow uses version 1
-	# it's an RBSP derivative
-	# "FBSP": {},
+	# QFusion
+	"FBSP": fbsp_dict,
 
 	# id Tech 3
 	"IBSP": ibsp_dict,
 
-	# Raven, not suported yet
-	# Both JA, JK2, Soldier of Fortune use version 1
-	# "RBSP": {},
+	# Raven
+	"RBSP": rbsp_dict,
 
 	# Valve/Source, not supported yet
 	# see https://developer.valvesoftware.com/wiki/Source_BSP_File_Format
@@ -758,21 +803,21 @@ def main(stage=None):
 	if args.input_bsp_file:
 		bsp = File()
 		bsp.readFile(args.input_bsp_file)
-		entities = Q3Entities()
+		entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
 		entities.importLump(bsp.exportLump("entities"))
-		textures = Q3Textures()
+		textures = bsp.bsp_parser_dict["lump_dict"]["textures"]()
 		textures.importLump(bsp.exportLump("textures"))
-		lightmaps = Q3Lightmaps()
+		lightmaps = bsp.bsp_parser_dict["lump_dict"]["lightmaps"]()
 		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_bsp_dir:
 		bsp = File()
 		bsp.readDir(args.input_bsp_dir)
-		entities = Q3Entities()
+		entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
 		entities.importLump(bsp.exportLump("entities"))
-		textures = Q3Textures()
+		textures = bsp.bsp_parser_dict["lump_dict"]["textures"]()
 		textures.importLump(bsp.exportLump("textures"))
-		lightmaps = Q3Lightmaps()
+		lightmaps = bsp.bsp_parser_dict["lump_dict"]["lightmaps"]()
 		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_entities_file:
