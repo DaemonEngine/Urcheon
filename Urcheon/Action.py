@@ -790,7 +790,7 @@ class MergeBsp(DumbTransient):
 
 		Ui.print("Merging to bsp: " + bspdir_path)
 
-		bsp = Bsp.File()
+		bsp = Bsp.Bsp()
 		bsp.readDir(source_path)
 
 		bsp_transient_path = os.path.join(self.transient_path, bsp_path)

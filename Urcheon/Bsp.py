@@ -386,7 +386,7 @@ class QFLightmaps(Q3Lightmaps):
 	lightmap_resolution = str(lightmap_width) + "x" + str(lightmap_height) + "x" + str(lightmap_depth)
 
 
-class File():
+class Bsp():
 	def __init__(self, bsp_magic_number=None, bsp_version=None):
 		self.bsp_file = None
 		self.bsp_file_name = None
@@ -801,7 +801,7 @@ def main(stage=None):
 	lightmaps = None
 
 	if args.input_bsp_file:
-		bsp = File()
+		bsp = Bsp()
 		bsp.readFile(args.input_bsp_file)
 		entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
 		entities.importLump(bsp.exportLump("entities"))
@@ -811,7 +811,7 @@ def main(stage=None):
 		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_bsp_dir:
-		bsp = File()
+		bsp = Bsp()
 		bsp.readDir(args.input_bsp_dir)
 		entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
 		entities.importLump(bsp.exportLump("entities"))

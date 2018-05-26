@@ -20,7 +20,7 @@ from logging import debug
 
 # see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
 
-class File():
+class Map():
 	def __init__(self):
 		self.entity_list = None
 		# write entity numbers or not
@@ -537,7 +537,7 @@ def main(stage=None):
 		debug("Debug logging activated")
 		debug("args: " + str(args))
 
-	map = File()
+	map = Map()
 
 	if args.input_map_file:
 		map.readFile(args.input_map_file)
