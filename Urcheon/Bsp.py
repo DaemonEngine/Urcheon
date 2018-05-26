@@ -11,6 +11,7 @@ from Urcheon import Ui
 import __main__ as m
 import argparse
 import glob
+import json
 import logging
 import os
 import struct
@@ -21,6 +22,8 @@ from PIL import Image
 
 
 class Lump():
+	bsp_parser_dict = None
+
 	def __init__(self):
 		pass
 
@@ -39,27 +42,15 @@ class Lump():
 		file_name = os.path.splitext(os.path.basename(file_path))[0]
 
 		if file_ext == "bin":
-			if file_name in q3_lump_name_list:
+			if file_name in self.bsp_parser_dict["lump_name_list"]:
 				blob_file = open(file_path, "rb")
 				self.importLump(blob_file.read())
 				blob_file.close()
 			else:
 				Ui.error("unknown lump file: " + file_name)
 
-		else:
-			if file_name == "textures":
-				if file_ext != "csv":
-					Ui.error("unknown lump format: " + file_path)
-
-			elif file_name == "entities":
-				if file_ext != "txt":
-					Ui.error("unknown lump format: " + file_path)
-
-			elif file_name == "lightmaps":
-				if file_ext != "d":
-					Ui.error("unknown lump format: " + file_path)
-			else:
-				Ui.error("unknown lump file: " + file_path)
+		elif not self.validateExtension(file_ext):
+			Ui.error("unknown lump format: " + file_path)
 
 		if file_ext == "d":
 			self.readDir(file_path)
@@ -70,6 +61,9 @@ class Lump():
 class Blob(Lump):
 	def __init__(self):
 		self.blob_stream = None
+
+	def isEmpty(self):
+		return not self.blob_stream
 
 	def readFile(self, file_name):
 		blob_file = open(file_name, "rb")
@@ -93,8 +87,13 @@ class Blob(Lump):
 
 
 class Q3Entities(Lump):
-	def __init__(self):
-		self.entity_list = None
+	entity_list = None
+
+	def isEmpty(self):
+		return not self.entity_list
+
+	def validateExtension(self, file_ext):
+		return file_ext == "txt"
 
 	def readFile(self, file_name):
 		entities_file = open(file_name, "rb")
@@ -172,14 +171,19 @@ class Q3Entities(Lump):
 
 
 class Q3Textures(Lump):
-	def __init__(self):
-		self.texture_list = None
+	texture_list = None
 
 	def int2bstr(self, i):
 		return "{0:b}".format(i).zfill(30)
 
 	def bstr2int(self, s):
 		return int(s, 2)
+
+	def isEmpty(self):
+		return not self.texture_list
+
+	def validateExtension(self, file_ext):
+		return file_ext == "csv"
 
 	def readFile(self, file_name):
 		# TODO: check
@@ -247,7 +251,6 @@ class Q3Textures(Lump):
 			self.texture_list[i]["flags"] = flags
 			self.texture_list[i]["contents"] = contents
 
-
 	def exportLump(self):
 		blob = b''
 
@@ -269,8 +272,7 @@ class Q3Textures(Lump):
 
 
 class Q3Lightmaps(Lump):
-	def __init__(self):
-		self.lightmap_list = []
+	lightmap_list = []
 
 	def printList(self):
 		print("*** Lightmaps:")
@@ -278,6 +280,12 @@ class Q3Lightmaps(Lump):
 			print("#" + str(i) + ": [128x128x24, RGB, " + str(len(self.lightmap_list[i])) + "]")
 		print("")
 		return True
+
+	def isEmpty(self):
+		return not self.lightmap_list
+
+	def validateExtension(self, file_ext):
+		return file_ext == "d"
 
 	def readDir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
@@ -372,12 +380,9 @@ class Q3Lightmaps(Lump):
 
 
 class File():
-	def __init__(self):
+	def __init__(self, bsp_magic_number=None, bsp_version=None):
 		self.bsp_file = None
 		self.bsp_file_name = None
-
-		# only one version supported for the moment
-		self.bsp_version = bsp_version
 
 		# metadata for printing purpose
 		self.lump_directory = {}
@@ -385,36 +390,76 @@ class File():
 
 		# lumps are stored here
 		self.lump_dict = {}
-		for lump_name in q3_lump_name_list:
-			self.lump_dict[lump_name] = b""
+
+		if bsp_magic_number and bsp_version:
+			self.bsp_magic_number = bsp_magic_number
+			self.bsp_version = bsp_version
+			self.bsp_parser_dict = bsp_dict[bsp_magic_number][bsp_version]
+
+		else:
+			self.bsp_magic_number = None
+			self.bsp_version = None
+			self.bsp_parser_dict = None
 
 	def readFile(self, bsp_file_name):
 		# TODO: check
 		self.bsp_file_name = bsp_file_name
 		self.bsp_file = open(self.bsp_file_name, 'rb')
 
-		if self.bsp_file.read(4) != bsp_magic_number:
-			Ui.error(": bad file format")
+		# FIXME: check file length
+		read_bsp_magic_number = self.bsp_file.read(4).decode()
+		for bsp_magic_number in bsp_dict.keys():
+			if bsp_magic_number == read_bsp_magic_number:
+				self.bsp_magic_number = bsp_magic_number
+				break
+
+		if not self.bsp_magic_number:
 			self.bsp_file.close()
 			self.bsp_file = None
+			Ui.error(": unknown BSP magic number " + str(read_bsp_magic_number))
 
-		self.bsp_file.seek(4)
-		self.bsp_version, = struct.unpack('<I', self.bsp_file.read(4))
-		if self.bsp_version != bsp_version:
-			Ui.error(": Unknown BSP version")
+		self.bsp_file.seek(len(self.bsp_magic_number))
+
+		# FIXME: check file length
+		read_bsp_version = struct.unpack('<I', self.bsp_file.read(4))[0]
+		for bsp_version in bsp_dict[self.bsp_magic_number].keys():
+			if bsp_version == read_bsp_version:
+				self.bsp_version = bsp_version
+				break
+
+		if not self.bsp_version:
 			self.bsp_file.close()
 			self.bsp_file = None
+			Ui.error(": unknown BSP version " + str(read_bsp_version))
 
+		self.bsp_parser_dict = bsp_dict[self.bsp_magic_number][self.bsp_version]
 		self.readLumpList()
 
-		for lump_name in q3_lump_name_list:
+		for lump_name in self.bsp_parser_dict["lump_name_list"]:
 			self.readLump(lump_name)
 
 		self.bsp_file.close()
 
 	def readDir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
-		for lump_name in q3_lump_name_list:
+
+		bsp_description_file_path = os.path.join(dir_name, "bsp.json")
+
+		if os.path.isfile(bsp_description_file_path):
+			bsp_description_file = open(bsp_description_file_path, "r")
+			bsp_json_dict = json.loads(bsp_description_file.read())
+			bsp_description_file.close()
+
+			self.bsp_magic_number = bsp_json_dict["bsp_magic_number"]
+			self.bsp_version = bsp_json_dict["bsp_version"]
+		else:
+			# backward compatibility with early bspdir
+			self.bsp_magic_number = "IBSP"
+			self.bsp_version = 46
+
+		self.bsp_parser_dict = bsp_dict[self.bsp_magic_number][self.bsp_version]
+
+		for lump_name in self.bsp_parser_dict["lump_name_list"]:
 			file_list = glob.glob(dir_name + os.path.sep + lump_name + os.path.extsep + "*")
 
 			if len(file_list) > 1:
@@ -428,7 +473,8 @@ class File():
 			file_ext = os.path.splitext(file_path)[-1][1:]
 			file_name = os.path.splitext(os.path.basename(file_path))[0]
 
-			lump = q3_lump_dict[lump_name]()
+			lump = self.bsp_parser_dict["lump_dict"][lump_name]()
+			lump.bsp_parser_dict = self.bsp_parser_dict
 
 			lump.readBspDirLump(dir_name, lump_name)
 			self.lump_dict[lump_name] = lump.exportLump()
@@ -447,24 +493,50 @@ class File():
 
 		# TODO: check
 
-		for lump_name in q3_lump_name_list:
+		larger_offset = 0
+		ql_advertisements_offset = 0
+		for lump_name in self.bsp_parser_dict["lump_name_list"]:
+			# FIXME: q3 centric
 			# 4 bytes string magic number (IBSP)
 			# 4 bytes integer version
 			# 4 bytes integer lump offset
 			# 4 bytes integer lump size
-			self.bsp_file.seek(8 + (q3_lump_name_list.index(lump_name) * 8))
+			self.bsp_file.seek(8 + (self.bsp_parser_dict["lump_name_list"].index(lump_name) * 8))
 
 			self.lump_directory[lump_name] = {}
 
-			self.lump_directory[lump_name]["offset"], self.lump_directory[lump_name]["length"] = struct.unpack('<II', self.bsp_file.read(8))
+			offset, length = struct.unpack('<II', self.bsp_file.read(8))
+
+			# QuakeLive Hack, an extra advertisement lump is added
+			# at the end of IBSP 47 but original IBSP 47 (RTCW) does
+			# not have it.
+			# It looks like there is no way to test its presence other
+			# than testing if read value is garbage or not and praying
+			# for not getting garbage value that would be coincidentally
+			# equal to the largest offset encountered, basically pray for
+			# map compilers to not write the first characters of the
+			# optional custom string the way they form a number equal to
+			# the largest offset of legit lumps.
+			# Also, pray for advertised last lump length being properly
+			# 4-bytes aligned.
+
+			if lump_name == "advertisements":
+				if offset != ql_advertisements_offset:
+					offset, length = (larger_offset, 0)
+			else:
+				if offset > larger_offset:
+					larger_offset = offset
+					ql_advertisements_offset = offset + length
+
+			self.lump_directory[lump_name]["offset"], self.lump_directory[lump_name]["length"] = (offset, length)
 			self.lump_dict[lump_name] = None
 
 	def printLumpList(self):
 		# TODO: check
 
 		print("*** Lumps:")
-		for i in range(0, len(q3_lump_name_list)):
-			lump_name = q3_lump_name_list[i]
+		for i in range(0, len(self.bsp_parser_dict["lump_name_list"])):
+			lump_name = self.bsp_parser_dict["lump_name_list"][i]
 			if not self.lump_directory[lump_name]["offset"]:
 				# bspdir, length is also unknown
 				print(str(i) + ": " + lump_name )
@@ -479,7 +551,7 @@ class File():
 		# 4 bytes integer version
 		# 4 bytes integer lump offset
 		# 4 bytes integer lump size
-		self.bsp_file.seek(8 + (q3_lump_name_list.index(lump_name) * 8))
+		self.bsp_file.seek(8 + (self.bsp_parser_dict["lump_name_list"].index(lump_name) * 8))
 		offset, length = struct.unpack('<II', self.bsp_file.read(8))
 
 		self.bsp_file.seek(offset)
@@ -495,25 +567,32 @@ class File():
 		lumps_blob = b''
 		directory_blob = b''
 
+		# FIXME: q3-centric
 		# 4 bytes string magic number (IBSP)
 		# 4 bytes integer version
 		# 4 bytes integer lump offset per lump
 		# 4 bytes integer lump size per lump
 		# 17 lumps + 1 extra empty lump (Quake Live advertisements)
 
-		lump_start = 152 + len(metadata_blob)
-		for lump_name in q3_lump_name_list:
-			lump_length = len(self.lump_dict[lump_name])
-			print(str(q3_lump_name_list.index(lump_name)) + ": " + lump_name + " [" + str(lump_start) + ", " + str(lump_length) + "]")
+		lump_start = 160 + len(metadata_blob)
+		for lump_name in self.bsp_parser_dict["lump_name_list"]:
+			if lump_name in self.lump_dict:
+				lump_content = self.lump_dict[lump_name]
+				lump_length = len(self.lump_dict[lump_name])
+			else:
+				lump_content = b""
+				lump_length = 0
+
+			print(str(self.bsp_parser_dict["lump_name_list"].index(lump_name)) + ": " + lump_name + " [" + str(lump_start) + ", " + str(lump_length) + "]")
 			directory_blob += lump_start.to_bytes(4, "little")
 			directory_blob += lump_length.to_bytes(4, "little")
 			lump_start += lump_length
 
-			lumps_blob += self.lump_dict[lump_name]
+			lumps_blob += lump_content
 
 			# Align lump to 4 bytes
 			# For reference, q3map2 does not count these extra bytes in lump length
-			# This happen for entities string for example
+			# This happens for entities string for example
 			if (lump_length % 4 != 0):
 				for missing_byte in range(0, 4 - (lump_length % 4)):
 					lumps_blob += b'\0'
@@ -524,7 +603,7 @@ class File():
 		# extra empty lump
 		directory_blob += lump_start.to_bytes(4, "little") + b"\0\0\0\0"
 
-		blob = bsp_magic_number
+		blob = self.bsp_magic_number.encode()
 		blob += self.bsp_version.to_bytes(4, "little")
 		blob += directory_blob
 		blob += metadata_blob
@@ -537,10 +616,23 @@ class File():
 		if not os.path.exists(dir_name):
 			os.makedirs(dir_name, exist_ok=True)
 
-		for lump_name in q3_lump_name_list:
-			lump = q3_lump_dict[lump_name]()
-			lump.importLump(self.lump_dict[lump_name])
-			lump.writeBspDirLump(dir_name, lump_name)
+		for lump_name in self.bsp_parser_dict["lump_name_list"]:
+			lump = self.bsp_parser_dict["lump_dict"][lump_name]()
+
+			if lump_name in self.lump_dict:
+				lump.importLump(self.lump_dict[lump_name])
+				if not lump.isEmpty():
+					lump.writeBspDirLump(dir_name, lump_name)
+
+		bsp_json_dict = {
+			"bsp_magic_number": self.bsp_magic_number,
+			"bsp_version": self.bsp_version,
+		}
+
+		bsp_description_file_path = os.path.join(dir_name, "bsp.json")
+		bsp_description_file = open(bsp_description_file_path, "w")
+		bsp_description_file.write(json.dumps(bsp_json_dict, sort_keys=True, indent="\t"))
+		bsp_description_file.close()
 
 	def importLump(self, lump_name, blob):
 		self.lump_dict[lump_name] = blob
@@ -570,12 +662,11 @@ q3_lump_dict["faces"] = Blob
 q3_lump_dict["lightmaps"] = Q3Lightmaps
 q3_lump_dict["lightvols"] = Blob
 q3_lump_dict["visdata"] = Blob
-
 q3_lump_name_list = list(q3_lump_dict.keys())
 
-# only one version supported at this time
-bsp_version = 46
-bsp_magic_number = b"IBSP"
+ql_lump_dict = q3_lump_dict
+ql_lump_dict["advertisements"] = Blob
+ql_lump_name_list = list(ql_lump_dict.keys())
 
 # see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
 q3_sound_keyword_list = [
@@ -586,25 +677,40 @@ q3_sound_keyword_list = [
 	"soundPos2",
 ]
 
-# not yet used
-"""
 ibsp_dict = {
+	# Quake 2, not supported yet
+	# 19: {},
+
+	# Quake 3 Arena, Tremulous, World of Padman, Xonotic, Unvanquished, etc.
 	46: {
 		"lump_dict": q3_lump_dict,
-		"q3_lump_name_list": q3_lump_name_list,
-		"sound_keyword_list": q3_sound_keyword_list,
+		"lump_name_list": q3_lump_name_list,
 	},
+
+	# RCTW, Wolf:ET, QuakeLive, etc.
 	47: {
-		"lump_dict": q3_lump_dict,
-		"q3_lump_name_list": q3_lump_name_list,
-		"sound_keyword_list": q3_sound_keyword_list,
+		"lump_dict": ql_lump_dict,
+		"lump_name_list": ql_lump_name_list,
 	},
 }
 
 bsp_dict = {
-	b"IBSP": ibsp_dict,
+	# QFusion, not supported yet
+	# Warsow uses version 1
+	# it's an RBSP derivative
+	# "FBSP": {},
+
+	# id Tech 3
+	"IBSP": ibsp_dict,
+
+	# Raven, not suported yet
+	# Both JA, JK2, Soldier of Fortune use version 1
+	# "RBSP": {},
+
+	# Valve/Source, not supported yet
+	# see https://developer.valvesoftware.com/wiki/Source_BSP_File_Format
+	# "VBSP": {},
 }
-"""
 
 
 def main(stage=None):
@@ -616,7 +722,7 @@ def main(stage=None):
 		prog_name = os.path.basename(m.__file__)
 
 	description="%(prog)s is a BSP parser for my lovely granger."
-	
+
 	args = argparse.ArgumentParser(description=description, prog=prog_name)
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-ib", "--input-bsp", dest="input_bsp_file", metavar="FILENAME",  help="read from .bsp file %(metavar)s")
