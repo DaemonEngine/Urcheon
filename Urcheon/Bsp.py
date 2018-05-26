@@ -20,41 +20,79 @@ from logging import debug
 from PIL import Image
 
 
-# see http://www.mralligator.com/q3/
-lump_name_list = [
-	"entities",
-	"textures",
-	"planes",
-	"nodes",
-	"leafs",
-	"leaffaces",
-	"leafbrushes",
-	"models",
-	"brushes",
-	"brushsides",
-	"vertexes",
-	"meshverts",
-	"effects",
-	"faces",
-	"lightmaps",
-	"lightvols",
-	"visdata",
-]
+class Lump():
+	def __init__(self):
+		pass
 
-# see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
-sound_keyword_list = [
-	"noise",
-	"sound1to2",
-	"sound2to1",
-	"soundPos1",
-	"soundPos2",
-]
+	def readBspDirLump(self, dir_name, lump_name):
+		file_list = glob.glob(dir_name + os.path.sep + lump_name + os.path.extsep + "*")
 
-# only one version supported at this time
-bsp_version = 46
-bsp_magic_number = b"IBSP"
+		if len(file_list) > 1:
+			# TODO: handle that
+			Ui.error("more than one " + lump_name + " lump in bspdir")
+		if len(file_list) == 0:
+			# TODO: warning?
+			return
 
-class Entities():
+		file_path = file_list[0]
+		file_ext = os.path.splitext(file_path)[-1][1:]
+		file_name = os.path.splitext(os.path.basename(file_path))[0]
+
+		if file_ext == "bin":
+			if file_name in q3_lump_name_list:
+				blob_file = open(file_path, "rb")
+				self.importLump(blob_file.read())
+				blob_file.close()
+			else:
+				Ui.error("unknown lump file: " + file_name)
+
+		else:
+			if file_name == "textures":
+				if file_ext != "csv":
+					Ui.error("unknown lump format: " + file_path)
+
+			elif file_name == "entities":
+				if file_ext != "txt":
+					Ui.error("unknown lump format: " + file_path)
+
+			elif file_name == "lightmaps":
+				if file_ext != "d":
+					Ui.error("unknown lump format: " + file_path)
+			else:
+				Ui.error("unknown lump file: " + file_path)
+
+		if file_ext == "d":
+			self.readDir(file_path)
+		else:
+			self.readFile(file_path)
+
+
+class Blob(Lump):
+	def __init__(self):
+		self.blob_stream = None
+
+	def readFile(self, file_name):
+		blob_file = open(file_name, "rb")
+		self.importLump(blob_file.read())
+		blob_file.close()
+		return True
+
+	def writeFile(self, file_name):
+		blob_file = open(file_name, "wb")
+		blob_file.write(self.exportLump())
+		blob_file.close()
+
+	def writeBspDirLump(self, dir_name, lump_name):
+		self.writeFile(dir_name + os.path.sep + lump_name + os.path.extsep + "bin")
+
+	def importLump(self, blob):
+		self.blob_stream = blob
+
+	def exportLump(self):
+		return self.blob_stream
+
+
+class Q3Entities(Lump):
 	def __init__(self):
 		self.entity_list = None
 
@@ -69,6 +107,9 @@ class Entities():
 		entities_file.write(self.exportLump().split(b'\0', 1)[0])
 		entities_file.close()
 		return True
+
+	def writeBspDirLump(self, dir_name, lump_name):
+		self.writeFile(dir_name + os.path.sep + lump_name + os.path.extsep + "txt")
 
 	def printString(self):
 		print("*** Entities")
@@ -90,7 +131,7 @@ class Entities():
 		i = 0
 		for entity in self.entity_list:
 			for entity_keyword in entity.keys():
-				for sound_keyword in sound_keyword_list:
+				for sound_keyword in q3_sound_keyword_list:
 					if entity_keyword.lower() == sound_keyword.lower():
 						print(str(i) + ": " + entity[entity_keyword] + " [" + entity_keyword + "]")
 						i += 1
@@ -126,11 +167,11 @@ class Entities():
 				blob += b'\"' + str.encode(keyword) + b"\" \"" + str.encode(entity[keyword]) + b"\"\n"
 			blob += b'}\n'
 
-		blob += b'\0'		
+		blob += b'\0'
 		return blob
 
 
-class Textures():
+class Q3Textures(Lump):
 	def __init__(self):
 		self.texture_list = None
 
@@ -162,7 +203,6 @@ class Textures():
 		return True
 
 	def writeFile(self, file_name):
-
 		textures_string = ""
 		for i in range(0, len(self.texture_list)):
 			textures_string += self.int2bstr(self.texture_list[i]["flags"]) + ","
@@ -173,6 +213,9 @@ class Textures():
 		textures_file = open(file_name, "wb")
 		textures_file.write(textures_string.encode())
 		textures_file.close()
+
+	def writeBspDirLump(self, dir_name, lump_name):
+		self.writeFile(dir_name + os.path.sep + lump_name + os.path.extsep + "csv")
 
 	def printList(self):
 		# TODO: check
@@ -225,7 +268,7 @@ class Textures():
 		return blob
 
 
-class Lightmaps():
+class Q3Lightmaps(Lump):
 	def __init__(self):
 		self.lightmap_list = []
 
@@ -306,6 +349,9 @@ class Lightmaps():
 			lightmap_file.write(blob)
 			lightmap_file.close()
 
+	def writeBspDirLump(self, dir_name, lump_name):
+		self.writeDir(dir_name + os.path.sep + lump_name + os.path.extsep + "d")
+
 	def importLump(self, blob):
 		self.lightmap_list = []
 		# 49152: Size (128x128x3 bytes)
@@ -324,6 +370,7 @@ class Lightmaps():
 
 		return blob
 
+
 class File():
 	def __init__(self):
 		self.bsp_file = None
@@ -338,7 +385,7 @@ class File():
 
 		# lumps are stored here
 		self.lump_dict = {}
-		for lump_name in lump_name_list:
+		for lump_name in q3_lump_name_list:
 			self.lump_dict[lump_name] = b""
 
 	def readFile(self, bsp_file_name):
@@ -360,14 +407,14 @@ class File():
 
 		self.readLumpList()
 
-		for lump_name in lump_name_list:
+		for lump_name in q3_lump_name_list:
 			self.readLump(lump_name)
 
 		self.bsp_file.close()
 
 	def readDir(self, dir_name):
 		# TODO: check if a dir, perhaps argparse can do
-		for lump_name in lump_name_list:
+		for lump_name in q3_lump_name_list:
 			file_list = glob.glob(dir_name + os.path.sep + lump_name + os.path.extsep + "*")
 
 			if len(file_list) > 1:
@@ -381,39 +428,10 @@ class File():
 			file_ext = os.path.splitext(file_path)[-1][1:]
 			file_name = os.path.splitext(os.path.basename(file_path))[0]
 
-			if file_ext == "bin":
-				if file_name in lump_name_list:
-					lump_file = open(file_path, "rb")
-					self.lump_dict[file_name] = lump_file.read()
-				else:
-					Ui.error("unknown lump format: " + file_name)
+			lump = q3_lump_dict[lump_name]()
 
-			elif file_ext == "csv":
-				if file_name == "textures":
-					textures = Textures()
-					textures.readFile(file_path)
-					self.lump_dict[file_name] = textures.exportLump()
-				else:
-					Ui.error("unknown lump format: " + file_path)
-
-			elif file_ext == "txt":
-				if file_name == "entities":
-					entities = Entities()
-					entities.readFile(file_path)
-					self.lump_dict[file_name] = entities.exportLump()
-				else:
-					Ui.error("unknown lump format: " + file_path)
-
-			elif file_ext == "d":
-				if file_name == "lightmaps":
-					lightmaps = Lightmaps()
-					lightmaps.readDir(file_path)
-					self.lump_dict[file_name] = lightmaps.exportLump()
-				else:
-					Ui.error("unknown lump format: " + file_path)
-
-			else:
-				Ui.error("unknown lump format: " + file_path)
+			lump.readBspDirLump(dir_name, lump_name)
+			self.lump_dict[lump_name] = lump.exportLump()
 
 			self.lump_directory[lump_name] = {}
 			self.lump_directory[lump_name]["offset"] = None
@@ -429,12 +447,12 @@ class File():
 
 		# TODO: check
 
-		for lump_name in lump_name_list:
+		for lump_name in q3_lump_name_list:
 			# 4 bytes string magic number (IBSP)
 			# 4 bytes integer version
 			# 4 bytes integer lump offset
 			# 4 bytes integer lump size
-			self.bsp_file.seek(8 + (lump_name_list.index(lump_name) * 8))
+			self.bsp_file.seek(8 + (q3_lump_name_list.index(lump_name) * 8))
 
 			self.lump_directory[lump_name] = {}
 
@@ -445,8 +463,8 @@ class File():
 		# TODO: check
 
 		print("*** Lumps:")
-		for i in range(0, len(lump_name_list)):
-			lump_name = lump_name_list[i]
+		for i in range(0, len(q3_lump_name_list)):
+			lump_name = q3_lump_name_list[i]
 			if not self.lump_directory[lump_name]["offset"]:
 				# bspdir, length is also unknown
 				print(str(i) + ": " + lump_name )
@@ -461,7 +479,7 @@ class File():
 		# 4 bytes integer version
 		# 4 bytes integer lump offset
 		# 4 bytes integer lump size
-		self.bsp_file.seek(8 + (lump_name_list.index(lump_name) * 8))
+		self.bsp_file.seek(8 + (q3_lump_name_list.index(lump_name) * 8))
 		offset, length = struct.unpack('<II', self.bsp_file.read(8))
 
 		self.bsp_file.seek(offset)
@@ -484,9 +502,9 @@ class File():
 		# 17 lumps + 1 extra empty lump (Quake Live advertisements)
 
 		lump_start = 152 + len(metadata_blob)
-		for lump_name in lump_name_list:
+		for lump_name in q3_lump_name_list:
 			lump_length = len(self.lump_dict[lump_name])
-			print(str(lump_name_list.index(lump_name)) + ": " + lump_name + " [" + str(lump_start) + ", " + str(lump_length) + "]")
+			print(str(q3_lump_name_list.index(lump_name)) + ": " + lump_name + " [" + str(lump_start) + ", " + str(lump_length) + "]")
 			directory_blob += lump_start.to_bytes(4, "little")
 			directory_blob += lump_length.to_bytes(4, "little")
 			lump_start += lump_length
@@ -519,29 +537,75 @@ class File():
 		if not os.path.exists(dir_name):
 			os.makedirs(dir_name, exist_ok=True)
 
-		for entity in lump_name_list:
-			if entity == "entities":
-				entities = Entities()
-				entities.importLump(self.lump_dict["entities"])
-				entities.writeFile(dir_name + os.path.sep + "entities" + os.path.extsep + "txt")
-			elif entity == "textures":
-				textures = Textures()
-				textures.importLump(self.lump_dict["textures"])
-				textures.writeFile(dir_name + os.path.sep + "textures" + os.path.extsep + "csv")
-			elif entity == "lightmaps":
-				lightmaps = Lightmaps()
-				lightmaps.importLump(self.lump_dict["lightmaps"])
-				lightmaps.writeDir(dir_name + os.path.sep + "lightmaps" + os.path.extsep + "d")
-			else:
-				blob_file = open(dir_name + os.path.sep + entity + os.path.extsep + "bin", "wb")
-				blob_file.write(self.lump_dict[entity])
-				blob_file.close()
+		for lump_name in q3_lump_name_list:
+			lump = q3_lump_dict[lump_name]()
+			lump.importLump(self.lump_dict[lump_name])
+			lump.writeBspDirLump(dir_name, lump_name)
 
 	def importLump(self, lump_name, blob):
 		self.lump_dict[lump_name] = blob
 
 	def exportLump(self, lump_name):
 		return self.lump_dict[lump_name]
+
+
+# must be defined after classes otherwise Python will not find references
+
+# see http://www.mralligator.com/q3/
+q3_lump_dict = OrderedDict()
+q3_lump_dict["entities"] = Q3Entities
+q3_lump_dict["textures"] = Q3Textures
+q3_lump_dict["planes"] = Blob
+q3_lump_dict["nodes"] = Blob
+q3_lump_dict["leafs"] = Blob
+q3_lump_dict["leaffaces"] = Blob
+q3_lump_dict["leafbrushes"] = Blob
+q3_lump_dict["models"] = Blob
+q3_lump_dict["brushes"] = Blob
+q3_lump_dict["brushsides"] = Blob
+q3_lump_dict["vertexes"] = Blob
+q3_lump_dict["meshverts"] = Blob
+q3_lump_dict["effects"] = Blob
+q3_lump_dict["faces"] = Blob
+q3_lump_dict["lightmaps"] = Q3Lightmaps
+q3_lump_dict["lightvols"] = Blob
+q3_lump_dict["visdata"] = Blob
+
+q3_lump_name_list = list(q3_lump_dict.keys())
+
+# only one version supported at this time
+bsp_version = 46
+bsp_magic_number = b"IBSP"
+
+# see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
+q3_sound_keyword_list = [
+	"noise",
+	"sound1to2",
+	"sound2to1",
+	"soundPos1",
+	"soundPos2",
+]
+
+# not yet used
+"""
+ibsp_dict = {
+	46: {
+		"lump_dict": q3_lump_dict,
+		"q3_lump_name_list": q3_lump_name_list,
+		"sound_keyword_list": q3_sound_keyword_list,
+	},
+	47: {
+		"lump_dict": q3_lump_dict,
+		"q3_lump_name_list": q3_lump_name_list,
+		"sound_keyword_list": q3_sound_keyword_list,
+	},
+}
+
+bsp_dict = {
+	b"IBSP": ibsp_dict,
+}
+"""
+
 
 def main(stage=None):
 	# TODO: check files
@@ -588,38 +652,38 @@ def main(stage=None):
 	if args.input_bsp_file:
 		bsp = File()
 		bsp.readFile(args.input_bsp_file)
-		entities = Entities()
+		entities = Q3Entities()
 		entities.importLump(bsp.exportLump("entities"))
-		textures = Textures()
+		textures = Q3Textures()
 		textures.importLump(bsp.exportLump("textures"))
-		lightmaps = Lightmaps()
+		lightmaps = Q3Lightmaps()
 		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_bsp_dir:
 		bsp = File()
 		bsp.readDir(args.input_bsp_dir)
-		entities = Entities()
+		entities = Q3Entities()
 		entities.importLump(bsp.exportLump("entities"))
-		textures = Textures()
+		textures = Q3Textures()
 		textures.importLump(bsp.exportLump("textures"))
-		lightmaps = Lightmaps()
+		lightmaps = Q3Lightmaps()
 		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_entities_file:
-		entities = Entities()
+		entities = Q3Entities()
 		entities.readFile(args.input_entities_file)
 
 	if args.input_textures_file:
-		textures = Textures()
+		textures = Q3Textures()
 		textures.readFile(args.input_textures_file)
 
 	if args.input_lightmaps_dir:
-		lightmaps = Lightmaps()
+		lightmaps = Q3Lightmaps()
 		lightmaps.readDir(args.input_lightmaps_dir)
 
 	# TODO: perhaps it must conflict with input_lightmaps_file
 	if args.strip_lightmaps:
-		lightmaps = Lightmaps()
+		lightmaps = Q3Lightmaps()
 	#	lightmaps.importLump(b'')
 
 	if args.output_bsp_file:
