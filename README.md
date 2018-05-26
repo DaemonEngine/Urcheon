@@ -95,7 +95,7 @@ Type `urcheon <stage> --help` from some help.
 
 ### Dependencies
 
-These are the Python3 modules you will need to run `urcheon`: `argparse`, `fnmatch`, `glob`, `logging`, `multiprocessing`, `operator`, `os`, `pytoml`, `re`, `shutil`, `struct`, `subprocess`, `sys`, `tempfile`, `threading`, and `zipfile`.
+These are the Python3 modules you will need to run `urcheon`: `argparse`, `fnmatch`, `glob`, `json`, `logging`, `multiprocessing`, `operator`, `os`, `pytoml`, `re`, `shutil`, `struct`, `subprocess`, `sys`, `tempfile`, `threading`, and `zipfile`.
 
 The `urcheon` tool relies on:
 
@@ -110,7 +110,7 @@ The `urcheon` tool relies on:
 
 To summarize:
 
-* Python3 modules: `argparse fnmatch glob logging multiprocessing operator os pytoml re shutil struct subprocess sys tempfile threading zipfile`
+* Python3 modules: `argparse fnmatch glob json logging multiprocessing operator os pytoml re shutil struct subprocess sys tempfile threading zipfile`
 * Third party tools: `convert crunch cwebp daemonmap iqm opusenc q3map2 sloth.py`
 
 
