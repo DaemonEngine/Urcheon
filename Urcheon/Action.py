@@ -368,6 +368,7 @@ class Copy(Action):
 class ConvertJpg(Action):
 	keyword = "convert_jpg"
 	description = "convert to jpg format"
+	message = "Convert to jpg: "
 	quality = 92
 
 	def run(self):
@@ -379,7 +380,7 @@ class ConvertJpg(Action):
 			Ui.print("File already in jpg, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to jpg: " + self.file_path)
+			Ui.print(self.message + self.file_path)
 			self.callProcess(["convert", "-verbose", "-quality", str(self.quality), source_path, build_path])
 
 		self.setTimeStamp()
@@ -393,6 +394,7 @@ class ConvertJpg(Action):
 class ConvertBadJpg(ConvertJpg):
 	keyword = "convert_bad_jpg"
 	description = "convert to bad jpg format"
+	message = "Convert to bad jpg: "
 	quality = 50
 
 
@@ -715,8 +717,14 @@ class DumbTransient(Action):
 		file_tree = Repository.Tree(self.transient_path, game_name=self.game_name, is_nested=True)
 		file_list = file_tree.listFiles()
 
-		action_list = List(self.transient_path, self.stage_name, game_name=self.game_name, disabled_action_list=disabled_action_list)
-		action_list.computeActions(file_list)
+		### TODO: write better code to write dummy pak.conf
+		transient_pakinfo_dir = os.path.join(self.transient_path, Default.pakinfo_dir)
+		os.mkdir(transient_pakinfo_dir)
+		transient_pakinfo_file_path = os.path.join(transient_pakinfo_dir, "pak" + os.path.extsep + "conf")
+
+		transient_pakinfo_file = open(transient_pakinfo_file_path, 'wt', encoding='utf-8')
+		transient_pakinfo_file.write("[config]")
+		transient_pakinfo_file.close()
 
 		builder = Pak.Builder(self.transient_path, self.stage_name, self.build_dir, game_name=self.game_name, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
 		# keep track of built files

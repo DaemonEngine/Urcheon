@@ -50,6 +50,8 @@ class Config():
 			if self.profile_fs.isFile(map_config_path):
 				config_path = map_config_path
 
+		# TODO: name config based on pak name instead of game name
+
 		# if no map config, try loading game map config
 		if not config_path and self.game_name:
 			game_config_path = os.path.join(Default.map_profile_dir, self.game_name + Default.map_profile_ext)

@@ -138,9 +138,7 @@ class Config():
 
 
 class FileProfile():
-	def __init__(self, source_dir, profile_name=None):
-		# not yet used:
-		self.source_dir = source_dir
+	def __init__(self, source_dir, game_name=None):
 
 		# because of: for self.inspector.inspector_name_dict
 		self.inspector = Inspector(None, None, None)
@@ -150,16 +148,31 @@ class FileProfile():
 		self.file_type_dict = {}
 		self.file_type_weight_dict = {}
 
-		if not profile_name:
-			pak_config = Config(source_dir)
-			profile_name = pak_config.getKey("game")
+		pak_config = Config(source_dir, game_name=game_name)
 
+		if game_name:
+			self.game_name = game_name
+		else:
+			self.game_name = pak_config.requireKey("game")
+
+		profile_name = pak_config.getKey("name")
+
+		if profile_name:
+			if not self.getProfilePath(profile_name):
+				profile_name = self.game_name
+		else:
+			profile_name = self.game_name
+
+		# FIXME: can't be None
 		self.readProfile(profile_name)
 		self.expandFileTypeDict()
 
-	def readProfile(self, profile_name):
+	def getProfilePath(self, profile_name):
 		file_profile_name = os.path.join(Default.file_profile_dir, profile_name + Default.file_profile_ext)
-		file_profile_path = self.profile_fs.getPath(file_profile_name)
+		return self.profile_fs.getPath(file_profile_name)
+
+	def readProfile(self, profile_name):
+		file_profile_path = self.getProfilePath(profile_name)
 
 		if not file_profile_path:
 			# that's not a typo
@@ -172,7 +185,12 @@ class FileProfile():
 		if "_init_" in file_profile_dict.keys():
 			logging.debug("found “_init_” section in file profile: " + file_profile_path)
 			if "extend" in file_profile_dict["_init_"]:
-				profile_parent_name = file_profile_dict["_init_"]["extend"]
+				value = file_profile_dict["_init_"]["extend"]
+
+				if value == "${game}":
+					value = self.game_name
+
+				profile_parent_name = value
 				logging.debug("found “extend” instruction in “_init_” section: " + profile_parent_name)
 				logging.debug("loading parent file profile")
 				self.readProfile(profile_parent_name)
@@ -229,18 +247,6 @@ class FileProfile():
 
 class Inspector():
 	def __init__(self, source_dir, game_name, stage, disabled_action_list=[]):
-		if game_name:
-			self.file_profile = FileProfile(source_dir, profile_name=game_name)
-			logging.debug("file type weight dict: " + str(self.file_profile.file_type_weight_dict))
-			self.file_type_ordered_list = [x[0] for x in sorted(self.file_profile.file_type_weight_dict.items(), key=operator.itemgetter(1), reverse=True)]
-			logging.debug("will try file types in this order: " + str(self.file_type_ordered_list))
-		else:
-			# TODO: check if this needed (probably to get some stuff without having to compute so much things)
-			self.file_profile = None
-
-		self.stage = stage
-
-		self.disabled_action_list = disabled_action_list
 
 		self.inspector_name_dict = {
 			"file_name":			self.inspectFileName,
@@ -256,14 +262,28 @@ class Inspector():
 			"dir_parent_name":		self.inspectDirParentName,
 		}
 
-		self.action_description_dict = OrderedDict()
-		for action in Action.list():
-			self.action_description_dict[action.keyword] = action.description
-
 		self.default_action_dict = {
 			"prepare": "ignore",
 			"build": "keep",
 		}
+
+		if not source_dir:
+			return
+
+		self.stage = stage
+
+		self.disabled_action_list = disabled_action_list
+
+		self.file_profile = FileProfile(source_dir, game_name=game_name)
+		logging.debug("file type weight dict: " + str(self.file_profile.file_type_weight_dict))
+
+		self.file_type_ordered_list = [x[0] for x in sorted(self.file_profile.file_type_weight_dict.items(), key=operator.itemgetter(1), reverse=True)]
+		logging.debug("will try file types in this order: " + str(self.file_type_ordered_list))
+
+		self.action_description_dict = OrderedDict()
+
+		for action in Action.list():
+			self.action_description_dict[action.keyword] = action.description
 
 	def getDirFatherName(self, file_path):
 		return os.path.basename(os.path.split(file_path)[0])
