@@ -622,28 +622,36 @@ class Git():
 
 	def computeVersion(self, reference):
 		commit = self.getCommit(reference)
-		version = ""
+		straight = False
+		version = "0"
+
+#		if self.tag_list == []:
+#			version = "0"
 
 		for tag in self.tag_list:
 			if self.isSame(tag, reference):
+				straight = True
 				# v9.0 → 9.0
-				return tag[1:]
-
-			if self.isAncestor(tag, reference):
 				version = tag[1:]
 				break
 
-		if self.tag_list == []:
-			version = "0"
+			elif self.isAncestor(tag, reference):
+				version = tag[1:]
+				break
 
-		if version == "":
-			version = "0"
+		if not straight:
+			time_stamp = self.getCompactHumanTimeStamp(reference)
+			short_id = self.getShortId(reference)
+			version += "+" + time_stamp + "+" + short_id
 
-		time_stamp = self.getCompactHumanTimeStamp(reference)
-		short_id = self.getShortId(reference)
-		version += "+" + time_stamp + "+" + short_id
+		if self.isDirty():
+			version += "+dirty"
 
 		return version
+
+	def isDirty(self):
+		proc = subprocess.call(self.git + ["diff", "--quiet"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		return not proc.numerator == 0
 
 	def getHexTimeStamp(self, reference):
 		# not used
