@@ -612,10 +612,7 @@ class Git():
 
 	def test(self):
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-		if proc.numerator == 0:
-			return True
-		else:
-			return False
+		return proc.numerator == 0
 
 	def getVersion(self):
 		return self.computeVersion(self.getLastCommit())
@@ -667,10 +664,7 @@ class Git():
 	def isAncestor(self, parent, child):
 		proc = subprocess.Popen(self.git + ["merge-base", "--is-ancestor", parent, child], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
-		if proc.returncode == 0:
-			return True
-		else:
-			return False
+		return proc.returncode == 0
 
 	def isSame(self, reference1, reference2):
 		return self.getCommit(reference1) == self.getCommit(reference2)
