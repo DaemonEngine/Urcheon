@@ -642,7 +642,7 @@ class Git():
 			version += "+" + time_stamp + "+" + short_id
 
 		if self.isDirty():
-			version += "+dirty"
+			version += "-dirty"
 
 		return version
 
