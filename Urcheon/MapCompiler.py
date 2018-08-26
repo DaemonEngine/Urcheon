@@ -323,6 +323,9 @@ class Compiler():
 				if not self.is_parallel:
 					subprocess_dict[stage_name].join()
 
+				# join dead thread early to raise thread exceptions early
+				Parallelism.joinDeadThreads(subprocess_dict.values())
+
 			# no need to loop at full cpu speed
 			time.sleep(.05)
 
