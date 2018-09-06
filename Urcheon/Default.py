@@ -11,8 +11,9 @@
 import os.path
 import sys
 
+# TODO: make it conditionnal
+share_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 
-share_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.argv[0])))
 profile_dir = "profile"
 pakinfo_dir = ".pakinfo"
 pak_config_base = "pak"
