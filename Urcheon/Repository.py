@@ -442,7 +442,8 @@ class BlackList():
 			pakignore_file.close()
 
 			for pattern in line_list:
-				self.blacklist.append(pattern)
+				if not pattern.startswith("#") and len(pattern) != 0:
+					self.blacklist.append(pattern)
 
 		logging.debug("blacklist: " + str(self.blacklist))
 
