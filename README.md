@@ -22,6 +22,12 @@ _Urcheon is the Middle English term for “hedgehog”, used to refer the relate
 _Esquirel is the Englo-Norman word for “squirrel”, from the Old French “escurel” who displaced Middle English “aquerne”._
 
 
+How to run
+----------
+
+Executables are stored within `bin/` directory, so once you cloned this repository you can add this `bin/` directory to your `$PATH` environment variable to run them easily.
+
+
 Urcheon help
 ------------
 

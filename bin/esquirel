@@ -1,0 +1,21 @@
+#! /usr/bin/env python3
+#-*- coding: UTF-8 -*-
+
+### Legal
+#
+# Author:  Thomas DEBESSE <dev@illwieckz.net>
+# License: ISC
+# 
+
+import os.path
+import sys
+
+module_path = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+
+if os.path.isfile(os.path.join(module_path, "Urcheon", "Esquirel.py")):
+	sys.path.append(module_path)
+
+from Urcheon import Esquirel
+
+if __name__ == "__main__":
+	Esquirel.main()
