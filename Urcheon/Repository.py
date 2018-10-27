@@ -619,7 +619,9 @@ class Git():
 		return self.computeVersion(self.getLastCommit())
 
 	def computeVersion(self, reference):
-		commit = self.getCommit(reference)
+		if reference != None:
+			commit = self.getCommit(reference)
+
 		straight = False
 		version = "0"
 
@@ -638,8 +640,14 @@ class Git():
 				break
 
 		if not straight:
-			time_stamp = self.getCompactHumanTimeStamp(reference)
-			short_id = self.getShortId(reference)
+			if reference == None:
+				commit_date = int(time.strftime("%s", time.gmtime()))
+				short_id = '0000000'
+			else:
+				commit_date = self.getDate(reference)
+				short_id = self.getShortId(reference)
+
+			time_stamp = self.getCompactHumanTimeStamp(commit_date)
 			version += "+" + time_stamp + "+" + short_id
 
 		if self.isDirty():
@@ -651,14 +659,12 @@ class Git():
 		proc = subprocess.call(self.git + ["diff", "--quiet"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		return not proc.numerator == 0
 
-	def getHexTimeStamp(self, reference):
+	def getHexTimeStamp(self, commit_date):
 		# not used
-		commit_date = self.getDate(reference)
 		time_stamp = "0" + hex(int(commit_date))[2:]
 		return time_stamp
 
-	def getCompactHumanTimeStamp(self, reference):
-		commit_date = self.getDate(reference)
+	def getCompactHumanTimeStamp(self, commit_date):
 		time_stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime(int(commit_date)))
 		return time_stamp
 		
@@ -699,7 +705,10 @@ class Git():
 		return stdout.decode().splitlines()[0]
 
 	def getLastCommit(self):
-		return self.commit_list[0]
+		if len(self.commit_list) == 0:
+			return None
+		else:
+			return self.commit_list[0]
 
 	def listFiles(self):
 		proc = subprocess.Popen(self.git + ["ls-files"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
