@@ -259,6 +259,8 @@ class Compiler():
 
 		build_stage_dict = self.map_config.profile_dict[self.map_profile]
 
+		# FIXME: if default profile is not set but map profile is set on command line
+		# this fails on recursion (transient dir processing)
 		if self.map_profile not in self.map_config.profile_dict.keys():
 			Ui.error("unknown map profile: " + self.map_profile)
 
@@ -344,7 +346,7 @@ class Compiler():
 		pass
 
 
-	def q3map2(self, option_list):
+	def q3map2(self, option_list, tool_name="q3map2"):
 		map_base = os.path.splitext(os.path.basename(self.map_path))[0]
 		lightmapdir_path = os.path.join(self.build_prefix, map_base)
 		bsp_path = os.path.join(self.build_prefix, map_base + os.path.extsep + "bsp")
@@ -390,7 +392,7 @@ class Compiler():
 			Ui.warning("unknown q3map2 stage in command line, remind that -bsp is required by Urcheon: " + " ".join(option_list))
 			source_path = self.map_path
 
-		command_list = ["q3map2"] + option_list + pakpath_option_list + extended_option_list + [source_path]
+		command_list = [tool_name] + option_list + pakpath_option_list + extended_option_list + [source_path]
 		logging.debug("call list: " + str(command_list))
 		Ui.verbose("Build command: " + " ".join(command_list))
 
@@ -409,18 +411,7 @@ class Compiler():
 
 
 	def daemonmap(self, option_list):
-		map_base = os.path.splitext(os.path.basename(self.map_path))[0]
-		bsp_path = os.path.join(self.build_prefix, map_base + os.path.extsep + "bsp")
-		if "-nav" in option_list:
-			source_path = bsp_path
-
-		command_list = ["daemonmap"] + option_list + [source_path]
-		logging.debug("call list: " + str(command_list))
-		Ui.verbose("Build command: " + " ".join(command_list))
-
-		if subprocess.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
-			Ui.error("command failed: '" + "' '".join(command_list) + "'")
-
+		self.q3map2(option_list, tool_name="daemonmap")
 
 	def unvanquishedMinimap(self, option_list):
 		map_base = os.path.splitext(os.path.basename(self.map_path))[0]
