@@ -106,7 +106,7 @@ These are the Python3 modules you will need to run `urcheon`: `argparse`, `fnmat
 The `urcheon` tool relies on:
 
 - [`q3map2` from NetRadiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team, to compile maps (the one from GtkRadiant is lacking required features);
-- [`daemonmap`](https://github.com/Unvanquished/daemonmap) if you want to generate Unvanquished navmeshes;
+- [`daemonmap`](https://github.com/DaemonEngine/daemonmap) if you want to generate Unvanquished navmeshes;
 - [Sloth](https://github.com/Unvanquished/Sloth) if you need it to generate shader files;
 - [`convert` from ImageMagick](https://www.imagemagick.org/) to convert from and to various image formats;
 - [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp) to convert images to webp format;
