@@ -126,6 +126,26 @@ class Map():
 		# (
 		vertex_matrix_opening_pattern = re.compile(r"^[ \t]*\([ \t]*$")
 
+		# vertex line
+		vertex_line_pattern = re.compile(r"""
+			^[ \t]*\([ \t]*
+			(?P<vertex_list>\([ \t]*[ \t0-9.\(\)-]+[ \t]*\))
+			[ \t]*\)[ \t]*$
+			""", re.VERBOSE)
+
+		# vertex list
+		vertex_list_pattern = re.compile(r"""
+			^[ \t]*\([ \t]*
+			(?P<origin_x>-?[0-9.]+)[ \t]*
+			(?P<origin_y>-?[0-9.]+)[ \t]*
+			(?P<origin_z>-?[0-9.]+)[ \t]*
+			(?P<texcoord_x>-?[0-9.]+)[ \t]*
+			(?P<texcoord_y>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			(?P<remaining>\(?[ \t]*[ \t0-9().-]*[ \t]*\)?)
+			[ \t]*$
+			""", re.VERBOSE)
+
 		# vertex matrix ending
 		# )
 		vertex_matrix_ending_pattern = re.compile(r"^[ \t]*\)[ \t]*$")
@@ -280,9 +300,31 @@ class Map():
 
 				if in_matrix:
 					if not vertex_matrix_ending_pattern.match(line):
-						# Stub
-						debug("Add line to patch")
-						self.entity_list[-1].shape_list[-1].raw_vertex_matrix_line_list.append(line)
+						match = vertex_line_pattern.match(line)
+						if match:
+							debug("Add line to patch")
+							vertex_list = []
+							vertex_list_string = match.group("vertex_list")
+
+							debug("Reading substring: " + vertex_list_string)
+							match = vertex_list_pattern.match(vertex_list_string)
+							while match:
+								debug("Add vertex to patch line")
+								vertex = {}
+								vertex["origin_x"] = match.group("origin_x")
+								vertex["origin_y"] = match.group("origin_y")
+								vertex["origin_z"] = match.group("origin_z")
+								vertex["texcoord_x"] = match.group("texcoord_x")
+								vertex["texcoord_y"] = match.group("texcoord_y")
+
+								vertex_list.append(vertex)
+
+								remaining = match.group("remaining")
+								debug("Reading substring: " + remaining)
+								match = vertex_list_pattern.match(remaining)
+								
+							self.entity_list[-1].shape_list[-1].vertex_matrix.append(vertex_list)
+
 						continue
 
 					if vertex_matrix_ending_pattern.match(line):
@@ -382,9 +424,18 @@ class Map():
 						map_string += shape.vertex_matrix_info["reserved2"]
 						map_string += " )\n"
 						map_string += "(\n"
-						for line in shape.raw_vertex_matrix_line_list:
-							debug(line)
-							map_string += line + "\n"
+
+						for vertex_line in shape.vertex_matrix:
+							map_string += "( "
+							for vertex in vertex_line:
+								map_string += "( "
+								map_string += vertex["origin_x"] + " "
+								map_string += vertex["origin_y"] + " "
+								map_string += vertex["origin_z"] + " "
+								map_string += vertex["texcoord_x"] + " "
+								map_string += vertex["texcoord_y"] + " "
+								map_string += ") "
+							map_string += ")\n"
 						map_string += ")\n"
 						map_string += "}\n"
 
@@ -471,6 +522,7 @@ class Patch():
 	def __init__(self):
 		self.shader = None
 		self.vertex_matrix_info = {}
+		self.vertex_matrix = []
 		self.raw_vertex_matrix_line_list = []
 
 
@@ -499,7 +551,7 @@ class KeyValueSubstitution():
 		substitution_lines = str.splitlines(bytes.decode(substitution_bstring))
 
 		for line in substitution_lines:
-			debug("Reading: " + line)
+			debug("Reading line: " + line)
 			match = substitution_pattern.match(line)
 			if match:
 				debug("Matched")
