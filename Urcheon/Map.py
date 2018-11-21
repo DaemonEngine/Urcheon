@@ -75,21 +75,21 @@ class Map():
 		# coord, textures
 		# (orig_x orig_y orig_z) (orig_x orig_y orig_z) (orig_x orig_y orig_z) shader shift_x shift_y rotation scale_x scale_y flags_content flags_surface value
 		plane_pattern = re.compile(r"""
-			[ \t]*\([ \t]+
+			[ \t]*\([ \t]*
 			(?P<coord0_x>-?[0-9.]+)[ \t]+
 			(?P<coord0_y>-?[0-9.]+)[ \t]+
-			(?P<coord0_z>-?[0-9.]+)[ \t]+
-			\)[ \t]+
-			\([ \t]+
+			(?P<coord0_z>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			\([ \t]*
 			(?P<coord1_x>-?[0-9.]+)[ \t]+
 			(?P<coord1_y>-?[0-9.]+)[ \t]+
-			(?P<coord1_z>-?[0-9.]+)[ \t]+
-			\)[ \t]+
-			\([ \t]+
+			(?P<coord1_z>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			\([ \t]*
 			(?P<coord2_x>-?[0-9.]+)[ \t]+
 			(?P<coord2_y>-?[0-9.]+)[ \t]+
-			(?P<coord2_z>-?[0-9.]+)[ \t]+
-			\)[ \t]+
+			(?P<coord2_z>-?[0-9.]+)[ \t]*
+			\)[ \t]*
 			(?P<shader>[^ \t]+)[ \t]+
 			(?P<shift_x>-?[0-9.]+)[ \t]+
 			(?P<shift_y>-?[0-9.]+)[ \t]+
@@ -113,12 +113,12 @@ class Map():
 		# vertex matrix info
 		# ( width height reserved0 reserved1 reserved2 )
 		vertex_matrix_info_pattern = re.compile(r"""
-			^[ \t]*\([ \t]+
+			^[ \t]*\([ \t]*
 			(?P<width>[0-9]+)[ \t]+
 			(?P<height>[0-9]+)[ \t]+
 			(?P<reserved0>[0-9]+)[ \t]+
 			(?P<reserved1>[0-9]+)[ \t]+
-			(?P<reserved2>[0-9]+)[ \t]+
+			(?P<reserved2>[0-9]+)[ \t]*
 			\)[ \t]*$
 			""", re.VERBOSE)
 
@@ -129,8 +129,8 @@ class Map():
 		# vertex line
 		vertex_line_pattern = re.compile(r"""
 			^[ \t]*\([ \t]*
-			(?P<vertex_list>\([ \t]*[ \t0-9.\(\)-]+[ \t]*\))
-			[ \t]*\)[ \t]*$
+			(?P<vertex_list>\([ \t]*[ \t0-9.\(\)-]+[ \t]*\))[ \t]*
+			\)[ \t]*$
 			""", re.VERBOSE)
 
 		# vertex list
