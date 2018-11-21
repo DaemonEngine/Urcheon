@@ -444,7 +444,7 @@ class ConvertLossyWebp(DumbWebp):
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
 			self.callProcess(["convert", "-verbose", source_path, transient_path])
-			self.callProcess(["cwebp", "-v", "-q", "95", "-pass", "10", transient_path, "-o", build_path])
+			self.callProcess(["cwebp", "-v", "-mt", "-m", "6", "-q", "95", "-pass", "10", transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
@@ -470,7 +470,7 @@ class ConvertLosslessWebp(DumbWebp):
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
 			self.callProcess(["convert", "-verbose", source_path, transient_path])
-			self.callProcess(["cwebp", "-v", "-lossless", transient_path, "-o", build_path])
+			self.callProcess(["cwebp", "-v", "-mt", "-lossless", "-z", "9", transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
