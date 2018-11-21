@@ -201,40 +201,40 @@ class Map():
 					in_shape = True
 					continue
 
-			# Patch start
+			# Q3 Patch start
 			if in_shape and not in_brush and not start_patch and not in_patch:
 				if patch_start_pattern.match(line):
-					debug("Start Patch")
-					self.entity_list[-1].shape_list.append(Patch())
+					debug("Start Q3 Patch")
+					self.entity_list[-1].shape_list.append(Q3Patch())
 					in_shape = False
 					start_patch = True
 					continue
 
 				# if we are not a patch, and not a ending patch (ending shape)
 				if not block_ending_pattern.match(line):
-					debug("In Brush")
-					self.entity_list[-1].shape_list.append(Brush())
+					debug("In Q3 Legacy Brush")
+					self.entity_list[-1].shape_list.append(Q3LegacyBrush())
 					in_shape = False
 					in_brush = True
 					# do not continue! this line must be read one more time!
 					# this is brush content!
 
-			# Patch opening
+			# Q3 Patch opening
 			if start_patch and not in_patch:
 				if block_opening_pattern.match(line):
-					debug("In Patch")
+					debug("In Q3 Patch")
 					start_patch = False
 					in_patch = True
 					in_shader = True
 					continue
 
-			# Brush content
+			# Q3 Legacy Brush content
 			if in_brush:
 
 				# Plane content
 				match = plane_pattern.match(line)
 				if match:
-					debug("Add Plane to Brush")
+					debug("Add Plane to Q3 Legacy Brush")
 					plane = OrderedDict()
 					plane["coord0_x"] = match.group("coord0_x")
 					plane["coord0_y"] = match.group("coord0_y")
@@ -258,22 +258,22 @@ class Map():
 					self.entity_list[-1].shape_list[-1].plane_list.append(plane)
 					continue
 
-				# Brush End
+				# Q3 Legacy Brush End
 				if block_ending_pattern.match(line):
-					debug("End Brush")
+					debug("End Q3 Legacy Brush")
 					in_brush = False
 					continue
 
-			# Patch content
+			# Q3 Patch content
 			if in_patch:
 				# Stub
 				# vertexe: ( orig_x orig_y orig_z texcoord_x texcoord_y )
 
-				# Patch shader
+				# Q3 Patch shader
 				if in_shader:
 					match = patch_shader_pattern.match(line)
 					if match:
-						debug("Add Shader name to Patch")
+						debug("Add Shader name to Q3 Patch")
 						self.entity_list[-1].shape_list[-1].shader = match.group("shader")
 						in_shader = False
 						in_matrix_info = True
@@ -282,7 +282,7 @@ class Map():
 				if in_matrix_info:
 					match = vertex_matrix_info_pattern.match(line)
 					if match:
-						debug("Add Vertex matrix info to Patch")
+						debug("Add Vertex matrix info to Q3 Patch")
 						self.entity_list[-1].shape_list[-1].vertex_matrix_info["width"] = match.group("width")
 						self.entity_list[-1].shape_list[-1].vertex_matrix_info["height"] = match.group("height")
 						self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved0"] = match.group("reserved0")
@@ -331,9 +331,9 @@ class Map():
 						in_matrix = False
 						continue
 
-				# Patch End
+				# Q3 Patch End
 				if block_ending_pattern.match(line):
-					debug("End Patch")
+					debug("End Q3 Patch")
 					in_patch = False
 					in_shape = True
 					continue
@@ -382,8 +382,8 @@ class Map():
 
 					map_string += "{\n"
 					debug("Exporting Shape #" + str(shape_count))
-					if type(shape) is Brush:
-						debug("Exporting Brush")
+					if type(shape) is Q3LegacyBrush:
+						debug("Exporting Q3 Legacy Brush")
 						for plane in shape.plane_list:
 							map_string += "( "
 							map_string += plane["coord0_x"] + " "
@@ -411,8 +411,8 @@ class Map():
 							map_string += plane["value"]
 							map_string += "\n"
 
-					elif type(shape) is Patch:
-						debug("Exporting Patch")
+					elif type(shape) is Q3Patch:
+						debug("Exporting Q3 Patch")
 						map_string += "patchDef2\n"
 						map_string += "{\n"
 						map_string += shape.shader + "\n"
@@ -440,7 +440,7 @@ class Map():
 						map_string += "}\n"
 
 					else:
-						Ui.error("This Shape is not a Brush and not a Patch")
+						Ui.error("This Shape is not a Q3 Legacy Brush and not a Q3 Patch")
 						return False
 
 					map_string += "}\n"
@@ -513,12 +513,12 @@ class Entity():
 		return True
 
 
-class Brush():
+class Q3LegacyBrush():
 	def __init__(self):
 		self.plane_list = []
 
 
-class Patch():
+class Q3Patch():
 	def __init__(self):
 		self.shader = None
 		self.vertex_matrix_info = {}
