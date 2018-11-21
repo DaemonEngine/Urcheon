@@ -523,7 +523,6 @@ class Q3Patch():
 		self.shader = None
 		self.vertex_matrix_info = {}
 		self.vertex_matrix = []
-		self.raw_vertex_matrix_line_list = []
 
 
 class KeyValueSubstitution():
