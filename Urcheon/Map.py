@@ -39,6 +39,9 @@ class Map():
 
 		in_brush = False
 
+		start_q3brush = False
+		in_q3brush = False
+
 		start_patch = False
 		in_patch = False
 
@@ -96,6 +99,48 @@ class Map():
 			(?P<scale_x>-?[0-9.]+)[ \t]+
 			(?P<scale_y>-?[0-9.]+)[ \t]+
 			(?P<rotation>-?[0-9.]+)[ \t]+
+			(?P<flag_content>[0-9]+)[ \t]+
+			(?P<flag_surface>[0-9]+)[ \t]+
+			(?P<value>[0-9]+)
+			[ \t]*$
+			""", re.VERBOSE)
+
+		# patch start
+		# brushDef
+		q3brush_start_pattern = re.compile(r"^[ \t]*brushDef[ \t]*$")
+
+		# q3brush plane line
+		# coord, textures
+		# ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) ( ( texdef_xx texdef_yx texdef_tx ) ( texdef_xy texdef_yy texdef_ty ) ) shader flag_content flag_surface value
+		q3brush_plane_pattern = re.compile(r"""
+			[ \t]*\([ \t]*
+			(?P<coord0_x>-?[0-9.]+)[ \t]+
+			(?P<coord0_y>-?[0-9.]+)[ \t]+
+			(?P<coord0_z>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			\([ \t]*
+			(?P<coord1_x>-?[0-9.]+)[ \t]+
+			(?P<coord1_y>-?[0-9.]+)[ \t]+
+			(?P<coord1_z>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			\([ \t]*
+			(?P<coord2_x>-?[0-9.]+)[ \t]+
+			(?P<coord2_y>-?[0-9.]+)[ \t]+
+			(?P<coord2_z>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			\([ \t]*
+			\([ \t]*
+			(?P<texdef_xx>-?[0-9.]+)[ \t]+
+			(?P<texdef_yx>-?[0-9.]+)[ \t]+
+			(?P<texdef_tx>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			\([ \t]*
+			(?P<texdef_xy>-?[0-9.]+)[ \t]+
+			(?P<texdef_yy>-?[0-9.]+)[ \t]+
+			(?P<texdef_ty>-?[0-9.]+)[ \t]*
+			\)[ \t]*
+			\)[ \t]*
+			(?P<shader>[^ \t]+)[ \t]+
 			(?P<flag_content>[0-9]+)[ \t]+
 			(?P<flag_surface>[0-9]+)[ \t]+
 			(?P<value>[0-9]+)
@@ -183,7 +228,7 @@ class Map():
 			# In Entity
 
 			# We can only find KeyValue Pair or Shape opening block yet
-			if not in_shape and not in_brush and not start_patch and not in_patch:
+			if not in_shape and not in_brush and not start_q3brush and not in_q3brush and not start_patch and not in_patch:
 				# KeyValue pair
 				match = keyvalue_pattern.match(line)
 				if match:
@@ -201,8 +246,15 @@ class Map():
 					in_shape = True
 					continue
 
-			# Q3 Patch start
-			if in_shape and not in_brush and not start_patch and not in_patch:
+			# Brush/Patch start
+			if in_shape and not in_brush and not start_q3brush and not in_q3brush and not start_patch and not in_patch:
+				if q3brush_start_pattern.match(line):
+					debug("Start Q3 Brush")
+					self.entity_list[-1].shape_list.append(Q3Brush())
+					in_q3brush = False
+					start_q3brush = True
+					continue
+
 				if patch_start_pattern.match(line):
 					debug("Start Q3 Patch")
 					self.entity_list[-1].shape_list.append(Q3Patch())
@@ -210,7 +262,7 @@ class Map():
 					start_patch = True
 					continue
 
-				# if we are not a patch, and not a ending patch (ending shape)
+				# if we are not a brush or patch, and not a ending brush or patch (ending shape)
 				if not block_ending_pattern.match(line):
 					debug("In Q3 Legacy Brush")
 					self.entity_list[-1].shape_list.append(Q3LegacyBrush())
@@ -226,6 +278,14 @@ class Map():
 					start_patch = False
 					in_patch = True
 					in_shader = True
+					continue
+
+			# Q3 Brush opening
+			if start_q3brush and not in_q3brush:
+				if block_opening_pattern.match(line):
+					debug("In Q3 Brush")
+					start_q3brush = False
+					in_q3brush = True
 					continue
 
 			# Q3 Legacy Brush content
@@ -262,6 +322,42 @@ class Map():
 				if block_ending_pattern.match(line):
 					debug("End Q3 Legacy Brush")
 					in_brush = False
+					continue
+
+			# Q3 Brush content
+			if in_q3brush:
+				# Plane content
+				match = q3brush_plane_pattern.match(line)
+				if match:
+					plane = OrderedDict()
+					plane["coord0_x"] = match.group("coord0_x")
+					plane["coord0_y"] = match.group("coord0_y")
+					plane["coord0_z"] = match.group("coord0_z")
+					plane["coord1_x"] = match.group("coord1_x")
+					plane["coord1_y"] = match.group("coord1_y")
+					plane["coord1_z"] = match.group("coord1_z")
+					plane["coord2_x"] = match.group("coord2_x")
+					plane["coord2_y"] = match.group("coord2_y")
+					plane["coord2_z"] = match.group("coord2_z")
+					plane["texdef_xx"] = match.group("texdef_xx")
+					plane["texdef_yx"] = match.group("texdef_yx")
+					plane["texdef_tx"] = match.group("texdef_tx")
+					plane["texdef_xy"] = match.group("texdef_xy")
+					plane["texdef_yy"] = match.group("texdef_yy")
+					plane["texdef_ty"] = match.group("texdef_ty")
+					plane["shader"] = match.group("shader")
+					plane["flag_content"] = match.group("flag_content")
+					plane["flag_surface"] = match.group("flag_surface")
+					plane["value"] = match.group("value")
+
+					self.entity_list[-1].shape_list[-1].plane_list.append(plane)
+					continue
+
+				# Q3 Brush End
+				if block_ending_pattern.match(line):
+					debug("End Q3 Legacy Brush")
+					in_q3brush = False
+					in_shape = True
 					continue
 
 			# Q3 Patch content
@@ -411,6 +507,47 @@ class Map():
 							map_string += plane["value"]
 							map_string += "\n"
 
+					elif type(shape) is Q3Brush:
+						debug("Exporting Q3 Brush")
+						map_string += "brushDef\n"
+						map_string += "{\n"
+
+						for plane in shape.plane_list:
+							map_string += "( "
+							map_string += plane["coord0_x"] + " "
+							map_string += plane["coord0_y"] + " "
+							map_string += plane["coord0_z"] + " "
+							map_string += ") "
+							map_string += "( "
+							map_string += plane["coord1_x"] + " "
+							map_string += plane["coord1_y"] + " "
+							map_string += plane["coord1_z"] + " "
+							map_string += ") "
+							map_string += "( "
+							map_string += plane["coord2_x"] + " "
+							map_string += plane["coord2_y"] + " "
+							map_string += plane["coord2_z"] + " "
+							map_string += ") "
+							map_string += "( "
+							map_string += "( "
+							map_string += plane["texdef_xx"] + " "
+							map_string += plane["texdef_yx"] + " "
+							map_string += plane["texdef_tx"] + " "
+							map_string += ") "
+							map_string += "( "
+							map_string += plane["texdef_xy"] + " "
+							map_string += plane["texdef_yy"] + " "
+							map_string += plane["texdef_ty"] + " "
+							map_string += ") "
+							map_string += ") "
+							map_string += plane["shader"] + " "
+							map_string += plane["flag_content"] + " "
+							map_string += plane["flag_surface"] + " "
+							map_string += plane["value"]
+							map_string += "\n"
+
+						map_string += "}\n"
+
 					elif type(shape) is Q3Patch:
 						debug("Exporting Q3 Patch")
 						map_string += "patchDef2\n"
@@ -440,7 +577,7 @@ class Map():
 						map_string += "}\n"
 
 					else:
-						Ui.error("This Shape is not a Q3 Legacy Brush and not a Q3 Patch")
+						Ui.error("This Shape is not a Brush and not a Patch")
 						return False
 
 					map_string += "}\n"
@@ -517,6 +654,9 @@ class Q3LegacyBrush():
 	def __init__(self):
 		self.plane_list = []
 
+class Q3Brush():
+	def __init__(self):
+		self.plane_list = []
 
 class Q3Patch():
 	def __init__(self):
