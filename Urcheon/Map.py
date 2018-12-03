@@ -24,7 +24,7 @@ class Map():
 	def __init__(self):
 		self.entity_list = None
 		# write entity numbers or not
-		self.numbering = True
+		self.numbering_enabled = True
 
 	def readFile(self, file_name):
 		input_map_file = open(file_name, "rb")
@@ -72,12 +72,12 @@ class Map():
 
 		# shape comment
 		# // brush num
-		# shape_comment_pattern = re.compile(r"^[ \t]*//[ \t]+brush[ \t]+(?P<brush_num>[0-9]+)[ \t]*$")
+		# shape_comment_pattern = re.compile(r"^[ \t]*//[ \t]+brush[ \t]+(?P<shape_num>[0-9]+)[ \t]*$")
 
 		# plane line
 		# coord, textures
-		# (orig_x orig_y orig_z) (orig_x orig_y orig_z) (orig_x orig_y orig_z) shader shift_x shift_y rotation scale_x scale_y flags_content flags_surface value
-		plane_pattern = re.compile(r"""
+		# ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) shader shift_x shift_y rotation scale_x scale_y flags_content flags_surface value
+		q3legacybrush_plane_pattern = re.compile(r"""
 			[ \t]*\([ \t]*
 			(?P<coord0_x>-?[0-9.]+)[ \t]+
 			(?P<coord0_y>-?[0-9.]+)[ \t]+
@@ -149,11 +149,11 @@ class Map():
 
 		# patch start
 		# patchDef2
-		patch_start_pattern = re.compile(r"^[ \t]*patchDef2[ \t]*$")
+		q3patch_start_pattern = re.compile(r"^[ \t]*patchDef2[ \t]*$")
 
 		# shader
 		# somename
-		patch_shader_pattern = re.compile(r"^[ \t]*(?P<shader>[^ \t]+)[ \t]*$")
+		q3patch_shader_pattern = re.compile(r"^[ \t]*(?P<shader>[^ \t]+)[ \t]*$")
 
 		# vertex matrix info
 		# ( width height reserved0 reserved1 reserved2 )
@@ -222,54 +222,57 @@ class Map():
 					debug("Start Entity #" + str(entity_num))
 					self.entity_list.append(Entity())
 					in_entity = True
-					brush_num = -1
+					shape_num = -1
 					continue
 
 			# In Entity
 
-			# We can only find KeyValue Pair or Shape opening block yet
-			if not in_shape and not in_brush and not start_q3brush and not in_q3brush and not start_patch and not in_patch:
-				# KeyValue pair
-				match = keyvalue_pattern.match(line)
-				if match:
-					key = match.group("key")
-					value = match.group("value")
-					debug("KeyValue pair [“" + key + "”, “" + value + "”]")
-					self.entity_list[-1].keyvalue_dict[key] = value
-					continue
+			if not in_brush and not start_q3brush and not in_q3brush and not start_patch and not in_patch:
+				# We can only find KeyValue or Shape opening block at this point
+				if not in_shape:
+					# KeyValue pair
+					match = keyvalue_pattern.match(line)
+					if match:
+						key = match.group("key")
+						value = match.group("value")
+						debug("KeyValue pair [“" + key + "”, “" + value + "”]")
+						self.entity_list[-1].thing_list.append(KeyValue())
+						self.entity_list[-1].thing_list[-1].key = key
+						self.entity_list[-1].thing_list[-1].value = value
+						continue
 
-				# Shape start
-				match = block_opening_pattern.match(line)
-				if match:
-					brush_num += 1
-					debug("Start Shape #" + str(brush_num))
-					in_shape = True
-					continue
+					# Shape start
+					match = block_opening_pattern.match(line)
+					if match:
+						shape_num += 1
+						debug("Start Shape #" + str(shape_num))
+						in_shape = True
+						continue
 
-			# Brush/Patch start
-			if in_shape and not in_brush and not start_q3brush and not in_q3brush and not start_patch and not in_patch:
-				if q3brush_start_pattern.match(line):
-					debug("Start Q3 Brush")
-					self.entity_list[-1].shape_list.append(Q3Brush())
-					in_q3brush = False
-					start_q3brush = True
-					continue
+				# Brush/Patch start
+				else: # in_shape
+					if q3brush_start_pattern.match(line):
+						debug("Start Q3 Brush")
+						self.entity_list[-1].thing_list.append(Q3Brush())
+						in_q3brush = False
+						start_q3brush = True
+						continue
 
-				if patch_start_pattern.match(line):
-					debug("Start Q3 Patch")
-					self.entity_list[-1].shape_list.append(Q3Patch())
-					in_shape = False
-					start_patch = True
-					continue
+					if q3patch_start_pattern.match(line):
+						debug("Start Q3 Patch")
+						self.entity_list[-1].thing_list.append(Q3Patch())
+						in_shape = False
+						start_patch = True
+						continue
 
-				# if we are not a brush or patch, and not a ending brush or patch (ending shape)
-				if not block_ending_pattern.match(line):
-					debug("In Q3 Legacy Brush")
-					self.entity_list[-1].shape_list.append(Q3LegacyBrush())
-					in_shape = False
-					in_brush = True
-					# do not continue! this line must be read one more time!
-					# this is brush content!
+					# if we are not a brush or patch, and not a ending brush or patch (ending shape)
+					if not block_ending_pattern.match(line):
+						debug("In Q3 Legacy Brush")
+						self.entity_list[-1].thing_list.append(Q3LegacyBrush())
+						in_shape = False
+						in_brush = True
+						# do not continue! this line must be read one more time!
+						# this is brush content!
 
 			# Q3 Patch opening
 			if start_patch and not in_patch:
@@ -292,7 +295,7 @@ class Map():
 			if in_brush:
 
 				# Plane content
-				match = plane_pattern.match(line)
+				match = q3legacybrush_plane_pattern.match(line)
 				if match:
 					debug("Add Plane to Q3 Legacy Brush")
 					plane = OrderedDict()
@@ -315,7 +318,7 @@ class Map():
 					plane["flag_surface"] = match.group("flag_surface")
 					plane["value"] = match.group("value")
 
-					self.entity_list[-1].shape_list[-1].plane_list.append(plane)
+					self.entity_list[-1].thing_list[-1].plane_list.append(plane)
 					continue
 
 				# Q3 Legacy Brush End
@@ -350,7 +353,7 @@ class Map():
 					plane["flag_surface"] = match.group("flag_surface")
 					plane["value"] = match.group("value")
 
-					self.entity_list[-1].shape_list[-1].plane_list.append(plane)
+					self.entity_list[-1].thing_list[-1].plane_list.append(plane)
 					continue
 
 				# Q3 Brush End
@@ -367,10 +370,10 @@ class Map():
 
 				# Q3 Patch shader
 				if in_shader:
-					match = patch_shader_pattern.match(line)
+					match = q3patch_shader_pattern.match(line)
 					if match:
 						debug("Add Shader name to Q3 Patch")
-						self.entity_list[-1].shape_list[-1].shader = match.group("shader")
+						self.entity_list[-1].thing_list[-1].shader = match.group("shader")
 						in_shader = False
 						in_matrix_info = True
 						continue
@@ -379,11 +382,11 @@ class Map():
 					match = vertex_matrix_info_pattern.match(line)
 					if match:
 						debug("Add Vertex matrix info to Q3 Patch")
-						self.entity_list[-1].shape_list[-1].vertex_matrix_info["width"] = match.group("width")
-						self.entity_list[-1].shape_list[-1].vertex_matrix_info["height"] = match.group("height")
-						self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved0"] = match.group("reserved0")
-						self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved1"] = match.group("reserved1")
-						self.entity_list[-1].shape_list[-1].vertex_matrix_info["reserved2"] = match.group("reserved2")
+						self.entity_list[-1].thing_list[-1].vertex_matrix_info["width"] = match.group("width")
+						self.entity_list[-1].thing_list[-1].vertex_matrix_info["height"] = match.group("height")
+						self.entity_list[-1].thing_list[-1].vertex_matrix_info["reserved0"] = match.group("reserved0")
+						self.entity_list[-1].thing_list[-1].vertex_matrix_info["reserved1"] = match.group("reserved1")
+						self.entity_list[-1].thing_list[-1].vertex_matrix_info["reserved2"] = match.group("reserved2")
 						in_matrix_info = False
 						start_matrix = True
 						continue
@@ -419,7 +422,7 @@ class Map():
 								debug("Reading substring: " + remaining)
 								match = vertex_list_pattern.match(remaining)
 								
-							self.entity_list[-1].shape_list[-1].vertex_matrix.append(vertex_list)
+							self.entity_list[-1].thing_list[-1].vertex_matrix.append(vertex_list)
 
 						continue
 
@@ -454,137 +457,197 @@ class Map():
 			Ui.error("Empty file")
 
 
-	def exportFile(self):
+	def exportFile(self, bsp_entities_only=False):
 		if self.entity_list == None:
 			Ui.error("No map loaded")
 
+		numbering_enabled = self.numbering_enabled and not bsp_entities_only
+
 		map_string = ""
+		model_count = 0
 
 		for i in range(0, len(self.entity_list)):
 			debug("Exporting Entity #" + str(i))
-			if self.numbering == True:
-				map_string += "// entity " + str(i) + "\n"
 
-			map_string += "{\n"
-			if len(self.entity_list[i].keyvalue_dict) > 0:
-				for key in self.entity_list[i].keyvalue_dict:
-					debug("Exporting KeyValue pair")
-					map_string += "\"" + key + "\" \"" + self.entity_list[i].keyvalue_dict[key] + "\"" + "\n"
-			if len(self.entity_list[i].shape_list) > 0:
+			entity_string = ""
+
+			if len(self.entity_list[i].thing_list) > 0:
+				entity_printable = True
+				has_classname = False
+				has_shape = False;
+				is_model = False;
+				keyvalue_count = 0
 				shape_count = 0
-				for shape in self.entity_list[i].shape_list:
-					if self.numbering == True:
-						map_string += "// brush " + str(shape_count) + "\n"
 
-					map_string += "{\n"
-					debug("Exporting Shape #" + str(shape_count))
-					if type(shape) is Q3LegacyBrush:
-						debug("Exporting Q3 Legacy Brush")
-						for plane in shape.plane_list:
-							map_string += "( "
-							map_string += plane["coord0_x"] + " "
-							map_string += plane["coord0_y"] + " "
-							map_string += plane["coord0_z"]
-							map_string += " ) "
-							map_string += "( "
-							map_string += plane["coord1_x"] + " "
-							map_string += plane["coord1_y"] + " "
-							map_string += plane["coord1_z"]
-							map_string += " ) "
-							map_string += "( "
-							map_string += plane["coord2_x"] + " "
-							map_string += plane["coord2_y"] + " "
-							map_string += plane["coord2_z"]
-							map_string += " ) "
-							map_string += plane["shader"] + " "
-							map_string += plane["shift_x"] + " "
-							map_string += plane["shift_y"] + " "
-							map_string += plane["scale_x"] + " "
-							map_string += plane["scale_y"] + " "
-							map_string += plane["rotation"] + " "
-							map_string += plane["flag_content"] + " "
-							map_string += plane["flag_surface"] + " "
-							map_string += plane["value"]
-							map_string += "\n"
+				thing_list = self.entity_list[i].thing_list
 
-					elif type(shape) is Q3Brush:
-						debug("Exporting Q3 Brush")
-						map_string += "brushDef\n"
-						map_string += "{\n"
+				if bsp_entities_only:
+					thing_list.reverse()
 
-						for plane in shape.plane_list:
-							map_string += "( "
-							map_string += plane["coord0_x"] + " "
-							map_string += plane["coord0_y"] + " "
-							map_string += plane["coord0_z"] + " "
-							map_string += ") "
-							map_string += "( "
-							map_string += plane["coord1_x"] + " "
-							map_string += plane["coord1_y"] + " "
-							map_string += plane["coord1_z"] + " "
-							map_string += ") "
-							map_string += "( "
-							map_string += plane["coord2_x"] + " "
-							map_string += plane["coord2_y"] + " "
-							map_string += plane["coord2_z"] + " "
-							map_string += ") "
-							map_string += "( "
-							map_string += "( "
-							map_string += plane["texdef_xx"] + " "
-							map_string += plane["texdef_yx"] + " "
-							map_string += plane["texdef_tx"] + " "
-							map_string += ") "
-							map_string += "( "
-							map_string += plane["texdef_xy"] + " "
-							map_string += plane["texdef_yy"] + " "
-							map_string += plane["texdef_ty"] + " "
-							map_string += ") "
-							map_string += ") "
-							map_string += plane["shader"] + " "
-							map_string += plane["flag_content"] + " "
-							map_string += plane["flag_surface"] + " "
-							map_string += plane["value"]
-							map_string += "\n"
+				for thing in thing_list:
+					if isinstance(thing, KeyValue):
+						if bsp_entities_only:
+							if thing.key == "classname":
+								if thing.value in [ "func_group", "light", "misc_model" ]:
+									entity_printable = False
+									continue
 
-						map_string += "}\n"
+							if thing.key == "classname":
+								has_classname = True
+								if has_classname and has_shape:
+									is_model = True
 
-					elif type(shape) is Q3Patch:
-						debug("Exporting Q3 Patch")
-						map_string += "patchDef2\n"
-						map_string += "{\n"
-						map_string += shape.shader + "\n"
-						map_string += "( "
-						map_string += shape.vertex_matrix_info["width"] + " "
-						map_string += shape.vertex_matrix_info["height"] + " "
-						map_string += shape.vertex_matrix_info["reserved0"] + " "
-						map_string += shape.vertex_matrix_info["reserved1"] + " "
-						map_string += shape.vertex_matrix_info["reserved2"]
-						map_string += " )\n"
-						map_string += "(\n"
+						debug("Exporting KeyValue pair")
 
-						for vertex_line in shape.vertex_matrix:
-							map_string += "( "
-							for vertex in vertex_line:
-								map_string += "( "
-								map_string += vertex["origin_x"] + " "
-								map_string += vertex["origin_y"] + " "
-								map_string += vertex["origin_z"] + " "
-								map_string += vertex["texcoord_x"] + " "
-								map_string += vertex["texcoord_y"] + " "
-								map_string += ") "
-							map_string += ")\n"
-						map_string += ")\n"
-						map_string += "}\n"
+						entity_string += "\"" + thing.key + "\" \"" + thing.value + "\"" + "\n"
+						keyvalue_count += 1
 
-					else:
-						Ui.error("This Shape is not a Brush and not a Patch")
-						return False
+						continue
 
-					map_string += "}\n"
-					shape_count += 1
-			map_string += "}\n"
+					if isinstance(thing, Shape):
+						has_shape = True
+
+						if has_classname and has_shape:
+							is_model = True
+
+						if bsp_entities_only:
+							continue
+
+						shape = thing
+
+						if numbering_enabled:
+							entity_string += "// brush " + str(shape_count) + "\n"
+
+						entity_string += "{\n"
+						debug("Exporting Shape #" + str(shape_count))
+
+						if isinstance(shape, Q3LegacyBrush):
+							debug("Exporting Q3 Legacy Brush")
+
+							for plane in shape.plane_list:
+								entity_string += "( "
+								entity_string += plane["coord0_x"] + " "
+								entity_string += plane["coord0_y"] + " "
+								entity_string += plane["coord0_z"] + " "
+								entity_string += ") "
+								entity_string += "( "
+								entity_string += plane["coord1_x"] + " "
+								entity_string += plane["coord1_y"] + " "
+								entity_string += plane["coord1_z"] + " "
+								entity_string += ") "
+								entity_string += "( "
+								entity_string += plane["coord2_x"] + " "
+								entity_string += plane["coord2_y"] + " "
+								entity_string += plane["coord2_z"] + " "
+								entity_string += ") "
+								entity_string += plane["shader"] + " "
+								entity_string += plane["shift_x"] + " "
+								entity_string += plane["shift_y"] + " "
+								entity_string += plane["scale_x"] + " "
+								entity_string += plane["scale_y"] + " "
+								entity_string += plane["rotation"] + " "
+								entity_string += plane["flag_content"] + " "
+								entity_string += plane["flag_surface"] + " "
+								entity_string += plane["value"]
+								entity_string += "\n"
+
+						elif isinstance(shape, Q3Brush):
+							debug("Exporting Q3 Brush")
+							entity_string += "brushDef\n"
+							entity_string += "{\n"
+
+							for plane in shape.plane_list:
+								entity_string += "( "
+								entity_string += plane["coord0_x"] + " "
+								entity_string += plane["coord0_y"] + " "
+								entity_string += plane["coord0_z"] + " "
+								entity_string += ") "
+								entity_string += "( "
+								entity_string += plane["coord1_x"] + " "
+								entity_string += plane["coord1_y"] + " "
+								entity_string += plane["coord1_z"] + " "
+								entity_string += ") "
+								entity_string += "( "
+								entity_string += plane["coord2_x"] + " "
+								entity_string += plane["coord2_y"] + " "
+								entity_string += plane["coord2_z"] + " "
+								entity_string += ") "
+								entity_string += "( "
+								entity_string += "( "
+								entity_string += plane["texdef_xx"] + " "
+								entity_string += plane["texdef_yx"] + " "
+								entity_string += plane["texdef_tx"] + " "
+								entity_string += ") "
+								entity_string += "( "
+								entity_string += plane["texdef_xy"] + " "
+								entity_string += plane["texdef_yy"] + " "
+								entity_string += plane["texdef_ty"] + " "
+								entity_string += ") "
+								entity_string += ") "
+								entity_string += plane["shader"] + " "
+								entity_string += plane["flag_content"] + " "
+								entity_string += plane["flag_surface"] + " "
+								entity_string += plane["value"]
+								entity_string += "\n"
+
+							entity_string += "}\n"
+
+						elif isinstance(shape, Q3Patch):
+							debug("Exporting Q3 Patch")
+							entity_string += "patchDef2\n"
+							entity_string += "{\n"
+							entity_string += shape.shader + "\n"
+							entity_string += "( "
+							entity_string += shape.vertex_matrix_info["width"] + " "
+							entity_string += shape.vertex_matrix_info["height"] + " "
+							entity_string += shape.vertex_matrix_info["reserved0"] + " "
+							entity_string += shape.vertex_matrix_info["reserved1"] + " "
+							entity_string += shape.vertex_matrix_info["reserved2"] + " "
+							entity_string += ")\n"
+							entity_string += "(\n"
+
+							for vertex_line in shape.vertex_matrix:
+								entity_string += "( "
+								for vertex in vertex_line:
+									entity_string += "( "
+									entity_string += vertex["origin_x"] + " "
+									entity_string += vertex["origin_y"] + " "
+									entity_string += vertex["origin_z"] + " "
+									entity_string += vertex["texcoord_x"] + " "
+									entity_string += vertex["texcoord_y"] + " "
+									entity_string += ") "
+								entity_string += ")\n"
+							entity_string += ")\n"
+							entity_string += "}\n"
+
+						else:
+							Ui.error("Unknown Entity Shape")
+							return False
+
+						entity_string += "}\n"
+						shape_count += 1
+
+						continue
+
+					Ui.error("Unknown Entity Thing")
+
+			if numbering_enabled:
+				entity_string += "// entity " + str(i) + "\n"
+
+			if entity_printable:
+				map_string += "{\n"
+
+				if is_model:
+					if model_count > 0:
+						map_string += "\"model\" \"*" + str(model_count) + "\"\n"
+
+					model_count += 1
+
+				map_string += entity_string
+				map_string += "}\n"
 
 		return map_string
+
 
 	def writeFile(self, file_name):
 		map_string = self.exportFile()
@@ -593,19 +656,10 @@ class Map():
 			input_map_file.write(str.encode(map_string))
 			input_map_file.close()
 
+
 	def exportBspEntities(self):
-		if self.entity_list == None:
-			Ui.error("No map loaded")
+		return self.exportFile(bsp_entities_only=True)
 
-		map_string = ""
-
-		for i in range(0, len(self.entity_list)):
-			map_string += "{\n"
-			if len(self.entity_list[i].keyvalue_dict) > 0:
-				for key in self.entity_list[i].keyvalue_dict:
-					map_string += "\"" + key + "\" \"" + self.entity_list[i].keyvalue_dict[key] + "\"" + "\n"
-			map_string += "}\n"
-		return map_string
 
 	def writeBspEntities(self, file_name):
 		bsp_entities_string = self.exportBspEntities()
@@ -620,45 +674,53 @@ class Map():
 			Ui.error("No map loaded")
 
 		for entity in self.entity_list:
-			if not entity.substituteKeys(substitution):
-				# TODO: what is it?
-				return False
-
-			if not entity.substituteValues(substitution):
-				# TODO: what is it?
-				return False
-
-		return True
+			entity.substituteKeys(substitution)
+			entity.substituteValues(substitution)
 
 
 class Entity():
 	def __init__(self):
-		self.keyvalue_dict = OrderedDict()
-		self.shape_list = []
+		self.thing_list = []
+
 
 	def substituteKeys(self, substitution):
 		for old_key, new_key in substitution.key_dict.items():
 			# rename the key in place
-			self.keyvalue_dict = OrderedDict((new_key if str.lower(key) == str.lower(old_key) else key, value) for key, value in self.keyvalue_dict.items())
-		return True
+			for thing in self.thing_list:
+				if isinstance(thing, KeyValue):
+					if str.lower(thing.key) == str.lower(old_key):
+						thing.key = new_key
+
 
 	def substituteValues(self, substitution):
 		for old_value, new_value in substitution.value_dict.items():
-			for key, value in self.keyvalue_dict.items():
-				if str.lower(value) == str.lower(old_value):
-					self.keyvalue_dict[key] = new_value
-		return True
+			for thing in self.thing_list:
+				if isinstance(thing, KeyValue):
+					if str.lower(thing.value) == str.lower(old_value):
+						thing.value = new_value
 
 
-class Q3LegacyBrush():
+class KeyValue():
+	def __init__(self):
+		self.key = ""
+		self.value = ""
+
+
+class Shape():
+	pass
+
+
+class Q3LegacyBrush(Shape):
 	def __init__(self):
 		self.plane_list = []
 
-class Q3Brush():
+
+class Q3Brush(Shape):
 	def __init__(self):
 		self.plane_list = []
 
-class Q3Patch():
+
+class Q3Patch(Shape):
 	def __init__(self):
 		self.shader = None
 		self.vertex_matrix_info = {}
@@ -717,7 +779,7 @@ def main(stage=None):
 	args = argparse.ArgumentParser(description=description, prog=prog_name)
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
-	args.add_argument("-ob", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
+	args.add_argument("-oe", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
 	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from .csv file %(metavar)s")
 	args.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
 	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
@@ -741,7 +803,7 @@ def main(stage=None):
 		map.substituteEntities(substitution)
 
 	if args.disable_numbering:
-		map.numbering = False
+		map.numbering_enabled = False
 
 	if args.output_bsp_entities:
 		map.writeBspEntities(args.output_bsp_entities)
