@@ -96,9 +96,9 @@ class Map():
 			(?P<shader>[^ \t]+)[ \t]+
 			(?P<shift_x>-?[0-9.]+)[ \t]+
 			(?P<shift_y>-?[0-9.]+)[ \t]+
+			(?P<rotation>-?[0-9.]+)[ \t]+
 			(?P<scale_x>-?[0-9.]+)[ \t]+
 			(?P<scale_y>-?[0-9.]+)[ \t]+
-			(?P<rotation>-?[0-9.]+)[ \t]+
 			(?P<flag_content>[0-9]+)[ \t]+
 			(?P<flag_surface>[0-9]+)[ \t]+
 			(?P<value>[0-9]+)
@@ -311,9 +311,9 @@ class Map():
 					plane["shader"] = match.group("shader")
 					plane["shift_x"] = match.group("shift_x")
 					plane["shift_y"] = match.group("shift_y")
+					plane["rotation"] = match.group("rotation")
 					plane["scale_x"] = match.group("scale_x")
 					plane["scale_y"] = match.group("scale_y")
-					plane["rotation"] = match.group("rotation")
 					plane["flag_content"] = match.group("flag_content")
 					plane["flag_surface"] = match.group("flag_surface")
 					plane["value"] = match.group("value")
@@ -543,9 +543,9 @@ class Map():
 								entity_string += plane["shader"] + " "
 								entity_string += plane["shift_x"] + " "
 								entity_string += plane["shift_y"] + " "
+								entity_string += plane["rotation"] + " "
 								entity_string += plane["scale_x"] + " "
 								entity_string += plane["scale_y"] + " "
-								entity_string += plane["rotation"] + " "
 								entity_string += plane["flag_content"] + " "
 								entity_string += plane["flag_surface"] + " "
 								entity_string += plane["value"]
