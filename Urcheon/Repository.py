@@ -616,7 +616,12 @@ class Git():
 		return proc.numerator == 0
 
 	def getVersion(self):
-		return self.computeVersion(self.getLastCommit())
+		version = self.computeVersion(self.getLastCommit())
+
+		if self.isDirty():
+			version += "-dirty"
+
+		return version
 
 	def computeVersion(self, reference):
 		if reference != None:
@@ -649,9 +654,6 @@ class Git():
 
 			time_stamp = self.getCompactHumanTimeStamp(commit_date)
 			version += "+" + time_stamp + "+" + short_id
-
-		if self.isDirty():
-			version += "-dirty"
 
 		return version
 
