@@ -121,6 +121,19 @@ class Builder():
 		if not is_nested:
 			action_list.readActions()
 
+		# do not look for pak configuration in temporary directories
+		# do not build temporary stuff in system build directories
+		if not is_nested:
+			pak_config = Repository.Config(source_dir, game_name=game_name)
+
+			if not game_name:
+				game_name = pak_config.requireKey("game")
+
+			self.pak_name = pak_config.requireKey("name")
+
+		else:
+			self.test_dir = test_dir
+
 		if not file_list:
 			# FIXME: only if one package?
 			# same reference for multiple packages
@@ -136,19 +149,6 @@ class Builder():
 			action_list.computeActions(file_list)
 		
 		self.action_list = action_list
-
-		# do not look for pak configuration in temporary directories
-		# do not build temporary stuff in system build directories
-		if not is_nested:
-			pak_config = Repository.Config(source_dir, game_name=game_name)
-
-			if not game_name:
-				game_name = pak_config.requireKey("game")
-
-			self.pak_name = pak_config.requireKey("name")
-
-		else:
-			self.test_dir = test_dir
 
 		self.game_name = game_name
 		self.game_profile = Game.Game(source_dir, game_name)
