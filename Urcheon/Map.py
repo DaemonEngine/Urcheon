@@ -20,6 +20,16 @@ from logging import debug
 
 # see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
 
+# FIXME: deduplicate this between Bsp.py and Map.py
+# see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
+q3_sound_keyword_list = [
+	"noise",
+	"sound1to2",
+	"sound2to1",
+	"soundPos1",
+	"soundPos2",
+]
+
 class Map():
 	def __init__(self):
 		self.entity_list = None
@@ -677,6 +687,25 @@ class Map():
 			entity.substituteKeys(substitution)
 			entity.substituteValues(substitution)
 
+	def lowerCaseFilePaths(self):
+		for entity in self.entity_list:
+			for thing in entity.thing_list:
+				if isinstance(thing, KeyValue):
+					if thing.key in [ "model" ] + q3_sound_keyword_list:
+						thing.value = thing.value.lower()
+
+				elif isinstance(thing, Q3LegacyBrush):
+					for plane in thing.plane_list:
+						plane["shader"] = plane["shader"].lower()
+						
+				elif isinstance(thing, Q3Brush):
+					for plane in thing.plane_list:
+						plane["shader"] = plane["shader"].lower()
+						
+				elif isinstance(thing, Q3Patch):
+					thing.shader = thing.shader.lower()
+
+
 
 class Entity():
 	def __init__(self):
@@ -698,7 +727,6 @@ class Entity():
 				if isinstance(thing, KeyValue):
 					if str.lower(thing.value) == str.lower(old_value):
 						thing.value = new_value
-
 
 class KeyValue():
 	def __init__(self):
@@ -781,6 +809,7 @@ def main(stage=None):
 	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
 	args.add_argument("-oe", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
 	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from .csv file %(metavar)s")
+	args.add_argument("-lf', '--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
 	args.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
 	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
 
@@ -801,6 +830,9 @@ def main(stage=None):
 		substitution = KeyValueSubstitution()
 		substitution.readFile(args.substitute_entities)
 		map.substituteEntities(substitution)
+
+	if args.lowercase_filepaths:
+		map.lowerCaseFilePaths()
 
 	if args.disable_numbering:
 		map.numbering_enabled = False
