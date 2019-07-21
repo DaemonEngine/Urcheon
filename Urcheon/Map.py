@@ -466,8 +466,7 @@ class Map():
 			# No match
 			Ui.error("Unknown line: " + line)
 
-		if len(self.entity_list) == 0:
-			Ui.error("Empty file")
+		# an empty file is not an error
 
 
 	def exportFile(self, bsp_entities_only=False):

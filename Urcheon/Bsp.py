@@ -84,7 +84,7 @@ class Blob(Lump):
 
 
 class Q3Entities(Lump):
-	entites_as_map = None
+	entities_as_map = None
 
 	def isEmpty(self):
 		return not self.entities_as_map
@@ -401,14 +401,16 @@ class Bsp():
 		self.lump_dict = {}
 
 		if bsp_magic_number and bsp_version:
+			# TODO: make user able to set it with command line option
 			self.bsp_magic_number = bsp_magic_number
 			self.bsp_version = bsp_version
-			self.bsp_parser_dict = bsp_dict[bsp_magic_number][bsp_version]
 
 		else:
-			self.bsp_magic_number = None
-			self.bsp_version = None
-			self.bsp_parser_dict = None
+			# default bsp format
+			self.bsp_magic_number = "IBSP"
+			self.bsp_version = 46
+
+		self.bsp_parser_dict = bsp_dict[self.bsp_magic_number][self.bsp_version]
 
 	def readFile(self, bsp_file_name):
 		# TODO: check
@@ -810,6 +812,9 @@ def main(stage=None):
 		debug("args: " + str(args))
 
 	bsp = Bsp()
+	entities = Q3Entities()
+	textures = Q3Textures()
+	lightmaps = Q3Lightmaps()
 
 	if args.input_bsp_file:
 		bsp.readFile(args.input_bsp_file)
@@ -819,22 +824,19 @@ def main(stage=None):
 		bsp.readDir(args.input_bsp_dir)
 
 	if args.input_entities_file:
-		entities = Q3Entities()
 		entities.readFile(args.input_entities_file)
 		bsp.importLump("entities", entities.exportLump())
 
 	if args.input_textures_file:
-		textures = Q3Textures()
 		textures.readFile(args.input_textures_file)
 		bsp.importLump("textures", textures.exportLump())
 
 	if args.input_lightmaps_dir:
-		lightmaps = Q3Lightmaps()
 		lightmaps.readDir(args.input_lightmaps_dir)
 		bsp.importLump("lightmaps", lightmaps.exportLump())
 
-	# TODO: perhaps it must conflict with input_lightmaps_file
 	if args.strip_lightmaps:
+		# reset the lightmap lump
 		lightmaps = Q3Lightmaps()
 		bsp.importLump("lightmaps", lightmaps.exportLump())
 
@@ -846,26 +848,29 @@ def main(stage=None):
 	if args.lowercase_filepaths:
 		bsp.lowerCaseFilePaths()
 
+	entities.importLump(bsp.exportLump("entities"))
+
+	textures.importLump(bsp.exportLump("textures"))
+
+	lightmaps.importLump(bsp.exportLump("lightmaps"))
+
 	if args.output_bsp_file:
 		bsp.writeFile(args.output_bsp_file)
 
 	if args.output_bsp_dir:
 		bsp.writeDir(args.output_bsp_dir)
 
-	entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
-	entities.importLump(bsp.exportLump("entities"))
-
-	textures = bsp.bsp_parser_dict["lump_dict"]["textures"]()
-	textures.importLump(bsp.exportLump("textures"))
-
-	lightmaps = bsp.bsp_parser_dict["lump_dict"]["lightmaps"]()
-	lightmaps.importLump(bsp.exportLump("lightmaps"))
-
 	if args.output_entities_file:
-		entities.writeFile(args.output_entities_file)
+		if not entities.isEmpty():
+			entities.writeFile(args.output_entities_file)
+		else:
+			Ui.error("Entities lump missing")
 
 	if args.output_textures_file:
-		textures.writeFile(args.output_textures_file)
+		if not textures.isEmpty():
+			textures.writeFile(args.output_textures_file)
+		else:
+			Ui.error("Textures lump missing")
 
 	if args.output_lightmaps_dir:
 		lightmaps.writeDir(args.output_lightmaps_dir)
@@ -887,19 +892,34 @@ def main(stage=None):
 		bsp.printLumpList()
 
 	if args.list_entities:
-		entities.printList()
+		if not entities.isEmpty():
+			entities.printList()
+		else:
+			Ui.error("Entities lump missing")
 
 	if args.list_textures:
-		textures.printList()
+		if not textures.isEmpty():
+			textures.printList()
+		else:
+			Ui.error("Textures lump missing")
 
 	if args.list_lightmaps:
-		lightmaps.printList()
+		if not lightmaps.isEmpty():
+			lightmaps.printList()
+		else:
+			Ui.error("Lightmaps lump missing")
 
 	if args.list_sounds:
-		entities.printSoundList()
+		if not entities.isEmpty():
+			entities.printSoundList()
+		else:
+			Ui.error("Entities lump missing")
 
 	if args.print_entities:
-		entities.printString()
+		if not entities.isEmpty():
+			entities.printString()
+		else:
+			Ui.error("Entities lump missing")
 
 
 if __name__ == "__main__":
