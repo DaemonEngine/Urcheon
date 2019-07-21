@@ -18,9 +18,6 @@ from collections import OrderedDict
 from logging import debug
 
 
-# see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
-
-# FIXME: deduplicate this between Bsp.py and Map.py
 # see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
 q3_sound_keyword_list = [
 	"noise",
@@ -29,6 +26,8 @@ q3_sound_keyword_list = [
 	"soundPos1",
 	"soundPos2",
 ]
+
+# see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
 
 class Map():
 	def __init__(self):
@@ -40,8 +39,12 @@ class Map():
 		input_map_file = open(file_name, "rb")
 
 		map_bstring = input_map_file.read()
+
+		self.readBlob(map_bstring)
+
 		input_map_file.close()
 
+	def readBlob(self, map_bstring):
 		map_lines = str.splitlines(bytes.decode(map_bstring))
 
 		in_entity = False
@@ -431,7 +434,7 @@ class Map():
 								remaining = match.group("remaining")
 								debug("Reading substring: " + remaining)
 								match = vertex_list_pattern.match(remaining)
-								
+
 							self.entity_list[-1].thing_list[-1].vertex_matrix.append(vertex_list)
 
 						continue
@@ -691,17 +694,17 @@ class Map():
 		for entity in self.entity_list:
 			for thing in entity.thing_list:
 				if isinstance(thing, KeyValue):
-					if thing.key in [ "model" ] + q3_sound_keyword_list:
+					if thing.key in [ "model", "targetShaderName" ] + q3_sound_keyword_list:
 						thing.value = thing.value.lower()
 
 				elif isinstance(thing, Q3LegacyBrush):
 					for plane in thing.plane_list:
 						plane["shader"] = plane["shader"].lower()
-						
+
 				elif isinstance(thing, Q3Brush):
 					for plane in thing.plane_list:
 						plane["shader"] = plane["shader"].lower()
-						
+
 				elif isinstance(thing, Q3Patch):
 					thing.shader = thing.shader.lower()
 

@@ -7,6 +7,7 @@
 # License: ISC
 #
 
+from Urcheon import Map
 from Urcheon import Ui
 import __main__ as m
 import argparse
@@ -83,10 +84,10 @@ class Blob(Lump):
 
 
 class Q3Entities(Lump):
-	entity_list = None
+	entites_as_map = None
 
 	def isEmpty(self):
-		return not self.entity_list
+		return not self.entities_as_map
 
 	def validateExtension(self, file_ext):
 		return file_ext == "txt"
@@ -109,27 +110,34 @@ class Q3Entities(Lump):
 	def printString(self):
 		print("*** Entities")
 		print(bytes.decode(self.exportLump().split(b'\0', 1)[0]))
-		print("")
 
 	def printList(self):
 		print("*** Entities")
-		for i in range(0, len(self.entity_list)):
+		i = 0
+		for entity in self.entities_as_map.entity_list:
 			string = ""
-			for keyword in self.entity_list[i].keys():
-				string += '\"' + keyword + "\": \"" + self.entity_list[i][keyword] + "\", "
+			for thing in entity.thing_list:
+				if isinstance(thing, Map.KeyValue):
+					string += "\"" + thing.key + "\": \"" + thing.value + "\", "
+
 			print(str(i) + ": [" + string[:-2] + "]")
+			i += 1
+
 		print("")
 		return True
 
 	def printSoundList(self):
-		print("*** Sounds:")
+		print("*** Entities")
 		i = 0
-		for entity in self.entity_list:
-			for entity_keyword in entity.keys():
-				for sound_keyword in q3_sound_keyword_list:
-					if entity_keyword.lower() == sound_keyword.lower():
-						print(str(i) + ": " + entity[entity_keyword] + " [" + entity_keyword + "]")
-						i += 1
+		for entity in self.entities_as_map.entity_list:
+			found = False
+			for thing in entity.thing_list:
+				if isinstance(thing, Map.KeyValue):
+					for sound_keyword in Map.q3_sound_keyword_list:
+						if thing.key.lower() == sound_keyword.lower():
+							print(str(i) + ": " + thing.value + " [" + sound_keyword + "]")
+							i += 1
+
 		print("")
 		return True
 
@@ -141,27 +149,14 @@ class Q3Entities(Lump):
 	def importLump(self, blob):
 		self.entity_list = []
 		entities_bstring = blob.split(b'\0', 1)[0]
-		for almost_entity in entities_bstring.split(b"{\n")[1:]:
-			entity = almost_entity.split(b'\n}')[:-1][0]
-			entity_dict = OrderedDict()
-			for line in entity.split(b'\n'):
-				almost_keyword, almost_value = line.split(b"\" \"")
-				keyword = bytes.decode(almost_keyword.split(b'\"')[1:2][0])
-				value = bytes.decode(almost_value.split(b'\"')[0:1][0])
-				# TODO: do not use a dictionary in the future: each time we write down the entities the order change
-				# OrderedDict fixed it?
-				entity_dict[keyword] = value
-			self.entity_list.append(entity_dict)
+
+		self.entities_as_map = Map.Map()
+		self.entities_as_map.numbering_enabled = False
+		self.entities_as_map.readBlob(entities_bstring)
 
 	def exportLump(self):
 		blob = b''
-
-		for entity in self.entity_list:
-			blob += b'{\n'
-			for keyword in entity.keys():
-				blob += b'\"' + str.encode(keyword) + b"\" \"" + str.encode(entity[keyword]) + b"\"\n"
-			blob += b'}\n'
-
+		blob += self.entities_as_map.exportFile().encode()
 		blob += b'\0'
 		return blob
 
@@ -698,15 +693,6 @@ qf_lump_dict = q3_lump_dict.copy()
 qf_lump_dict["lightmaps"] = QFLightmaps
 qf_lump_dict["lightarray"] = Blob
 qf_lump_name_list = list(qf_lump_dict.keys())
-
-# see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
-q3_sound_keyword_list = [
-	"noise",
-	"sound1to2",
-	"sound2to1",
-	"soundPos1",
-	"soundPos2",
-]
 
 fbsp_dict = {
 	# Warsow uses version 1
