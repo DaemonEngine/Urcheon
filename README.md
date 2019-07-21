@@ -128,13 +128,13 @@ Like Urcheon, Esquirel offers multiple stages.
 
 ### The `map` stage
 
-It allows to parse some maps (id Tech 3 format only supported at this time): de-numberize them for better diff, export entities as seen in bsp, or substitutes entities using some substitution list you can write yourself.
+It allows to parse some maps (id Tech 3 format only supported at this time): de-numberize them for better diff, export entities as seen in bsp, or substitutes entity keywords using some substitution list you can write yourself.
 
 Example:
 
 ```
 esquirel map --input-map file.map \
-	--substitute-entities substitution.csv \
+	--substitute-keywords substitution.csv \
 	--disable-numbering \
 	--output-map file.map
 ```

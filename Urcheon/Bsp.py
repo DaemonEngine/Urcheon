@@ -141,10 +141,11 @@ class Q3Entities(Lump):
 		print("")
 		return True
 
-	# TODO: sanitize input
-	# s/^[ \t]*{[ \t]*$/{/
-	# s/^[ \t]*}[ \t]*$/{/
-	# s/^[ \t]*"\(.*\)"[ \t]+[ \t]*"\(.*\)"[ \t]*$/"\1" "\2"/
+	def substituteKeywords(self, substitution):
+		self.entities_as_map.substituteKeywords(substitution)
+
+	def lowerCaseFilePaths(self):
+		self.entities_as_map.lowerCaseFilePaths()
 
 	def importLump(self, blob):
 		self.entity_list = []
@@ -219,6 +220,12 @@ class Q3Textures(Lump):
 		for i in range(0, len(self.texture_list)):
 			print(str(i) + ": " + self.texture_list[i]["name"] + " [" + self.int2bstr(self.texture_list[i]["flags"]) + ", " + self.int2bstr(self.texture_list[i]["contents"]) + "]")
 		print("")
+
+	def lowerCaseFilePaths(self):
+		textures_count = len(self.texture_list)
+
+		for i in range(0, textures_count):
+			self.texture_list[i]["name"] = self.texture_list[i]["name"].lower()
 
 	def importLump(self, blob):
 		# TODO: check exists
@@ -490,6 +497,24 @@ class Bsp():
 		print(self.bsp_file_name)
 		print("")
 
+
+	def substituteKeywords(self, substitution):
+		for lump_name in ["entities"]:
+			if lump_name in self.lump_dict:
+				lump = self.bsp_parser_dict["lump_dict"][lump_name]()
+				lump.importLump(self.lump_dict[lump_name])
+				lump.substituteKeywords(substitution)
+				self.lump_dict[lump_name] = lump.exportLump()
+
+	def lowerCaseFilePaths(self):
+		for lump_name in ["entities", "textures"]:
+			if lump_name in self.lump_dict:
+				lump = self.bsp_parser_dict["lump_dict"][lump_name]()
+				lump.importLump(self.lump_dict[lump_name])
+				lump.lowerCaseFilePaths()
+				self.lump_dict[lump_name] = lump.exportLump()
+
+
 	def readLumpList(self):
 		self.lump_directory = {}
 
@@ -539,11 +564,12 @@ class Bsp():
 		print("*** Lumps:")
 		for i in range(0, len(self.bsp_parser_dict["lump_name_list"])):
 			lump_name = self.bsp_parser_dict["lump_name_list"][i]
-			if not self.lump_directory[lump_name]["offset"]:
-				# bspdir, length is also unknown
-				print(str(i) + ": " + lump_name )
-			else:
-				print(str(i) + ": " + lump_name + " [" + str(self.lump_directory[lump_name]["offset"]) + ", " + str(self.lump_directory[lump_name]["length"]) + "]")
+			if lump_name in self.lump_directory:
+				if not self.lump_directory[lump_name]["offset"]:
+					# bspdir, length is also unknown
+					print(str(i) + ": " + lump_name )
+				else:
+					print(str(i) + ": " + lump_name + " [" + str(self.lump_directory[lump_name]["offset"]) + ", " + str(self.lump_directory[lump_name]["length"]) + "]")
 		print("")
 
 	def readLump(self, lump_name):
@@ -767,6 +793,8 @@ def main(stage=None):
 	args.add_argument("-il", "--input-lightmaps", dest="input_lightmaps_dir", metavar="DIRNAME",  help="read from lightmaps directory %(metavar)s")
 	args.add_argument("-ol", "--output-lightmaps", dest="output_lightmaps_dir", metavar="DIRNAME", help="write to lightmaps directory %(metavar)s")
 	args.add_argument("-sl", "--strip-lightmaps", help="empty the lightmap lump", action="store_true")
+	args.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
+	args.add_argument("-lf', '--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
 	args.add_argument("-la", "--list-all", help="list all", action="store_true")
 	args.add_argument("-lL", "--list-lumps", help="list lumps", action="store_true")
 	args.add_argument("-le", "--list-entities", help="list entities", action="store_true")
@@ -781,135 +809,97 @@ def main(stage=None):
 		debug("Debug logging activated")
 		debug("args: " + str(args))
 
-	bsp = None
-	entities = None
-	textures = None
-	lightmaps = None
+	bsp = Bsp()
 
 	if args.input_bsp_file:
-		bsp = Bsp()
 		bsp.readFile(args.input_bsp_file)
-		entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
-		entities.importLump(bsp.exportLump("entities"))
-		textures = bsp.bsp_parser_dict["lump_dict"]["textures"]()
-		textures.importLump(bsp.exportLump("textures"))
-		lightmaps = bsp.bsp_parser_dict["lump_dict"]["lightmaps"]()
-		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
+	# TODO: must conflict with input_bsp_file
 	if args.input_bsp_dir:
-		bsp = Bsp()
 		bsp.readDir(args.input_bsp_dir)
-		entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
-		entities.importLump(bsp.exportLump("entities"))
-		textures = bsp.bsp_parser_dict["lump_dict"]["textures"]()
-		textures.importLump(bsp.exportLump("textures"))
-		lightmaps = bsp.bsp_parser_dict["lump_dict"]["lightmaps"]()
-		lightmaps.importLump(bsp.exportLump("lightmaps"))
 
 	if args.input_entities_file:
 		entities = Q3Entities()
 		entities.readFile(args.input_entities_file)
+		bsp.importLump("entities", entities.exportLump())
 
 	if args.input_textures_file:
 		textures = Q3Textures()
 		textures.readFile(args.input_textures_file)
+		bsp.importLump("textures", textures.exportLump())
 
 	if args.input_lightmaps_dir:
 		lightmaps = Q3Lightmaps()
 		lightmaps.readDir(args.input_lightmaps_dir)
+		bsp.importLump("lightmaps", lightmaps.exportLump())
 
 	# TODO: perhaps it must conflict with input_lightmaps_file
 	if args.strip_lightmaps:
 		lightmaps = Q3Lightmaps()
-	#	lightmaps.importLump(b'')
+		bsp.importLump("lightmaps", lightmaps.exportLump())
+
+	if args.substitute_keywords:
+		substitution = Map.KeyValueSubstitution()
+		substitution.readFile(args.substitute_keywords)
+		bsp.substituteKeywords(substitution)
+
+	if args.lowercase_filepaths:
+		bsp.lowerCaseFilePaths()
 
 	if args.output_bsp_file:
-		if lightmaps:
-			bsp.importLump("lightmaps", lightmaps.exportLump())
-		if entities:
-			bsp.importLump("entities", entities.exportLump())
-		if textures:
-			bsp.importLump("textures", textures.exportLump())
 		bsp.writeFile(args.output_bsp_file)
 
 	if args.output_bsp_dir:
-		if lightmaps:
-			bsp.importLump("lightmaps", lightmaps.exportLump())
-		if entities:
-			bsp.importLump("entities", entities.exportLump())
-		if textures:
-			bsp.importLump("textures", textures.exportLump())
 		bsp.writeDir(args.output_bsp_dir)
 
+	entities = bsp.bsp_parser_dict["lump_dict"]["entities"]()
+	entities.importLump(bsp.exportLump("entities"))
+
+	textures = bsp.bsp_parser_dict["lump_dict"]["textures"]()
+	textures.importLump(bsp.exportLump("textures"))
+
+	lightmaps = bsp.bsp_parser_dict["lump_dict"]["lightmaps"]()
+	lightmaps.importLump(bsp.exportLump("lightmaps"))
+
 	if args.output_entities_file:
-		if entities:
-			entities.writeFile(args.output_entities_file)
-		else:
-			debug("TODO: ERR: no entities lump loaded")
+		entities.writeFile(args.output_entities_file)
 
 	if args.output_textures_file:
-		if textures:
-			textures.writeFile(args.output_textures_file)
-		else:
-			debug("TODO: ERR: no textures lump loaded")
+		textures.writeFile(args.output_textures_file)
 
 	if args.output_lightmaps_dir:
-		if lightmaps:
-			lightmaps.writeDir(args.output_lightmaps_dir)
+		lightmaps.writeDir(args.output_lightmaps_dir)
 
 	if args.list_all:
-		if bsp:
-			args.list_lumps = True
-			args.list_entities = True
-			args.list_textures = True
-			args.list_lightmaps = True
-			args.list_sounds = True
+		args.list_lumps = True
 
-		if entities:
+		if not entities.isEmpty():
 			args.list_entities = True
 			args.list_sounds = True
 
-		if textures:
+		if not textures.isEmpty():
 			args.list_textures = True
 
-		if lightmaps:
+		if not lightmaps.isEmpty():
 			args.list_lightmaps = True
 
 	if args.list_lumps:
-		if bsp:
-			bsp.printLumpList()
-		else:
-			Ui.error("BSP file missing")
+		bsp.printLumpList()
 
 	if args.list_entities:
-		if entities:
-			entities.printList()
-		else:
-			Ui.error("Entities lump missing")
+		entities.printList()
 
 	if args.list_textures:
-		if textures:
-			textures.printList()
-		else:
-			Ui.error("Textures lump missing")
+		textures.printList()
 
 	if args.list_lightmaps:
-		if lightmaps:
-			lightmaps.printList()
-		else:
-			Ui.error("Lightmaps lump missing")
+		lightmaps.printList()
 
 	if args.list_sounds:
-		if entities:
-			entities.printSoundList()
-		else:
-			Ui.error("Entities lump missing")
+		entities.printSoundList()
 
 	if args.print_entities:
-		if entities:
-			entities.printString()
-		else:
-			Ui.error("Entities lump missing")
+		entities.printString()
 
 
 if __name__ == "__main__":

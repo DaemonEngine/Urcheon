@@ -682,7 +682,7 @@ class Map():
 			bsp_entities_file.close()
 
 
-	def substituteEntities(self, substitution):
+	def substituteKeywords(self, substitution):
 		if not self.entity_list:
 			Ui.error("No map loaded")
 
@@ -811,7 +811,7 @@ def main(stage=None):
 	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
 	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
 	args.add_argument("-oe", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
-	args.add_argument("-se", "--substitute-entities", dest="substitute_entities", metavar="FILENAME", help="use entitie substitution rules from .csv file %(metavar)s")
+	args.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
 	args.add_argument("-lf', '--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
 	args.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
 	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
@@ -829,10 +829,10 @@ def main(stage=None):
 
 		debug("File " + args.input_map_file + " read")
 
-	if args.substitute_entities:
+	if args.substitute_keywords:
 		substitution = KeyValueSubstitution()
-		substitution.readFile(args.substitute_entities)
-		map.substituteEntities(substitution)
+		substitution.readFile(args.substitute_keywords)
+		map.substituteKeywords(substitution)
 
 	if args.lowercase_filepaths:
 		map.lowerCaseFilePaths()
