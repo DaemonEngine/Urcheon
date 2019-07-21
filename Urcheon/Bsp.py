@@ -794,7 +794,7 @@ def main(stage=None):
 	args.add_argument("-ol", "--output-lightmaps", dest="output_lightmaps_dir", metavar="DIRNAME", help="write to lightmaps directory %(metavar)s")
 	args.add_argument("-sl", "--strip-lightmaps", help="empty the lightmap lump", action="store_true")
 	args.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
-	args.add_argument("-lf', '--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
+	args.add_argument("-Lf', '--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
 	args.add_argument("-la", "--list-all", help="list all", action="store_true")
 	args.add_argument("-lL", "--list-lumps", help="list lumps", action="store_true")
 	args.add_argument("-le", "--list-entities", help="list entities", action="store_true")
