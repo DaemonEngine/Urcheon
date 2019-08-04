@@ -445,7 +445,7 @@ class ConvertLossyWebp(Action):
 			Ui.print("Convert to " + self.printable_target_format +  ": " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
-			self.callProcess(["convert", "-verbose", source_path, transient_path])
+			self.callProcess(["convert", "-verbose", source_path, "png:" + transient_path])
 			self.callProcess(["cwebp", "-v", "-mt"] + self.cwebp_extra_args + [transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
@@ -494,15 +494,14 @@ class ConvertCrn(Action):
 			# we must strip metadata to be sure the bug is not postponed to the png to tga conversion 
 			transient_transient_handle, transient_transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient_transient" + os.path.extsep + "png")
 			os.close(transient_transient_handle)
-			self.callProcess(["convert", "-verbose", "-strip", source_path, transient_transient_path])
+			self.callProcess(["convert", "-verbose", "-strip", source_path, "png:" + transient_transient_path])
 
 			# the crunch tool only supports a small number of formats, and is known to fail on some variants of the format it handles (example: png)
 			# See https://github.com/DaemonEngine/crunch/issues/13
 			# the tga format produced by the `convert` tool is believed to be a safe input format for crunch
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
-
-			self.callProcess(["convert", "-verbose", "-strip", transient_transient_path, transient_path])
+			self.callProcess(["convert", "-verbose", "-strip", transient_transient_path, "tga:" + transient_path])
 
 			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path] + self.crunch_extra_args + ["-quality", "255", "-out", build_path])
 			if os.path.isfile(transient_transient_path):
