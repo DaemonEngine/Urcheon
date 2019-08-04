@@ -368,8 +368,9 @@ class Copy(Action):
 class ConvertJpg(Action):
 	keyword = "convert_jpg"
 	description = "convert to jpg format"
-	message = "Convert to jpg: "
-	quality = 92
+
+	printable_target_format = "jpg"
+	convert_jpg_quality = 92
 
 	def run(self):
 		source_path = self.getSourcePath()
@@ -380,7 +381,7 @@ class ConvertJpg(Action):
 			Ui.print("File already in jpg, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print(self.message + self.file_path)
+			Ui.print("Convert to " + self.printable_target_format + ": " + self.file_path)
 			self.callProcess(["convert", "-verbose", "-quality", str(self.quality), source_path, build_path])
 
 		self.setTimeStamp()
@@ -394,8 +395,9 @@ class ConvertJpg(Action):
 class ConvertBadJpg(ConvertJpg):
 	keyword = "convert_bad_jpg"
 	description = "convert to bad jpg format"
-	message = "Convert to bad jpg: "
-	quality = 50
+
+	printable_target_format = "bad jpg"
+	convert_jpg_quality = 50
 
 
 class ConvertPng(Action):
@@ -422,158 +424,107 @@ class ConvertPng(Action):
 		return self.switchExtension("png")
 
 
-class DumbWebp(Action):
+class ConvertLossyWebp(Action):
+	threaded = True
+
+	keyword = "convert_lossy_webp"
+	description = "convert to lossy webp format"
+
+	printable_target_format = "lossy webp"
+	cwebp_extra_args = ["-m", "6", "-q", "95", "-pass", "10"]
+
+	def run(self):
+		source_path = self.getSourcePath()
+		build_path = self.getTargetPath()
+		self.createSubdirs()
+
+		if self.getExt() == "webp":
+			Ui.print("File already in webp, copy: " + self.file_path)
+			shutil.copyfile(source_path, build_path)
+		else:
+			Ui.print("Convert to " + self.printable_target_format +  ": " + self.file_path)
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
+			os.close(transient_handle)
+			self.callProcess(["convert", "-verbose", source_path, transient_path])
+			self.callProcess(["cwebp", "-v", "-mt"] + self.cwebp_extra_args + [transient_path, "-o", build_path])
+			if os.path.isfile(transient_path):
+				os.remove(transient_path)
+
+		self.setTimeStamp()
+
+		return self.getProducedUnitList()
+
 	def getFileNewName(self):
 		return self.switchExtension("webp")
 	
 
-class ConvertLossyWebp(DumbWebp):
-	keyword = "convert_lossy_webp"
-	description = "convert to lossy webp format"
-
-	def run(self):
-		source_path = self.getSourcePath()
-		build_path = self.getTargetPath()
-		self.createSubdirs()
-
-		if self.getExt() == "webp":
-			Ui.print("File already in webp, copy: " + self.file_path)
-			shutil.copyfile(source_path, build_path)
-		else:
-			Ui.print("Convert to lossy webp: " + self.file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
-			os.close(transient_handle)
-			self.callProcess(["convert", "-verbose", source_path, transient_path])
-			self.callProcess(["cwebp", "-v", "-mt", "-m", "6", "-q", "95", "-pass", "10", transient_path, "-o", build_path])
-			if os.path.isfile(transient_path):
-				os.remove(transient_path)
-
-		self.setTimeStamp()
-
-		return self.getProducedUnitList()
-
-
-class ConvertLosslessWebp(DumbWebp):
+class ConvertLosslessWebp(ConvertLossyWebp):
 	keyword = "convert_lossless_webp"
 	description = "convert to lossless webp format"
 
+	printable_target_format = "lossless webp"
+	cwebp_extra_args = ["-lossless", "-z", "9"]
+	
+
+# TODO: convertDDS
+class ConvertCrn(Action):
+	threaded = True
+
+	keyword = "convert_crn"
+	description = "convert to crn format"
+
+	printable_target_format = "crn"
+	crunch_extra_args = []
+
 	def run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if self.getExt() == "webp":
-			Ui.print("File already in webp, copy: " + self.file_path)
+		if self.getExt() == "crn":
+			Ui.print("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to lossless webp: " + self.file_path)
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
+			Ui.print("Convert to " + self.printable_target_format + ": " + self.file_path)
+
+			# the convert tool from ImageMagick is known to fail to properly convert some jpg files to tga (some of them are produced upside down)
+			# see https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1838860
+			# we know that convert properly converts those jpg to png if we stip metadata
+			# so we can convert them to png to tga before converting them to crn
+			# we must strip metadata to be sure the bug is not postponed to the png to tga conversion 
+			transient_transient_handle, transient_transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient_transient" + os.path.extsep + "png")
+			os.close(transient_transient_handle)
+			self.callProcess(["convert", "-verbose", "-strip", source_path, transient_transient_path])
+
+			# the crunch tool only supports a small number of formats, and is known to fail on some variants of the format it handles (example: png)
+			# See https://github.com/DaemonEngine/crunch/issues/13
+			# the tga format produced by the `convert` tool is believed to be a safe input format for crunch
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
-			self.callProcess(["convert", "-verbose", source_path, transient_path])
-			self.callProcess(["cwebp", "-v", "-mt", "-lossless", "-z", "9", transient_path, "-o", build_path])
+
+			self.callProcess(["convert", "-verbose", "-strip", transient_transient_path, transient_path])
+
+			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path] + self.crunch_extra_args + ["-quality", "255", "-out", build_path])
+			if os.path.isfile(transient_transient_path):
+				os.remove(transient_transient_path)
+
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
 
 		self.setTimeStamp()
 
 		return self.getProducedUnitList()
-
-
-class DumbCrn(Action):
-	threaded = True
 
 	def getFileNewName(self):
 		return self.switchExtension("crn")
 
 
-# TODO: convertDDS
-class ConvertCrn(DumbCrn):
-	keyword = "convert_crn"
-	description = "convert to crn format"
-
-	def run(self):
-		source_path = self.getSourcePath()
-		build_path = self.getTargetPath()
-		self.createSubdirs()
-
-		if self.getExt() == "crn":
-			Ui.print("File already in crn, copy: " + self.file_path)
-			shutil.copyfile(source_path, build_path)
-		else:
-			Ui.print("Convert to crn: " + self.file_path)
-
-			# the convert tool from ImageMagick is known to fail to properly convert some jpg files to tga (some of them are produced upside down)
-			# see https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1838860
-			# we know that convert properly converts those jpg to png if we stip metadata
-			# so we can convert them to png to tga before converting them to crn
-			# we must strip metadata to be sure the bug is not postponed to the png to tga conversion 
-			transient_transient_handle, transient_transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient_transient" + os.path.extsep + "png")
-			os.close(transient_transient_handle)
-			self.callProcess(["convert", "-verbose", "-strip", source_path, transient_transient_path])
-
-			# the crunch tool only supports a small number of formats, and is known to fail on some variants of the format it handles (example: png)
-			# See https://github.com/DaemonEngine/crunch/issues/13
-			# the tga format produced by the `convert` tool is believed to be a safe input format for crunch
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
-			os.close(transient_handle)
-
-			self.callProcess(["convert", "-verbose", "-strip", transient_transient_path, transient_path])
-
-			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path, "-quality", "255", "-out", build_path])
-			if os.path.isfile(transient_transient_path):
-				os.remove(transient_transient_path)
-
-			if os.path.isfile(transient_path):
-				os.remove(transient_path)
-
-		self.setTimeStamp()
-
-		return self.getProducedUnitList()
-
-
-class ConvertNormalCrn(DumbCrn):
+class ConvertNormalCrn(ConvertCrn):
 	keyword = "convert_normalized_crn"
 	description = "convert to normalized crn format"
 
-	def run(self):
-		source_path = self.getSourcePath()
-		build_path = self.getTargetPath()
-		self.createSubdirs()
-
-		if self.getExt() == "crn":
-			Ui.print("File already in crn, copy: " + self.file_path)
-			shutil.copyfile(source_path, build_path)
-		else:
-			Ui.print("Convert to normalized crn: " + self.file_path)
-
-			# the convert tool from ImageMagick is known to fail to properly convert some jpg files to tga (some of them are produced upside down)
-			# see https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1838860
-			# we know that convert properly converts those jpg to png if we stip metadata
-			# so we can convert them to png to tga before converting them to crn
-			# we must strip metadata to be sure the bug is not postponed to the png to tga conversion 
-			transient_transient_handle, transient_transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient_transient" + os.path.extsep + "png")
-			os.close(transient_transient_handle)
-			self.callProcess(["convert", "-verbose", "-strip", source_path, transient_transient_path])
-
-			# the crunch tool only supports a small number of formats, and is known to fail on some variants of the format it handles (example: png)
-			# See https://github.com/DaemonEngine/crunch/issues/13
-			# the tga format produced by the `convert` tool is believed to be a safe input format for crunch
-			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
-			os.close(transient_handle)
-
-			self.callProcess(["convert", "-verbose", "-strip", transient_transient_path, transient_path])
-
-
-			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path, "-dxn", "-renormalize", "-rtopmip", "-quality", "255", "-out", build_path])
-			if os.path.isfile(transient_transient_path):
-				os.remove(transient_transient_path)
-
-			if os.path.isfile(transient_path):
-				os.remove(transient_path)
-
-		self.setTimeStamp()
-
-		return self.getProducedUnitList()
+	printable_target_format = "normalized crn"
+	crunch_extra_args = ["-dxn", "-renormalize", "-rtopmip"]
 
 
 class ConvertVorbis(Action):
