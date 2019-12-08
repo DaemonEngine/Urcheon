@@ -382,7 +382,7 @@ class ConvertJpg(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.print("Convert to " + self.printable_target_format + ": " + self.file_path)
-			self.callProcess(["convert", "-verbose", "-quality", str(self.quality), source_path, build_path])
+			self.callProcess(["convert", "-verbose", "-quality", str(self.convert_jpg_quality), source_path, build_path])
 
 		self.setTimeStamp()
 
