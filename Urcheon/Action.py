@@ -163,6 +163,7 @@ def list():
 		MergeBsp,
 		# this is probably the slowest compression image
 		# format we know
+		ConvertDds,
 		ConvertCrn,
 		ConvertNormalCrn,
 		# sloth needs previews to be done before sloth
@@ -466,7 +467,6 @@ class ConvertLosslessWebp(ConvertLossyWebp):
 	cwebp_extra_args = ["-lossless", "-z", "9"]
 	
 
-# TODO: convertDDS
 class ConvertCrn(Action):
 	threaded = True
 
@@ -476,12 +476,14 @@ class ConvertCrn(Action):
 	printable_target_format = "crn"
 	crunch_extra_args = []
 
+	file_ext = "crn"
+
 	def run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		if self.getExt() == "crn":
+		if self.getExt() == self.file_ext:
 			Ui.print("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
@@ -516,7 +518,7 @@ class ConvertCrn(Action):
 		return self.getProducedUnitList()
 
 	def getFileNewName(self):
-		return self.switchExtension("crn")
+		return self.switchExtension(self.file_ext)
 
 
 class ConvertNormalCrn(ConvertCrn):
@@ -526,6 +528,14 @@ class ConvertNormalCrn(ConvertCrn):
 	printable_target_format = "normalized crn"
 	crunch_extra_args = ["-dxn", "-renormalize", "-rtopmip"]
 
+
+class ConvertDds(ConvertCrn):
+	keyword = "convert_dds"
+	description = "convert to dds format"
+
+	printable_target_format = "dds"
+
+	file_ext = "dds"
 
 class ConvertVorbis(Action):
 	keyword = "convert_vorbis"
