@@ -163,6 +163,7 @@ def list():
 		MergeBsp,
 		# this is probably the slowest compression image
 		# format we know
+		ConvertKtx,
 		ConvertDds,
 		ConvertCrn,
 		ConvertNormalCrn,
@@ -536,6 +537,14 @@ class ConvertDds(ConvertCrn):
 	printable_target_format = "dds"
 
 	file_ext = "dds"
+
+class ConvertKtx(ConvertCrn):
+	keyword = "convert_ktx"
+	description = "convert to ktx format"
+
+	printable_target_format = "ktx"
+
+	file_ext = "ktx"
 
 class ConvertVorbis(Action):
 	keyword = "convert_vorbis"
