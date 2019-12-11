@@ -423,6 +423,8 @@ class Bsp():
 			if bsp_magic_number == read_bsp_magic_number:
 				self.bsp_magic_number = bsp_magic_number
 				break
+			else:
+				self.bsp_magic_number = None
 
 		if not self.bsp_magic_number:
 			self.bsp_file.close()
