@@ -150,7 +150,7 @@ class List():
 # I want actions printed and executed in this order
 def list():
 	# do slow things at first so the thread manager
-	# can fill the slot with quicker things
+	# can fill the available slots with quicker things
 	# when the slow tasks are not very well
 	# multithreaded
 	action_list = [
@@ -161,16 +161,19 @@ def list():
 		# perhaps one day MergeBsp will be run on a copied bsp
 		# so it must be called after that
 		MergeBsp,
-		# this is probably the slowest compression image
-		# format we know
+		# those are probably the slowest compression image
+		# formats we know
 		ConvertKtx,
 		ConvertDds,
 		ConvertCrn,
 		ConvertNormalCrn,
+		ConvertLosslessWebp,
+		ConvertLossyWebp,
 		# sloth needs previews to be done before sloth
-		# TODO: be sure Sloth is not run before
+		# TODO: be sure Sloth is not called before
 		# all previews are generated
-		# currently prepare stage is always sequential
+		# the prepare stage is currently sequential
+		# because of things like that
 		PrevRun,
 		SlothRun,
 		# usually quick
@@ -179,11 +182,9 @@ def list():
 		ConvertVorbis,
 		ConvertOpus,
 		# quick tasks
+		ConvertPng,
 		ConvertJpg,
 		ConvertBadJpg,
-		ConvertPng,
-		ConvertLossyWebp,
-		ConvertLosslessWebp,
 		# very quick tasks
 		Copy,
 		Keep,
@@ -492,7 +493,7 @@ class ConvertCrn(Action):
 
 			# the convert tool from ImageMagick is known to fail to properly convert some jpg files to tga (some of them are produced upside down)
 			# see https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1838860
-			# we know that convert properly converts those jpg to png if we stip metadata
+			# we know that convert properly converts those jpg to png if we strip metadata
 			# so we can convert them to png to tga before converting them to crn
 			# we must strip metadata to be sure the bug is not postponed to the png to tga conversion 
 			transient_transient_handle, transient_transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient_transient" + os.path.extsep + "png")
