@@ -396,13 +396,7 @@ class Compiler():
 		logging.debug("call list: " + str(command_list))
 		Ui.verbose("Build command: " + " ".join(command_list))
 
-		# TODO: remove that ugly workaround
-		# it must be done by q3map2
-		# and the following test is very ugly
-		if "-minimap" in option_list and "-game unvanquished" in " ".join(option_list):
-			self.unvanquishedMinimap(option_list)
-		else:
-			if subprocess.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
+		if subprocess.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
 				Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		# keep map source
@@ -412,65 +406,6 @@ class Compiler():
 
 	def daemonmap(self, option_list):
 		self.q3map2(option_list, tool_name="daemonmap")
-
-	def unvanquishedMinimap(self, option_list):
-		map_base = os.path.splitext(os.path.basename(self.map_path))[0]
-		bsp_path = os.path.join(self.build_prefix, map_base + os.path.extsep + "bsp")
-
-		source_path = bsp_path
-
-		# FIXME: is os.path.abspath() needed?
-		pakpath_option_list = ["-fs_pakpath", self.source_dir]
-
-		for pakpath in self.pakpath_list:
-			# FIXME: is os.path.abspath() needed?
-			pakpath_option_list += ["-fs_pakpath", pakpath]
-
-		command_list = ["q3map2", "-minimap"] + option_list + pakpath_option_list + [source_path]
-
-		maps_subpath_len = len(os.path.sep + "maps")
-		minimap_dir = self.build_prefix[:-maps_subpath_len]
-		minimap_sidecar_name = map_base + os.path.extsep + "minimap"
-		minimap_sidecar_path = os.path.join(minimap_dir, "minimaps", minimap_sidecar_name)
-
-		# without ext, will be read by engine
-		minimap_image_path = os.path.join("minimaps", map_base)
-
-		# TODO: if minimap not newer
-		Ui.print("Creating MiniMap for: " + self.map_path)
-
-		tex_coords_pattern = re.compile(r"^size_texcoords (?P<c1>[0-9.-]*) (?P<c2>[0-9.-]*) [0-9.-]* (?P<c3>[0-9.-]*) (?P<c4>[0-9.-]*) [0-9.-]*$")
-
-		tex_coords = None
-		proc = subprocess.Popen(command_list, stdout=subprocess.PIPE, stderr=self.subprocess_stderr)
-		with proc.stdout as stdout:
-			for line in stdout:
-				line = line.decode()
-				match = tex_coords_pattern.match(line)
-				if match:
-					tex_coords = " ".join([match.group("c1"), match.group("c2"), match.group("c3"), match.group("c4")])
-
-		proc.wait()
-
-		if proc.returncode != 0:
-				Ui.error("command failed: '" + "' '".join(command_list) + "'")
-
-		if not tex_coords:
-			Ui.error("failed to get coords from minimap generation")
-
-		minimap_sidecar_str = "{\n"
-		minimap_sidecar_str += "\tbackgroundColor 0.0 0.0 0.0 0.333\n"
-		minimap_sidecar_str += "\tzone {\n"
-		minimap_sidecar_str += "\t\tbounds 0 0 0 0 0 0\n"
-		minimap_sidecar_str += "\t\timage \"" + minimap_image_path + "\" " + tex_coords + "\n"
-		minimap_sidecar_str += "\t}\n"
-		minimap_sidecar_str += "}\n"
-		
-		os.makedirs(os.path.dirname(minimap_sidecar_path), exist_ok=True)
-		minimap_sidecar_file = open(minimap_sidecar_path, "w")
-		minimap_sidecar_file.write(minimap_sidecar_str)
-		minimap_sidecar_file.close()
-
 
 	def copy(self, option_list):
 		Ui.print("Copying map source: " + self.map_path)
