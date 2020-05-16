@@ -413,7 +413,13 @@ class SlothRun():
 
 		FileSystem.makeFileSubdirs(shader_fullpath)
 
-		command_list = [ "sloth.py" ]
+		for command_name in [ "sloth", "sloth.py", None ]:
+			if command_name == None:
+				Ui.error("Sloth utility not found")
+			elif shutil.which(command_name) != None:
+				break
+
+		command_list = [ command_name ]
 
 		if self.sloth_config:
 			sloth_profile_name = os.path.join(Default.sloth_profile_dir, self.sloth_config + Default.sloth_profile_ext)
