@@ -116,7 +116,7 @@ The `urcheon` tool relies on:
 
 To summarize:
 
-* Python3 modules: `argparse fnmatch glob json logging multiprocessing operator os pytoml re shutil struct subprocess sys tempfile threading zipfile`
+* Python3 modules: `argparse fnmatch glob json logging multiprocessing operator os psutil pytoml re shutil struct subprocess sys tempfile threading zipfile`
 * Third party tools: `convert crunch cwebp daemonmap iqm opusenc q3map2 sloth.py`
 
 
