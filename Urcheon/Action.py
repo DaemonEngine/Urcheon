@@ -210,7 +210,7 @@ class Action():
 		self.thread_count = thread_count
 		self.is_parallel = is_parallel
 		self.is_nested = is_nested
-		self.paktrace = Repository.Paktrace(self.build_dir)
+		self.paktrace = Repository.Paktrace(self.source_dir, self.build_dir)
 
 	def isDone(self):
 		if not self.isDifferent():
@@ -254,7 +254,7 @@ class Action():
 			# except in nested build of course since they are already tracked
 			if not self.is_nested:
 				head = self.getFileNewName()
-				self.paktrace.write(head, body)
+				self.paktrace.write(self.file_path, head, body)
 
 		unit = {
 			"head": head,
@@ -263,12 +263,11 @@ class Action():
 
 		return [ unit ]
 
-
 	def getOldProducedUnitList(self):
 		head = self.getFileNewName()
 
 		# we are reusing already built files, reuse body
-		body = self.paktrace.read(head)
+		body = self.paktrace.readBody(head)
 		
 		unit = {
 			"head": head,
@@ -281,9 +280,10 @@ class Action():
 		return os.path.splitext(self.file_path)[1][len(os.path.extsep):].lower()
 	
 	def isDifferent(self):
-		source_path = self.getStatReference()
-		build_path = self.getTargetPath()
-		return FileSystem.isDifferent(build_path, source_path)
+		if not os.path.isfile(self.getTargetPath()):
+			return True
+
+		return self.paktrace.isDifferent(self.getFileNewName(), self.getSourceList())
 
 	def switchExtension(self, extension):
 		return os.path.splitext(self.file_path)[0] + os.path.extsep + extension
@@ -317,6 +317,17 @@ class Action():
 
 		if subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
 			Ui.error("command failed: '" + "' '".join(command_list) + "'")
+
+	def getSourceList(self):
+		return [ self.file_path ]
+
+	def getStatReference(self):
+		file_reference_list = []
+
+		for source_path in self.getSourceList():
+			file_reference_list.append(os.path.join(self.source_dir, source_path))
+
+		return FileSystem.getNewer(file_reference_list)
 
 
 class Ignore(Action):
@@ -632,15 +643,14 @@ class CompileIqm(Action):
 	def getFileNewName(self):
 		return self.switchExtension("iqm")
 
-	def getStatReference(self):
-		source_path = self.getSourcePath()
-		file_reference_list = [source_path]
+	def getSourceList(self):
+		source_list = [ self.file_path ]
 
-		iqe_command_file = source_path + os.path.extsep + "cfg"
+		iqe_command_file = self.file_path + os.path.extsep + "cfg"
 		if os.path.isfile(iqe_command_file):
-			file_reference_list.append(iqe_command_file)
+			source_list.append(iqe_command_file)
 
-		return FileSystem.getNewer(file_reference_list)
+		return source_list
 
 
 # it's a prepare stage action only

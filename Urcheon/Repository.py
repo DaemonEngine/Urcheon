@@ -15,7 +15,10 @@ from Urcheon import Game
 from Urcheon import Profile
 from Urcheon import Ui
 from collections import OrderedDict
+from datetime import datetime
 import fnmatch
+import hashlib
+import json
 import logging
 import operator
 import os
@@ -517,33 +520,67 @@ class Tree():
 
 
 class Paktrace():
-	def __init__(self, build_dir):
+	def __init__(self, source_dir, build_dir):
+		self.source_dir = os.path.realpath(source_dir)
 		self.build_dir = os.path.realpath(build_dir)
 		self.paktrace_dir = Default.paktrace_dir
 
+	def readTraceFile(self, paktrace_path):
+		logging.debug("read paktrace from path: " + paktrace_path)
+
+		paktrace_file = open(paktrace_path, "r")
+		json_string = paktrace_file.read()
+		paktrace_file.close()
+
+		return json_string
+
+	def readTraceDict(self, paktrace_path):
+		# FIXME: cache me
+		if os.path.isfile(paktrace_path):
+			json_string = self.readTraceFile(paktrace_path)
+			try:
+				return json.loads(json_string)
+			except json.decoder.JSONDecodeError:
+				Ui.warning("paktrace file is not a valid JSON file: " + paktrace_path)
+				os.remove(paktrace_path)
+				return {}
+		else:
+			return {}
+
+	def readTraceSourceDict(self, paktrace_path):
+		trace_dict = self.readTraceDict(paktrace_path)
+		if "input" in trace_dict.keys():
+			return trace_dict["input"]
+		else:
+			return {}
+
+	def readTraceBodyList(self, paktrace_path):
+		trace_dict = self.readTraceDict(paktrace_path)
+		if "output" in trace_dict.keys():
+			return trace_dict["output"]
+		else:
+			return []
+
 	# this is a list to keep built files names
-	def read(self, head):
-		logging.debug("read paktrace for head: " + head)
+	def readBody(self, head):
+		logging.debug("read body for head: " + head)
 
 		paktrace_path = self.getPath(head)
-		body = self.readByPath(paktrace_path)
+		body = self.readTraceBodyList(paktrace_path)
 
 		logging.debug("body read:" + str(body))
 		return body
 
-	def readByPath(self, paktrace_path):
-		logging.debug("read paktrace from path: " + paktrace_path)
+	def getTimestampString(self, file_realpath):
+		return str(os.path.getmtime(file_realpath))
 
-		if os.path.isfile(paktrace_path):
-			paktrace_file = open(paktrace_path, "r")
-			body = paktrace_file.read().splitlines()
-			paktrace_file.close()
-			return body
+	def computeSha256sumString(self, file_realpath):
+		file_handler = open(file_realpath, "rb")
+		file_bytes = file_handler.read()
+		file_handler.close()
+		return hashlib.sha256(file_bytes).hexdigest()
 
-		else:
-			return []
-
-	def write(self, head, body):
+	def write(self, src, head, body):
 		logging.debug("write paktrace for head: " + head)
 
 		self.remove(head)
@@ -552,37 +589,57 @@ class Paktrace():
 		if head not in body:
 			body.append(head)
 
+		src_realpath = os.path.join(self.source_dir, src)
+		src_timestamp = self.getTimestampString(src_realpath)
+		src_sha256sum = self.computeSha256sumString(src_realpath)
+		src_dict = { "timestamp": src_timestamp, "sha256sum": src_sha256sum }
+
+		json_dict = {}
+		json_dict["input"] = { src: src_dict }
+		json_dict["output"] = body
+
+		json_string = json.dumps(json_dict, sort_keys=True, indent=4)
+
 		paktrace_path = self.getPath(head)
 
 		paktrace_subdir = os.path.dirname(paktrace_path)
 		os.makedirs(paktrace_subdir, exist_ok=True)
 
 		paktrace_file = open(paktrace_path, "w")
-		for line in body:
-			paktrace_file.write(line + "\n")
+		paktrace_file.write(json_string + "\n")
 		paktrace_file.close()
 
 		head_path = os.path.join(self.build_dir, head)
 
 		shutil.copystat(head_path, paktrace_path)
 
-	def remove(self, head):
+	def remove(self, head, old_format=False):
 		logging.debug("remove paktrace for head: " + head)
 
-		paktrace_path = self.getPath(head)
+		paktrace_path = self.getPath(head, old_format=old_format)
 
 		if os.path.isfile(paktrace_path):
 			os.remove(paktrace_path)
 
-	def getName(self, head):
+	def getName(self, head, old_format=False):
 		head_path = os.path.join(self.build_dir, head)
-		paktrace_name = head + Default.paktrace_file_ext
+
+		ext = Default.paktrace_file_ext
+
+		if old_format:
+			ext = ".txt"
+
+		paktrace_name = head + ext
 		return paktrace_name
-		
-	def getPath(self, head):
-		paktrace_name = self.getName(head)
+
+	def getPath(self, head, old_format=False):
+		if not old_format:
+			self.remove(head, old_format=True)
+
+		paktrace_name = self.getName(head, old_format=old_format)
 		paktrace_dirpath = os.path.join(self.build_dir, self.paktrace_dir)
 		paktrace_path = os.path.join(paktrace_dirpath, paktrace_name)
+
 		return paktrace_path
 
 	def listAll(self):
@@ -593,10 +650,43 @@ class Paktrace():
 		if os.path.isdir(paktrace_path):
 			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_path):
 				for file_name in file_name_list:
-					file_path = os.path.join(dir_name, file_name)
-					file_list += self.readByPath(file_path)
+					if file_name.endswith(Default.paktrace_file_ext):
+						file_path = os.path.join(dir_name, file_name)
+						body = self.readTraceBodyList(file_path)
+						file_list += body
 
 		return file_list
+
+	def isDifferent(self, head, source_list):
+		build_path = os.path.join(self.build_dir, head)
+
+		paktrace_path : self.getPath(head)
+
+		logging.debug("read sources for head: " + head)
+		paktrace_path = self.getPath(head)
+		source_dict = self.readTraceSourceDict(paktrace_path)
+
+		if source_dict == {}:
+			return True;
+
+		for source_path in source_dict.keys():
+			previous_timestamp = source_dict[source_path]["timestamp"]
+			previous_sha256sum = source_dict[source_path]["sha256sum"]
+
+			source_realpath = os.path.join(self.source_dir, source_path)
+			current_timestamp = self.getTimestampString(source_realpath)
+			current_sha256sum = self.computeSha256sumString(source_realpath)
+
+			if (previous_timestamp == current_timestamp):
+				# do not test for sha256sum
+				continue
+
+			if (previous_sha256sum == current_sha256sum):
+				continue
+			else:
+				return True
+
+		return False
 
 class Git():
 	def __init__(self, source_dir, pak_format):

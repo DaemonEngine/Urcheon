@@ -177,7 +177,7 @@ class Builder():
 		if clean_dust:
 			# do not read paktrace from temporary directories
 			# do not read paktrace if dust will be kept
-			paktrace = Repository.Paktrace(self.test_dir)
+			paktrace = Repository.Paktrace(self.source_dir, self.test_dir)
 			previous_file_list = paktrace.listAll()
 
 		if self.clean_map or clean_dust:
@@ -747,7 +747,7 @@ def clean(stage_name):
 			cleaner.cleanMap(test_dir)
 
 		if args.clean_source or clean_all:
-			paktrace = Repository.Paktrace(source_dir)
+			paktrace = Repository.Paktrace(source_dir, source_dir)
 			previous_file_list = paktrace.listAll()
 			cleaner.cleanDust(source_dir, [], previous_file_list)
 
