@@ -554,6 +554,9 @@ class Paktrace():
 		else:
 			return {}
 
+	def readTraceSourceList(self, paktrace_path):
+		return self.readTraceSourceDict(paktrace_path).keys()
+
 	def readTraceBodyList(self, paktrace_path):
 		trace_dict = self.readTraceDict(paktrace_path)
 		if "output" in trace_dict.keys():
@@ -656,6 +659,38 @@ class Paktrace():
 						file_list += body
 
 		return file_list
+	
+	def getFileDict(self):
+		paktrace_dir = Default.paktrace_dir
+		paktrace_path = os.path.join(self.build_dir, paktrace_dir)
+
+		file_dict = {
+			"input": {},
+			"output": {},
+		}
+
+		if os.path.isdir(paktrace_path):
+			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_path):
+				for file_name in file_name_list:
+					if file_name.endswith(Default.paktrace_file_ext):
+						file_path = os.path.join(dir_name, file_name)
+						input_list = self.readTraceSourceList(file_path)
+						output_list = self.readTraceBodyList(file_path)
+
+						for output_path in output_list:
+							for input_path in input_list:
+								if input_path not in file_dict["input"].keys():
+									file_dict["input"][input_path] = []
+
+								file_dict["input"][input_path].append(output_path)
+
+								if output_path not in file_dict["output"].keys():
+									file_dict["output"][output_path] = []
+
+								file_dict["output"][output_path].append(input_path)
+
+		return file_dict
+
 
 	def isDifferent(self, head, source_list):
 		build_path = os.path.join(self.build_dir, head)

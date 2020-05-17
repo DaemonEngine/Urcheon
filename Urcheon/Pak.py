@@ -141,6 +141,15 @@ class Builder():
 			if since_reference:
 				file_repo = Repository.Git(source_dir, pak_config.game_profile.pak_format)
 				file_list = file_repo.listFilesSinceReference(since_reference)
+
+				# also look for files produced with “prepare” command
+				# from files modified since this reference
+				paktrace = Repository.Paktrace(source_dir, source_dir)
+				input_file_dict = paktrace.getFileDict()["input"]
+				for file_path in file_list:
+					if file_path in input_file_dict.keys():
+						logging.debug("found prepared files for “" + file_path + "”: " + str(input_file_dict[file_path]))
+						file_list.extend(input_file_dict[file_path])
 			else:
 				file_tree = Repository.Tree(source_dir, game_name=self.game_name, is_nested=is_nested)
 				file_list = file_tree.listFiles()
@@ -348,7 +357,7 @@ class Packager():
 		self.createSubdirs(self.pak_file)
 		logging.debug("opening: " + self.pak_file)
 
-		# remove existing file (do not write in place) to force the game engine to reread the file
+		# remove existing file (do not write in place) to “”force the game engine to reread the file
 		if os.path.isfile(self.pak_file):
 			logging.debug("remove existing package: " + self.pak_file)
 			os.remove(self.pak_file)
