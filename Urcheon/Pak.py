@@ -142,6 +142,12 @@ class Builder():
 				file_repo = Repository.Git(source_dir, pak_config.game_profile.pak_format)
 				file_list = file_repo.listFilesSinceReference(since_reference)
 
+				# also look for untracked files
+				untracked_file_list = file_repo.listUntrackedFiles()
+				for file_name in untracked_file_list:
+					if file_name not in file_list:
+						file_list.append(file_name)
+
 				# also look for files produced with “prepare” command
 				# from files modified since this reference
 				paktrace = Repository.Paktrace(source_dir, source_dir)

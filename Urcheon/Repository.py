@@ -847,6 +847,16 @@ class Git():
 
 		return file_list
 
+	def listUntrackedFiles(self):
+		proc = subprocess.Popen(self.git + ["ls-files", "--others", "--exclude-standard"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+		file_list = stdout.decode().splitlines()
+
+		blacklist = BlackList(self.source_dir, self.pak_format)
+		file_list = blacklist.filter(file_list)
+
+		return file_list
+
 	def listFilesSinceReference(self, reference):
 		file_list = []
 		proc = subprocess.Popen(self.git + ["diff", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
