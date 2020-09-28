@@ -215,7 +215,9 @@ class Action():
 	def isDone(self):
 		if not self.isDifferent():
 			Ui.print("Unmodified file, do nothing: " + self.file_path)
-			return self.getOldProducedUnitList()
+			return True
+		else:
+			return False
 
 	def run(self):
 		Ui.print("Dumb action: " + self.file_path)
