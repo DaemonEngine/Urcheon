@@ -282,6 +282,9 @@ class Action():
 		if not os.path.isfile(self.getTargetPath()):
 			return True
 
+		if self.is_nested:
+			return True
+
 		return self.paktrace.isDifferent(self.getFileNewName())
 
 	def switchExtension(self, extension):
