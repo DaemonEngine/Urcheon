@@ -232,9 +232,6 @@ class Action():
 	def getTargetPath(self):
 		return os.path.join(self.build_dir, self.getFileNewName())
 
-	def getStatReference(self):
-		return self.getSourcePath()
-		
 	def getBody(self):
 		head = self.getFileNewName()
 
@@ -328,7 +325,6 @@ class Action():
 			file_reference_list.append(os.path.join(self.source_dir, source_path))
 
 		return FileSystem.getNewer(file_reference_list)
-
 
 class Ignore(Action):
 	keyword = "ignore"
