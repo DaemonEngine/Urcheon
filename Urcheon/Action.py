@@ -282,7 +282,7 @@ class Action():
 		if not os.path.isfile(self.getTargetPath()):
 			return True
 
-		return self.paktrace.isDifferent(self.getFileNewName(), self.getSourceList())
+		return self.paktrace.isDifferent(self.getFileNewName())
 
 	def switchExtension(self, extension):
 		return os.path.splitext(self.file_path)[0] + os.path.extsep + extension

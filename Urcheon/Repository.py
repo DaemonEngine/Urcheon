@@ -692,7 +692,7 @@ class Paktrace():
 		return file_dict
 
 
-	def isDifferent(self, head, source_list):
+	def isDifferent(self, head):
 		build_path = os.path.join(self.build_dir, head)
 
 		paktrace_path : self.getPath(head)
