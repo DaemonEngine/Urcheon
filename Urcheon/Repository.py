@@ -709,6 +709,8 @@ class Paktrace():
 			previous_sha256sum = source_dict[source_path]["sha256sum"]
 
 			source_realpath = os.path.join(self.source_dir, source_path)
+			if not os.path.exists( source_realpath ):
+				return True;
 			current_timestamp = self.getTimestampString(source_realpath)
 			current_sha256sum = self.computeSha256sumString(source_realpath)
 

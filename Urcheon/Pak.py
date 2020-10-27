@@ -138,6 +138,8 @@ class Builder():
 			# FIXME: only if one package?
 			# same reference for multiple packages
 			# makes sense when using tags
+
+			# NOTE: already prepared file can be seen as source again, but there may be no easy way to solve it
 			if since_reference:
 				file_repo = Repository.Git(source_dir, pak_config.game_profile.pak_format)
 				file_list = file_repo.listFilesSinceReference(since_reference)
@@ -146,6 +148,9 @@ class Builder():
 				untracked_file_list = file_repo.listUntrackedFiles()
 				for file_name in untracked_file_list:
 					if file_name not in file_list:
+						logging.debug("found untracked file “" + file_name + "”")
+						# FIXME: next loop will look for prepared files for it, which makes no sense,
+						# is it harmful?
 						file_list.append(file_name)
 
 				# also look for files produced with “prepare” command
@@ -153,9 +158,15 @@ class Builder():
 				paktrace = Repository.Paktrace(source_dir, source_dir)
 				input_file_dict = paktrace.getFileDict()["input"]
 				for file_path in file_list:
+					logging.debug("looking for prepared files for “" + str(file_path) + "”")
+					logging.debug("looking for prepared files for “" + file_path + "”")
 					if file_path in input_file_dict.keys():
-						logging.debug("found prepared files for “" + file_path + "”: " + str(input_file_dict[file_path]))
-						file_list.extend(input_file_dict[file_path])
+						for input_file_path in input_file_dict[file_path]:
+							if not os.path.exists(os.path.join(source_dir, input_file_path)):
+								logging.debug("missing prepared files for “" + file_path + "”: " + input_file_path)
+							else:
+								logging.debug("found prepared files for “" + file_path + "”: " + input_file_path)
+								file_list.append(input_file_path)
 			else:
 				file_tree = Repository.Tree(source_dir, game_name=self.game_name, is_nested=is_nested)
 				file_list = file_tree.listFiles()
