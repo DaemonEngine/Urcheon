@@ -408,10 +408,10 @@ class ConvertJpg(Action):
 
 
 class ConvertBadJpg(ConvertJpg):
-	keyword = "convert_bad_jpg"
-	description = "convert to bad jpg format"
+	keyword = "convert_low_jpg"
+	description = "convert to low quality jpg format"
 
-	printable_target_format = "bad jpg"
+	printable_target_format = "low quality jpg"
 	convert_jpg_quality = 50
 
 
