@@ -428,7 +428,7 @@ class SlothRun():
 				command_list += [ "-f", sloth_profile_path ]
 
 		if "diffuse" in self.texture_suffix_dict.keys():
-			command_list += [ "--diff", self.texture_suffix_dict["diffuse"] ]
+			command_list += [ "--diffuse", self.texture_suffix_dict["diffuse"] ]
 
 		if "normal" in self.texture_suffix_dict.keys():
 			command_list += [ "--normal", self.texture_suffix_dict["normal"] ]
@@ -437,13 +437,13 @@ class SlothRun():
 			command_list += [ "--height", self.texture_suffix_dict["height"] ]
 
 		if "specular" in self.texture_suffix_dict.keys():
-			command_list += [ "--spec", self.texture_suffix_dict["specular"] ]
+			command_list += [ "--specular", self.texture_suffix_dict["specular"] ]
 
 		if "addition" in self.texture_suffix_dict.keys():
-			command_list += [ "--add", self.texture_suffix_dict["addition"] ]
+			command_list += [ "--addition", self.texture_suffix_dict["addition"] ]
 
 		if "preview" in self.texture_suffix_dict.keys():
-			command_list += [ "--prev", self.texture_suffix_dict["preview"] ]
+			command_list += [ "--preview", self.texture_suffix_dict["preview"] ]
 
 		sloth_header_file = None
 		if self.shader_header:
