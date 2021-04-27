@@ -108,7 +108,6 @@ class Q3Entities(Lump):
 		self.writeFile(dir_name + os.path.sep + lump_name + os.path.extsep + "txt")
 
 	def printString(self):
-		print("*** Entities")
 		print(bytes.decode(self.exportLump().split(b'\0', 1)[0]))
 
 	def printList(self):
