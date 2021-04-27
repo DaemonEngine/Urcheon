@@ -320,6 +320,9 @@ class Builder():
 					unit["head"] = "DEPS"
 					unit["body"] = []
 					produced_unit_list.append(unit)
+				else:
+					# remove DEPS leftover from partial build
+					deps.remove(self.test_dir)
 
 		logging.debug("produced unit list:" + str(produced_unit_list))
 
