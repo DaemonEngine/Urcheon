@@ -147,7 +147,7 @@ class Config():
 						logging.error("in map build profile stage, \"after\" key must be a string or a list")
 				else:
 					profile_build_stage_dict["prerequisites"] = []
-				
+
 				if "options" in config_stage_dict.keys():
 					if isinstance(config_stage_dict["options"], str):
 						logging.debug("found options for “" + build_stage + "” stage: " + config_stage_dict["options"])
@@ -158,7 +158,7 @@ class Config():
 					profile_build_stage_dict["options"] = []
 
 				self.profile_dict[profile_name][build_stage] = profile_build_stage_dict
-			
+
 		default_prerequisite_dict = {
 			"vis": ["bsp"],
 			"light": ["vis"],
@@ -283,7 +283,7 @@ class Compiler():
 				# if stage started (ended or not), skip it
 				if stage_name in subprocess_dict.keys():
 					# if stage ended, remove it from the todo list
-					if not subprocess_dict[stage_name].isAlive():
+					if not subprocess_dict[stage_name].is_alive():
 						del subprocess_dict[stage_name]
 						stage_list.remove(stage_name)
 					continue
@@ -297,7 +297,7 @@ class Compiler():
 
 				if not tool_name in tool_dict:
 					Ui.error("unknown tool name: " + tool_name)
-				
+
 				prerequisite_list = stage_option_list["prerequisites"]
 				logging.debug("stage prerequisites: " + str(prerequisite_list))
 
