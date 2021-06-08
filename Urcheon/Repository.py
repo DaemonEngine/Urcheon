@@ -705,19 +705,18 @@ class Paktrace():
 			return True;
 
 		for source_path in source_dict.keys():
-			previous_timestamp = source_dict[source_path]["timestamp"]
-			previous_sha256sum = source_dict[source_path]["sha256sum"]
-
 			source_realpath = os.path.join(self.source_dir, source_path)
 			if not os.path.exists( source_realpath ):
 				return True;
-			current_timestamp = self.getTimestampString(source_realpath)
-			current_sha256sum = self.computeSha256sumString(source_realpath)
 
+			previous_timestamp = source_dict[source_path]["timestamp"]
+			current_timestamp = self.getTimestampString(source_realpath)
 			if (previous_timestamp == current_timestamp):
 				# do not test for sha256sum
 				continue
 
+			previous_sha256sum = source_dict[source_path]["sha256sum"]
+			current_sha256sum = self.computeSha256sumString(source_realpath)
 			if (previous_sha256sum == current_sha256sum):
 				continue
 			else:
