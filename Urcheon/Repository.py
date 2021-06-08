@@ -44,6 +44,12 @@ def readConfig(config_path):
 	return config_dict["config"]
 
 
+@lru_cache(maxsize=None) # memoize the result from one call to another
+def read_toml_file(file_profile_path):
+	with open(file_profile_path, "r") as f:
+		return pytoml.load(f)
+
+
 class Config():
 	def __init__(self, source_dir, game_name=None):
 		self.source_dir = source_dir
@@ -180,10 +186,8 @@ class FileProfile():
 			# that's not a typo
 			Ui.error("file profile file not found: " + file_profile_name)
 
-		file_profile_file = open(file_profile_path, "r")
-		file_profile_dict = pytoml.load(file_profile_file)
-		file_profile_file.close()
-		
+		file_profile_dict = read_toml_file(file_profile_path).copy()
+
 		if "_init_" in file_profile_dict.keys():
 			logging.debug("found “_init_” section in file profile: " + file_profile_path)
 			if "extend" in file_profile_dict["_init_"]:
@@ -197,7 +201,7 @@ class FileProfile():
 				logging.debug("loading parent file profile")
 				self.readProfile(profile_parent_name)
 			del file_profile_dict["_init_"]
-		
+
 		logging.debug("file profiles found: " + str(file_profile_dict.keys()))
 
 		for file_type in file_profile_dict.keys():
