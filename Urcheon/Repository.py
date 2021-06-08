@@ -16,6 +16,7 @@ from Urcheon import Profile
 from Urcheon import Ui
 from collections import OrderedDict
 from datetime import datetime
+from functools import lru_cache
 import fnmatch
 import hashlib
 import json
@@ -28,39 +29,37 @@ import shutil
 import subprocess
 import time
 
+@lru_cache(maxsize=None) # memoize the result from one call to another
+def readConfig(config_path):
+	logging.debug("reading pak config file " + config_path)
+
+	config_file = open(config_path, "r")
+	config_dict = pytoml.load(config_file)
+	config_file.close()
+
+	if not "config" in config_dict.keys():
+		Ui.error("can't find config section in pak config file: " + config_path)
+
+	logging.debug("config found in pak config file: " + config_path)
+	return config_dict["config"]
+
 
 class Config():
 	def __init__(self, source_dir, game_name=None):
 		self.source_dir = source_dir
 		self.profile_fs = Profile.Fs(source_dir)
 
-		self.key_dict = {}
-
 		config_name = Default.pak_config_base + Default.pak_config_ext
-		self.readConfig(config_name)
+		config_path = self.profile_fs.getPath(config_name)
+		if not config_path:
+			Ui.error("pak config file not found: " + config_name)
+
+		self.key_dict = readConfig(config_path)
 
 		if not game_name:
 			game_name = self.requireKey("game")
 
 		self.game_profile = Game.Game(source_dir, game_name)
-
-	def readConfig(self, config_name):
-		config_path = self.profile_fs.getPath(config_name)
-
-		if not config_path:
-			Ui.error("pak config file not found: " + config_name)
-
-		logging.debug("reading pak config file " + config_path)
-
-		config_file = open(config_path, "r")
-		config_dict = pytoml.load(config_file)
-		config_file.close()
-
-		if not "config" in config_dict.keys():
-			Ui.error("can't find config section in pak config file: " + config_path)
-
-		logging.debug("config found in pak config file: " + config_path)
-		self.key_dict = config_dict["config"]
 
 	def requireKey(self, key_name):
 		# TODO: strip quotes
