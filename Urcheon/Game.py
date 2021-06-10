@@ -13,9 +13,12 @@ from Urcheon import FileSystem
 from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
+from collections import OrderedDict
 import logging
 import os
-import pytoml
+import toml
+
+# FIXME: do we need OrderedDict toml constructor here?
 
 
 class Game():
@@ -41,7 +44,7 @@ class Game():
 
 		logging.debug("reading game profile file " + profile_path)
 		profile_file = open(profile_path, "r")
-		profile_dict = pytoml.load(profile_file)
+		profile_dict = toml.load(profile_file, _dict=OrderedDict)
 		profile_file.close()
 
 		if "_init_" in profile_dict.keys():
