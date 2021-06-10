@@ -13,6 +13,7 @@ from Urcheon import Parallelism
 from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
+from collections import OrderedDict
 import logging
 import re
 import shutil
@@ -21,8 +22,7 @@ import sys
 import tempfile
 import time
 import os
-import pytoml
-from collections import OrderedDict
+import toml
 
 
 class Config():
@@ -75,7 +75,7 @@ class Config():
 
 		logging.debug("reading map config: " + config_path)
 		config_file = open(config_path, "r")
-		config_dict = pytoml.load(config_file)
+		config_dict = toml.load(config_file, _dict=OrderedDict)
 		config_file.close()
 
 		if "_init_" in config_dict.keys():
@@ -202,7 +202,7 @@ class Config():
 
 	def printConfig(self):
 		# TODO: order it?
-		print(pytoml.dumps(self.profile_dict))
+		print(toml.dumps(self.profile_dict))
 
 
 class Compiler():
