@@ -284,6 +284,9 @@ class Compiler():
 				if stage_name in subprocess_dict.keys():
 					# if stage ended, remove it from the todo list
 					if not subprocess_dict[stage_name].is_alive():
+						# join dead thread to raise thread exceptions
+						Parallelism.joinDeadThreads(list(subprocess_dict.values()))
+
 						del subprocess_dict[stage_name]
 						stage_list.remove(stage_name)
 					continue
@@ -325,7 +328,7 @@ class Compiler():
 				if not self.is_parallel:
 					subprocess_dict[stage_name].join()
 
-				# join dead thread early to raise thread exceptions early
+				# join dead thread to raise thread exceptions
 				Parallelism.joinDeadThreads(list(subprocess_dict.values()))
 
 			# no need to loop at full cpu speed
