@@ -788,7 +788,18 @@ class Git():
 
 	def isDirty(self):
 		proc = subprocess.call(self.git + ["diff", "--quiet"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-		return not proc.numerator == 0
+
+		modified = proc.numerator != 0
+
+		proc = subprocess.Popen(self.git + ["ls-files", "--others", "--exclude-standard"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+
+		file_list = stdout.decode().splitlines()
+
+		added = len(file_list) > 0
+
+		return modified or added
+
 
 	def getHexTimeStamp(self, commit_date):
 		# not used
