@@ -722,6 +722,9 @@ class Paktrace():
 			previous_sha256sum = source_dict[source_path]["sha256sum"]
 			current_sha256sum = self.computeSha256sumString(source_realpath)
 			if (previous_sha256sum == current_sha256sum):
+				times = (-1, float(previous_timestamp))
+				os.utime(source_realpath, times)
+				os.utime(build_path, times)
 				continue
 			else:
 				return True

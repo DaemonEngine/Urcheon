@@ -45,7 +45,7 @@ def getNewer(file_path_list):
 	return newer_path
 
 
-def isSame(file_path, reference_path):
+def isSameTimestamp(file_path, reference_path):
 	if not os.path.isfile(file_path):
 		logging.debug("file does not exist, can't have same timestamp: " + file_path)
 		return False
@@ -57,5 +57,5 @@ def isSame(file_path, reference_path):
 		logging.debug("timestap for file “" + file_path + "”is not same to reference one: " + reference_path)
 		return False
 
-def isDifferent(file_path, reference_path):
+def isDifferentTimestamp(file_path, reference_path):
 	return not isSame(file_path, reference_path)

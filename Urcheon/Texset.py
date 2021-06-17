@@ -200,7 +200,7 @@ class PrevRun():
 		preview_fullpath = os.path.realpath(os.path.join(self.source_dir, preview_path))
 		source_fullpath = os.path.realpath(os.path.join(self.source_dir, source_path))
 
-		if FileSystem.isSame(preview_fullpath, source_fullpath):
+		if FileSystem.isSameTimestamp(preview_fullpath, source_fullpath):
 			Ui.print("Unmodified file, do nothing: " + source_path)
 			return preview_path
 
@@ -398,7 +398,7 @@ class SlothRun():
 
 		# HACK: never check because multiple files produces on reference
 		# we can detect added files, but not removed files yet
-		# if FileSystem.isSame(shader_fullpath, file_reference):
+		# if FileSystem.isSameTimestamp(shader_fullpath, file_reference):
 		#	logging.debug("unmodified slothrun, skipping sloth generation")
 		#	return
 
