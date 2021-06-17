@@ -734,6 +734,7 @@ class Paktrace():
 class Git():
 	def __init__(self, source_dir, pak_format):
 		self.source_dir = source_dir
+		self.pak_format = pak_format
 
 		self.git = ["git", "-C", self.source_dir]
 		self.subprocess_stdout = subprocess.DEVNULL
@@ -757,7 +758,7 @@ class Git():
 
 	def computeVersion(self, reference):
 		if reference != None:
-			commit = self.getCommit(reference)
+		commit = self.getCommit(reference)
 
 		straight = False
 		version = "0"
@@ -769,14 +770,14 @@ class Git():
 			if self.isSame(tag, reference):
 				straight = True
 				# v9.0 → 9.0
-				version = tag[1:]
+					version = tag[1:]
 				break
 
 			elif self.isAncestor(tag, reference):
 				version = tag[1:]
-				break
+					break
 
-		if not straight:
+			if not straight:
 			if reference == None:
 				commit_date = int(time.strftime("%s", time.gmtime()))
 				short_id = '0000000'
@@ -812,24 +813,24 @@ class Git():
 
 	def getLastTag(self):
 		return self.getTagList()[0]
-
+	
 	def getCommitList(self):
 		# more recent first
 		proc = subprocess.Popen(self.git + ["rev-list", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
 		return stdout.decode().splitlines()
-	
+
 	def getTagList(self):
 		# greater first
 		proc = subprocess.Popen(self.git + ["tag", "-l", "--sort=-version:refname", "v*"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
 		return stdout.decode().splitlines()
-	
+
 	def getCommit(self, reference):
 		proc = subprocess.Popen(self.git + ["rev-list", "-n", "1", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
 		return stdout.decode().splitlines()[0]
-
+	
 	def getShortId(self, reference):
 		return self.getCommit(reference)[:7]
 
@@ -927,9 +928,7 @@ class Deps():
 
 		return True
 
-	def translateTest(self):
-		pakpath = PakPath()
-
+	def translateTest(self, pakpath):
 		Ui.print("translating DEPS for testing")
 		for pak_name in self.deps_dict.keys():
 			pak_version = self.get(pak_name)
@@ -939,9 +938,7 @@ class Deps():
 
 			self.set(pak_name, pak_version)
 
-	def translateRelease(self):
-		pakpath = PakPath()
-
+	def translateRelease(self, pakpath):
 		Ui.print("translating DEPS for release")
 		for pak_name in self.deps_dict.keys():
 			pak_version = self.get(pak_name)
@@ -994,7 +991,7 @@ class Deps():
 			os.remove(deps_file_path)
 
 
-class PakPath:
+class PakVfs:
 	def __init__(self):
 		self.pakpath_list = []
 		pakdir_ext = ".dpkdir"
@@ -1024,6 +1021,7 @@ class PakPath:
 							pak_name = dir_name.split('_')[0]
 							pak_version = dir_name.split('_')[1][:-len(pakdir_ext)]
 
+							logging.debug("found version for pakdir “" + dir_name + "”: " + pak_version)
 							if pak_version == "src":
 								git = Git(full_path, "dpk")
 								if git.test():

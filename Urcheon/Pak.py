@@ -29,6 +29,7 @@ from collections import OrderedDict
 
 class MultiRunner():
 	def __init__(self, source_dir_list, stage_name, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, since_reference=None, no_auto_actions=False, clean_map=False, keep_dust=False, pak_prefix=None, pak_file=None, no_compress=False, is_parallel=True):
+
 		# common
 		self.source_dir_list = source_dir_list
 		self.stage_name = stage_name
@@ -49,6 +50,8 @@ class MultiRunner():
 		self.pak_prefix = pak_prefix
 		self.pak_file = pak_file
 		self.no_compress = no_compress
+
+		self.pak_vfs = None
 
 	def run(self):
 		cpu_count = Parallelism.countCPU()
@@ -77,10 +80,14 @@ class MultiRunner():
 			else:
 				is_parallel_runner = self.is_parallel
 
+			if self.stage_name in ["build", "package"]:
+				if not self.pak_vfs:
+					self.pak_vfs = Repository.PakVfs()
+
 			if self.stage_name in ["prepare", "build"]:
-				runner = Builder(source_tree, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
+				runner = Builder(source_tree, self.pak_vfs, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
 			elif self.stage_name in ["package"]:
-				runner = Packager(source_tree, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, no_compress=self.no_compress)
+				runner = Packager(source_tree, self.pak_vfs, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, no_compress=self.no_compress)
 
 			if not self.is_parallel:
 				runner.build()
@@ -100,9 +107,10 @@ class MultiRunner():
 
 
 class Builder():
-	def __init__(self, source_tree, stage_name, test_dir, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
+	def __init__(self, source_tree, pak_vfs, stage_name, test_dir, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
 		self.run = self.build
 
+		self.pak_vfs = pak_vfs
 		self.source_tree = source_tree
 		self.source_dir = source_tree.dir
 		self.game_name = source_tree.game_name
@@ -135,7 +143,7 @@ class Builder():
 
 			# NOTE: already prepared file can be seen as source again, but there may be no easy way to solve it
 			if since_reference:
-				file_repo = Repository.Git(self.source_tree)
+				file_repo = Repository.Git(self.source_dir, self.source_tree.pak_config.game_profile.pak_format)
 				file_list = file_repo.listFilesSinceReference(since_reference)
 
 				# also look for untracked files
@@ -306,7 +314,7 @@ class Builder():
 
 				if is_deps:
 					# translating DEPS file
-					deps.translateTest()
+					deps.translateTest(self.pak_vfs)
 					deps.write(self.test_dir)
 
 					unit = {}
@@ -333,8 +341,10 @@ class Builder():
 
 class Packager():
 	# TODO: reuse paktraces, do not walk for files
-	def __init__(self, source_tree, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, no_compress=False):
+	def __init__(self, source_tree, pak_vfs, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, no_compress=False):
 		self.run = self.pack
+
+		self.pak_vfs = pak_vfs
 
 		self.pak_config = source_tree.pak_config
 		self.no_compress = no_compress
@@ -403,7 +413,7 @@ class Packager():
 			# translating DEPS file
 			deps = Repository.Deps()
 			if deps.read(self.test_dir):
-				deps.translateRelease()
+				deps.translateRelease(self.pak_vfs)
 
 				deps_temp_dir = tempfile.mkdtemp()
 				deps_temp_file = deps.write(deps_temp_dir)
