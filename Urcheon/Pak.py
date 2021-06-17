@@ -369,7 +369,7 @@ class Packager():
 
 	def pack(self):
 		if not os.path.isdir(self.test_dir):
-			Ui.error("test pakdir not built")
+			Ui.error("test pakdir not built: " + self.test_dir)
 
 		Ui.print("Packing " + self.test_dir + " to: " + self.pak_file)
 		self.createSubdirs(self.pak_file)

@@ -731,25 +731,23 @@ class Paktrace():
 
 		return False
 
+
 class Git():
 	def __init__(self, source_dir, pak_format):
 		self.source_dir = source_dir
 		self.pak_format = pak_format
 
-		self.git = ["git", "-C", self.source_dir]
+		self.git = ["git", "-C", str(self.source_dir)]
 		self.subprocess_stdout = subprocess.DEVNULL
 		self.subprocess_stderr = subprocess.DEVNULL
 
-		if self.test():
-			self.tag_list = self.getTagList()
-			self.commit_list = self.getCommitList()
-
+	# Unused
 	def test(self):
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		return proc.numerator == 0
 
 	def getVersion(self):
-		version = self.computeVersion(self.getLastCommit())
+		version = self.computeVersion("HEAD")
 
 		if self.isDirty():
 			version += "-dirty"
@@ -757,34 +755,32 @@ class Git():
 		return version
 
 	def computeVersion(self, reference):
-		if reference != None:
 		commit = self.getCommit(reference)
 
 		straight = False
 		version = "0"
 
-#		if self.tag_list == []:
-#			version = "0"
+		if commit == None:
+			commit_date = int(time.strftime("%s", time.gmtime()))
+			short_id = '0000000'
+		else:
+			for reference in self.getCommitList(commit):
+				tag = self.getVersionTag(reference)
 
-		for tag in self.tag_list:
-			if self.isSame(tag, reference):
-				straight = True
-				# v9.0 → 9.0
+				if tag:
+					# v1.0 → 1.0
 					version = tag[1:]
-				break
 
-			elif self.isAncestor(tag, reference):
-				version = tag[1:]
+					if reference == commit:
+						straight = True
+
 					break
 
 			if not straight:
-			if reference == None:
-				commit_date = int(time.strftime("%s", time.gmtime()))
-				short_id = '0000000'
-			else:
-				commit_date = self.getDate(reference)
-				short_id = self.getShortId(reference)
+				commit_date = self.getDate(commit)
+				short_id = self.getShortId(commit)
 
+		if not straight:
 			time_stamp = self.getCompactHumanTimeStamp(commit_date)
 			version += "+" + time_stamp + "+" + short_id
 
@@ -803,33 +799,42 @@ class Git():
 		time_stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime(int(commit_date)))
 		return time_stamp
 		
-	def isAncestor(self, parent, child):
-		proc = subprocess.Popen(self.git + ["merge-base", "--is-ancestor", parent, child], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-		stdout, stderr = proc.communicate()
-		return proc.returncode == 0
-
-	def isSame(self, reference1, reference2):
-		return self.getCommit(reference1) == self.getCommit(reference2)
-
-	def getLastTag(self):
-		return self.getTagList()[0]
-	
-	def getCommitList(self):
+	def getCommitList(self, reference):
 		# more recent first
-		proc = subprocess.Popen(self.git + ["rev-list", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		# repository without commit displays an error on stderr we silent
+		proc = subprocess.Popen(self.git + ["rev-list", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
-		return stdout.decode().splitlines()
 
-	def getTagList(self):
-		# greater first
-		proc = subprocess.Popen(self.git + ["tag", "-l", "--sort=-version:refname", "v*"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-		stdout, stderr = proc.communicate()
-		return stdout.decode().splitlines()
+		commit_list = stdout.decode().splitlines()
 
+		if len(commit_list) > 0:
+			return commit_list
+		else:
+			return []
+	
 	def getCommit(self, reference):
+		# repository without commit displays an error on stderr we silent
 		proc = subprocess.Popen(self.git + ["rev-list", "-n", "1", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
-		return stdout.decode().splitlines()[0]
+
+		commit_list = stdout.decode().splitlines()
+
+		if len(commit_list) > 0:
+			return commit_list[0]
+		else:
+			return None
+
+	def getVersionTag(self, reference):
+		# greater first
+		proc = subprocess.Popen(self.git + ["tag", "--points-at", reference, "--sort=-version:refname", "v*"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+
+		tag_list = stdout.decode().splitlines()
+
+		if len(tag_list) > 0:
+			return tag_list[0]
+		else:
+			return None
 	
 	def getShortId(self, reference):
 		return self.getCommit(reference)[:7]
@@ -838,12 +843,6 @@ class Git():
 		proc = subprocess.Popen(self.git + ["log", "-1", "--pretty=format:%ct", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
 		return stdout.decode().splitlines()[0]
-
-	def getLastCommit(self):
-		if len(self.commit_list) == 0:
-			return None
-		else:
-			return self.commit_list[0]
 
 	def listFiles(self):
 		proc = subprocess.Popen(self.git + ["ls-files"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -1017,17 +1016,13 @@ class PakVfs:
 				full_path = os.path.abspath(os.path.join(pakpath, dir_name))
 				if os.path.isdir(full_path):
 					if dir_name.endswith(pakdir_ext):
+						# FIXME: Handle properly multiple pakdir with same name
+						# in multiple pakpaths
 						if dir_name not in self.pakdir_dict:
 							pak_name = dir_name.split('_')[0]
 							pak_version = dir_name.split('_')[1][:-len(pakdir_ext)]
 
 							logging.debug("found version for pakdir “" + dir_name + "”: " + pak_version)
-							if pak_version == "src":
-								git = Git(full_path, "dpk")
-								if git.test():
-									pak_version = git.getVersion()
-								else:
-									pak_version = "0"
 
 							self.pakdir_dict[pak_name] = {}
 							self.pakdir_dict[pak_name]["full_path"] = full_path
@@ -1044,4 +1039,18 @@ class PakVfs:
 			Ui.warning("missing pakdir, can't enforce version: " + pak_name)
 			return None
 
-		return self.pakdir_dict[pak_name]["version"]
+		pak_version = self.pakdir_dict[pak_name]["version"]
+
+		if pak_version == "src":
+			full_path = self.pakdir_dict[pak_name]["full_path"]
+			print("hoho")
+			startTime = time.time()
+			git = Git(full_path, "dpk")
+			print(str(time.time() - startTime))
+			startTime = time.time()
+			pak_version = git.getVersion()
+			print(str(time.time() - startTime))
+
+		logging.debug("found version for pak “" + pak_name + "”: " + pak_version)
+
+		return pak_version
