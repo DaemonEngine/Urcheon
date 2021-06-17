@@ -19,17 +19,13 @@ import pytoml
 
 
 class Game():
-	def __init__(self, source_dir, game_name=None):
-		self.source_dir = source_dir
-		self.profile_fs = Profile.Fs(source_dir)
+	def __init__(self, source_tree):
+		self.source_dir = source_tree.dir
+		self.profile_fs = Profile.Fs(self.source_dir)
 
 		self.key_dict = {}
 
-		if not game_name:
-			pak_config = Repository.Config(source_dir)
-			game_name = pak_config.getKey("game")
-
-		self.read(game_name)
+		self.read(source_tree.game_name)
 
 		self.pak_format = self.requireKey("pak")
 		self.pak_ext = os.path.extsep + self.pak_format

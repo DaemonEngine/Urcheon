@@ -59,16 +59,14 @@ class MultiRunner():
 			Ui.notice(self.stage_name + " from: " + source_dir)
 			source_dir = os.path.realpath(source_dir)
 
-			source_tree = Repository.Tree(source_dir)
+			source_tree = Repository.Tree(source_dir, game_name=self.game_name)
 			if not source_tree.isValid():
 				Ui.error("not a supported tree: " + source_dir)
-
-			pak_config = Repository.Config(source_dir, game_name=self.game_name)
 
 			if self.stage_name in ["prepare"]:
 				dest_dir = source_dir
 			elif self.stage_name in ["build", "package"]:
-				dest_dir = pak_config.getTestDir(build_prefix=self.build_prefix, test_prefix=self.test_prefix, test_dir=self.test_dir)
+				dest_dir = source_tree.pak_config.getTestDir(build_prefix=self.build_prefix, test_prefix=self.test_prefix, test_dir=self.test_dir)
 
 			# FIXME: currently the prepare stage
 			# can't be parallel (for example SlothRun task
@@ -80,9 +78,9 @@ class MultiRunner():
 				is_parallel_runner = self.is_parallel
 
 			if self.stage_name in ["prepare", "build"]:
-				runner = Builder(source_dir, self.stage_name, dest_dir, game_name=self.game_name, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
+				runner = Builder(source_tree, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
 			elif self.stage_name in ["package"]:
-				runner = Packager(source_dir, dest_dir, self.pak_file, game_name=self.game_name, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, no_compress=self.no_compress)
+				runner = Packager(source_tree, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, no_compress=self.no_compress)
 
 			if not self.is_parallel:
 				runner.build()
@@ -102,21 +100,22 @@ class MultiRunner():
 
 
 class Builder():
-	def __init__(self, source_dir, stage_name, test_dir, game_name=None, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
+	def __init__(self, source_tree, stage_name, test_dir, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
 		self.run = self.build
 
-		self.source_dir = source_dir
+		self.source_tree = source_tree
+		self.source_dir = source_tree.dir
+		self.game_name = source_tree.game_name
 		self.stage_name = stage_name
 		self.test_dir = test_dir
 		self.is_nested = is_nested
-		self.game_name = game_name
 		self.since_reference = since_reference
 		self.no_auto_actions = no_auto_actions
 		self.clean_map = clean_map
 		self.keep_dust = keep_dust
 		self.is_parallel = is_parallel
 
-		action_list = Action.List(source_dir, stage_name, game_name=game_name, disabled_action_list=disabled_action_list)
+		action_list = Action.List(source_tree, stage_name, disabled_action_list=disabled_action_list)
 
 		if not is_nested:
 			action_list.readActions()
@@ -124,12 +123,7 @@ class Builder():
 		# do not look for pak configuration in temporary directories
 		# do not build temporary stuff in system build directories
 		if not is_nested:
-			pak_config = Repository.Config(source_dir, game_name=game_name)
-
-			if not game_name:
-				game_name = pak_config.requireKey("game")
-
-			self.pak_name = pak_config.requireKey("name")
+			self.pak_name = self.source_tree.pak_name
 
 		else:
 			self.test_dir = test_dir
@@ -141,7 +135,7 @@ class Builder():
 
 			# NOTE: already prepared file can be seen as source again, but there may be no easy way to solve it
 			if since_reference:
-				file_repo = Repository.Git(source_dir, pak_config.game_profile.pak_format)
+				file_repo = Repository.Git(self.source_tree)
 				file_list = file_repo.listFilesSinceReference(since_reference)
 
 				# also look for untracked files
@@ -155,20 +149,20 @@ class Builder():
 
 				# also look for files produced with “prepare” command
 				# from files modified since this reference
-				paktrace = Repository.Paktrace(source_dir, source_dir)
+				paktrace = Repository.Paktrace(source_tree, self.source_dir)
 				input_file_dict = paktrace.getFileDict()["input"]
 				for file_path in file_list:
 					logging.debug("looking for prepared files for “" + str(file_path) + "”")
 					logging.debug("looking for prepared files for “" + file_path + "”")
 					if file_path in input_file_dict.keys():
 						for input_file_path in input_file_dict[file_path]:
-							if not os.path.exists(os.path.join(source_dir, input_file_path)):
+							if not os.path.exists(os.path.join(self.source_dir, input_file_path)):
 								logging.debug("missing prepared files for “" + file_path + "”: " + input_file_path)
 							else:
 								logging.debug("found prepared files for “" + file_path + "”: " + input_file_path)
 								file_list.append(input_file_path)
 			else:
-				file_tree = Repository.Tree(source_dir, game_name=self.game_name, is_nested=is_nested)
+				file_tree = Repository.Tree(self.source_dir, game_name=self.game_name, is_nested=is_nested)
 				file_list = file_tree.listFiles()
 
 		if not self.no_auto_actions:
@@ -176,11 +170,10 @@ class Builder():
 		
 		self.action_list = action_list
 
-		self.game_name = game_name
-		self.game_profile = Game.Game(source_dir, game_name)
+		self.game_profile = Game.Game(source_tree)
 
 		if not map_profile:
-			map_config = MapCompiler.Config(source_dir, game_name=self.game_name)
+			map_config = MapCompiler.Config(source_tree)
 			map_profile = map_config.requireDefaultProfile()
 			self.map_profile = map_profile
 
@@ -203,11 +196,11 @@ class Builder():
 		if clean_dust:
 			# do not read paktrace from temporary directories
 			# do not read paktrace if dust will be kept
-			paktrace = Repository.Paktrace(self.source_dir, self.test_dir)
+			paktrace = Repository.Paktrace(self.source_tree, self.test_dir)
 			previous_file_list = paktrace.listAll()
 
 		if self.clean_map or clean_dust:
-			cleaner = Cleaner(self.source_dir, game_name=self.game_name)
+			cleaner = Cleaner(self.source_tree)
 
 		if self.clean_map:
 			cleaner.cleanMap(self.test_dir)
@@ -224,7 +217,7 @@ class Builder():
 				# using threads on one core is faster, and it does not prevent tasks to be able to use other cores
 
 				# the is_nested argument is there to tell action to not do specific stuff because of recursion
-				action = action_type(self.source_dir, self.test_dir, file_path, self.stage_name, game_name=self.game_name, map_profile=self.map_profile, is_nested=self.is_nested)
+				action = action_type(self.source_tree, self.test_dir, file_path, self.stage_name, map_profile=self.map_profile, is_nested=self.is_nested)
 
 				# check if task is already done (usually comparing timestamps the make way)
 				if action.isDone():
@@ -340,21 +333,16 @@ class Builder():
 
 class Packager():
 	# TODO: reuse paktraces, do not walk for files
-	def __init__(self, source_dir, test_dir, pak_file, game_name=None, build_prefix=None, test_prefix=None, pak_prefix=None, no_compress=False):
+	def __init__(self, source_tree, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, no_compress=False):
 		self.run = self.pack
 
-		pak_config = Repository.Config(source_dir, game_name=game_name)
+		self.pak_config = source_tree.pak_config
 		self.no_compress = no_compress
 
-		pak_config = Repository.Config(source_dir, game_name=game_name)
+		self.test_dir = self.pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
+		self.pak_file = self.pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file)
 
-		self.test_dir = pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
-		self.pak_file = pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file)
-
-		if not game_name:
-			game_name = pak_config.requireKey("game")
-
-		self.game_profile = Game.Game(source_dir, game_name)
+		self.game_profile = Game.Game(source_tree)
 
 
 	def createSubdirs(self, pak_file):
@@ -429,14 +417,11 @@ class Packager():
 
 
 class Cleaner():
-	def __init__(self, source_dir, game_name=None):
-		pak_config = Repository.Config(source_dir, game_name=game_name)
-		self.pak_name = pak_config.requireKey("name")
+	def __init__(self, source_tree):
 
-		if not game_name:
-			game_name = pak_config.requireKey("game")
+		self.pak_name = source_tree.pak_name
 
-		self.game_profile = Game.Game(source_dir, game_name)
+		self.game_profile = Game.Game(source_tree)
 
 
 	def cleanTest(self, test_dir):
@@ -584,7 +569,7 @@ def discover(stage_name):
 		file_tree = Repository.Tree(source_dir, game_name=args.game_name)
 		file_list = file_tree.listFiles()
 
-		action_list = Action.List(source_dir, "build", game_name=args.game_name)
+		action_list = Action.List(source_tree, "build")
 		action_list.updateActions(action_list)
 
 
@@ -764,28 +749,28 @@ def clean(stage_name):
 		Ui.notice("clean from: " + source_dir)
 		source_dir = os.path.realpath(source_dir)
 
-		source_tree = Repository.Tree(source_dir)
+		source_tree = Repository.Tree(source_dir, game_name=args.game_name)
 		if not source_tree.isValid():
 			Ui.error("not a supported tree, not going further", silent=True)
 
-		cleaner = Cleaner(source_dir, game_name=args.game_name)
+		cleaner = Cleaner(source_tree)
 
 		if args.clean_map:
-			pak_config = Repository.Config(source_dir, game_name=args.game_name)
+			pak_config = Repository.Config(source_tree)
 			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 			cleaner.cleanMap(test_dir)
 
 		if args.clean_source or clean_all:
-			paktrace = Repository.Paktrace(source_dir, source_dir)
+			paktrace = Repository.Paktrace(source_tree, source_dir)
 			previous_file_list = paktrace.listAll()
 			cleaner.cleanDust(source_dir, [], previous_file_list)
 
 		if args.clean_build or clean_all:
-			pak_config = Repository.Config(source_dir, game_name=args.game_name)
+			pak_config = Repository.Config(source_tree)
 			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 			cleaner.cleanTest(test_dir)
 
 		if args.clean_package or clean_all:
-			pak_config = Repository.Config(source_dir, game_name=args.game_name)
+			pak_config = Repository.Config(source_tree)
 			pak_prefix = pak_config.getPakPrefix(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix)
 			cleaner.cleanPak(pak_prefix)

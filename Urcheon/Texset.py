@@ -23,21 +23,16 @@ import tempfile
 
 
 class PrevRun():
-	def __init__(self, source_dir, preview_profile_path, game_name=None):
+	def __init__(self, source_tree, preview_profile_path):
 		# BEWARE: this is not the repository source dir, but the texture source dir!
-		self.source_dir = source_dir
+		self.source_dir = source_tree.dir
+		self.game_name = source_tree.game_name
+
 		self.source_dir_fullpath = os.path.realpath(self.source_dir)
 		preview_profile_fullpath = os.path.join(self.source_dir_fullpath, preview_profile_path)
 
 		self.profile_fs = Profile.Fs(self.source_dir)
 		self.prevrun_dict = {}
-
-		if game_name:
-			self.game_name = game_name
-		else:
-			# not required
-			pak_config = Repository.Config(self.source_dir)
-			self.game_name = pak_config.requireKey("game")
 
 		self.read(preview_profile_path, real_path = True)
 
@@ -237,18 +232,14 @@ class PrevRun():
 
 
 class SlothRun():
-	def __init__(self, source_dir, slothrun_file_path, game_name=None):
-		self.source_dir = source_dir
+	def __init__(self, source_tree, slothrun_file_path):
+		self.source_dir = source_tree.dir
+		self.game_name = source_tree.game_name
+
 		self.slothrun_file_path = os.path.normpath(os.path.relpath(slothrun_file_path, self.source_dir))
 
 		self.profile_fs = Profile.Fs(self.source_dir)
 		self.slothrun_dict = {}
-
-		if game_name:
-			self.game_name = game_name
-		else:
-			pak_config = Repository.Config(self.source_dir)
-			self.game_name = pak_config.requireKey("game")
 
 		self.read(self.slothrun_file_path, real_path=True)
 

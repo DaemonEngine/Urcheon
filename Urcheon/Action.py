@@ -31,18 +31,15 @@ from collections import OrderedDict
 
 
 class List():
-	def __init__(self, source_dir, stage_name, game_name=None, disabled_action_list=[]):
-		if not game_name:
-			pak_config = Repository.Config(source_dir)
-			game_name = pak_config.requireKey("game")
-
-		self.source_dir = source_dir
-		self.game_name = game_name
+	def __init__(self, source_tree, stage_name, disabled_action_list=[]):
+		self.source_tree = source_tree
+		self.source_dir = source_tree.dir
+		self.game_name = source_tree.game_name
 		action_list_file_name = os.path.join(Default.action_list_dir, stage_name + Default.action_list_ext)
 		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
-		self.inspector = Repository.Inspector(source_dir, self.game_name, stage_name, disabled_action_list=disabled_action_list)
+		self.inspector = Repository.Inspector(self.source_tree, stage_name, disabled_action_list=disabled_action_list)
 		self.active_action_dict = OrderedDict()
 		self.disabled_action_dict = OrderedDict()
 		self.computed_active_action_dict = OrderedDict()
@@ -199,18 +196,19 @@ class Action():
 	is_parallel = True
 	threaded = False
 
-	def __init__(self, source_dir, build_dir, file_path, stage_name, game_name=None, map_profile=None, thread_count=1, is_parallel=True, is_nested=False):
+	def __init__(self, source_tree, build_dir, file_path, stage_name, map_profile=None, thread_count=1, is_parallel=True, is_nested=False):
 		self.body = []
-		self.source_dir = source_dir
+		self.source_tree = source_tree
+		self.source_dir = source_tree.dir
+		self.game_name = source_tree.game_name
 		self.build_dir = build_dir
 		self.file_path = file_path
-		self.game_name = game_name
 		self.stage_name = stage_name
 		self.map_profile = map_profile
 		self.thread_count = thread_count
 		self.is_parallel = is_parallel
 		self.is_nested = is_nested
-		self.paktrace = Repository.Paktrace(self.source_dir, self.build_dir)
+		self.paktrace = Repository.Paktrace(self.source_tree, self.build_dir)
 
 	def isDone(self):
 		if not self.isDifferent():
@@ -282,6 +280,8 @@ class Action():
 		if not os.path.isfile(self.getTargetPath()):
 			return True
 
+		# Always consider files from nested build to be different
+		# and contribute to the final build.
 		if self.is_nested:
 			return True
 
@@ -669,7 +669,7 @@ class PrevRun(Action):
 	def run(self):
 		source_path = self.getSourcePath()
 
-		self.prevrun = Texset.PrevRun(self.source_dir, source_path, game_name=self.game_name)
+		self.prevrun = Texset.PrevRun(self.source_tree, source_path)
 		self.preview_list = self.prevrun.run()
 
 		# it does it itself
@@ -708,7 +708,7 @@ class SlothRun(Action):
 	def run(self):
 		source_path = self.getSourcePath()
 
-		self.slothrun = Texset.SlothRun(self.source_dir, source_path, game_name=self.game_name)
+		self.slothrun = Texset.SlothRun(self.source_tree, source_path)
 		self.slothrun.run()
 
 		self.body = [ self.getFileNewName() ]
@@ -745,7 +745,7 @@ class DumbTransient(Action):
 		transient_pakinfo_file.write("[config]")
 		transient_pakinfo_file.close()
 
-		builder = Pak.Builder(self.transient_path, self.stage_name, self.build_dir, game_name=self.game_name, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
+		builder = Pak.Builder(file_tree, self.stage_name, self.build_dir, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
 		# keep track of built files
 		produced_unit_list = builder.build()
 
@@ -774,7 +774,7 @@ class CopyBsp(DumbTransient):
 		# TODO: isn't it done in setTimeStamp()?
 		shutil.copystat(source_path, bsp_transient_path)
 
-		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile, is_parallel=self.is_parallel)
+		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile=self.map_profile, is_parallel=self.is_parallel)
 		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_done=["bsp", "vis", "light"])
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp"])
@@ -832,7 +832,7 @@ class MergeBsp(DumbTransient):
 		shutil.copyfile(build_path, bsp_transient_path)
 		shutil.copystat(source_path, bsp_transient_path)
 
-		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
+		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile=self.map_profile)
 		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_done=["bsp", "vis", "light"])
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])
@@ -873,7 +873,7 @@ class CompileBsp(DumbTransient):
 
 		Ui.print("Compiling to bsp: " + self.file_path)
 
-		map_compiler = MapCompiler.Compiler(self.source_dir, game_name=self.game_name, map_profile=self.map_profile)
+		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile=self.map_profile)
 		map_compiler.compile(source_path, self.transient_maps_path)
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])

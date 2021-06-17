@@ -26,19 +26,17 @@ from collections import OrderedDict
 
 
 class Config():
-	def __init__(self, source_dir, game_name=None, map_path=None):
-		self.profile_fs = Profile.Fs(source_dir)
+	def __init__(self, source_tree, map_path=None):
+		self.source_dir = source_tree.dir
+		self.game_name = source_tree.game_name
+
+		self.profile_fs = Profile.Fs(self.source_dir)
 		self.profile_dict = OrderedDict()
 
 		self.default_profile = None
 		self.keep_source = True
 		self.q3map2_config = {}
 
-		if game_name:
-			self.game_name = game_name
-		else:
-			pak_config = Repository.Config(source_dir)
-			self.game_name = pak_config.getKey("game")
 
 		config_path = None
 
@@ -208,20 +206,15 @@ class Config():
 
 
 class Compiler():
-	def __init__(self, source_dir, game_name=None, map_profile=None, is_parallel=True):
-		self.source_dir = source_dir
+	def __init__(self, source_tree, map_profile=None, is_parallel=True):
+		self.source_tree = source_tree
+		self.source_dir = source_tree.dir
 		self.map_profile = map_profile
 		self.is_parallel = is_parallel
 
-		if game_name:
-			self.game_name = game_name
-		else:
-			pak_config = Repository.Config(source_dir)
-			self.game_name = pak_config.requireKey("game")
-
 		if not map_profile:
 			# TODO: test it
-			map_config = Config(source_dir, game_name=game_name)
+			map_config = Config(self.source_tree)
 			map_profile = map_config.requireDefaultProfile()
 
 		self.map_profile = map_profile
@@ -254,7 +247,7 @@ class Compiler():
 		logging.debug("building " + self.map_path + " to prefix: " + self.build_prefix)
 		os.makedirs(self.build_prefix, exist_ok=True)
 
-		self.map_config = Config(self.source_dir, game_name=self.game_name, map_path=map_path)
+		self.map_config = Config(self.source_tree, map_path=map_path)
 		self.pakpath_list = Repository.PakPath().listPakPath()
 
 		build_stage_dict = self.map_config.profile_dict[self.map_profile]

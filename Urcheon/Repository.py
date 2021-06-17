@@ -30,19 +30,20 @@ import time
 
 
 class Config():
-	def __init__(self, source_dir, game_name=None):
-		self.source_dir = source_dir
-		self.profile_fs = Profile.Fs(source_dir)
+	def __init__(self, source_tree):
+		self.source_dir = source_tree.dir
+		self.profile_fs = Profile.Fs(source_tree.dir)
 
 		self.key_dict = {}
 
 		config_name = Default.pak_config_base + Default.pak_config_ext
 		self.readConfig(config_name)
 
-		if not game_name:
-			game_name = self.requireKey("game")
+		# This is needed by Game.Game, so better set them in source_tree
+		if not source_tree.game_name:
+			source_tree.game_name = self.requireKey("game")
 
-		self.game_profile = Game.Game(source_dir, game_name)
+		self.game_profile = Game.Game(source_tree)
 
 	def readConfig(self, config_name):
 		config_path = self.profile_fs.getPath(config_name)
@@ -141,33 +142,28 @@ class Config():
 
 
 class FileProfile():
-	def __init__(self, source_dir, game_name=None):
+	def __init__(self, source_tree):
+		self.source_dir = source_tree.dir
+		self.game_name = source_tree.game_name
+		self.profile_name = source_tree.pak_name
 
 		# because of: for self.inspector.inspector_name_dict
 		self.inspector = Inspector(None, None, None)
 
-		self.profile_fs = Profile.Fs(source_dir)
+		self.profile_fs = Profile.Fs(self.source_dir)
 
 		self.file_type_dict = {}
 		self.file_type_weight_dict = {}
 
-		pak_config = Config(source_dir, game_name=game_name)
+		pak_config = Config(source_tree)
 
-		if game_name:
-			self.game_name = game_name
+		if self.profile_name:
+			if not self.getProfilePath(self.profile_name):
+				self.profile_name = self.game_name
 		else:
-			self.game_name = pak_config.requireKey("game")
+			self.profile_name = self.game_name
 
-		profile_name = pak_config.getKey("name")
-
-		if profile_name:
-			if not self.getProfilePath(profile_name):
-				profile_name = self.game_name
-		else:
-			profile_name = self.game_name
-
-		# FIXME: can't be None
-		self.readProfile(profile_name)
+		self.readProfile(self.profile_name)
 		self.expandFileTypeDict()
 
 	def getProfilePath(self, profile_name):
@@ -179,7 +175,7 @@ class FileProfile():
 
 		if not file_profile_path:
 			# that's not a typo
-			Ui.error("file profile file not found: " + file_profile_name)
+			Ui.error("file profile file not found: " + file_profile_path)
 
 		file_profile_file = open(file_profile_path, "r")
 		file_profile_dict = pytoml.load(file_profile_file)
@@ -249,7 +245,7 @@ class FileProfile():
 
 
 class Inspector():
-	def __init__(self, source_dir, game_name, stage, disabled_action_list=[]):
+	def __init__(self, source_tree, stage, disabled_action_list=[]):
 
 		self.inspector_name_dict = {
 			"file_name":			self.inspectFileName,
@@ -270,14 +266,15 @@ class Inspector():
 			"build": "keep",
 		}
 
-		if not source_dir:
+		# FIXME: Why? (was previously testing source_dir)
+		if not source_tree:
 			return
 
 		self.stage = stage
 
 		self.disabled_action_list = disabled_action_list
 
-		self.file_profile = FileProfile(source_dir, game_name=game_name)
+		self.file_profile = FileProfile(source_tree)
 		logging.debug("file type weight dict: " + str(self.file_profile.file_type_weight_dict))
 
 		self.file_type_ordered_list = [x[0] for x in sorted(self.file_profile.file_type_weight_dict.items(), key=operator.itemgetter(1), reverse=True)]
@@ -489,23 +486,30 @@ class BlackList():
 
 
 class Tree():
+	# Always path game_name when nested
 	def __init__(self, source_dir, game_name=None, is_nested=False):
-		self.source_dir = source_dir
+		self.dir = os.path.realpath(source_dir)
+
+		self.game_name = game_name
+		self.pak_name = None
 
 		if not is_nested:
-			self.pak_config = Config(source_dir, game_name=game_name)
+			self.pak_config = Config(self)
 			self.pak_format = self.pak_config.game_profile.pak_format
+			self.pak_name = self.pak_config.requireKey("name")
 		else:
-			# HACK: the most universal one
+			# HACK: the most universal one (and it does not write DEPS)
 			self.pak_format = "pk3"
 
+			assert self.game_name != None, "game_name can't be empty when is_nested is true"
+
 	def isValid(self):
-		return os.path.isfile(os.path.join(self.source_dir, Default.pakinfo_dir, Default.pak_config_base + Default.pak_config_ext))
+		return os.path.isfile(os.path.join(self.dir, Default.pakinfo_dir, Default.pak_config_base + Default.pak_config_ext))
 
 	def listFiles(self):
 		file_list = []
-		for dir_name, subdir_name_list, file_name_list in os.walk(self.source_dir):
-			dir_name = os.path.relpath(dir_name, self.source_dir)
+		for dir_name, subdir_name_list, file_name_list in os.walk(self.dir):
+			dir_name = os.path.relpath(dir_name, self.dir)
 
 			logging.debug("dir_name: " + str(dir_name) + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
 
@@ -513,15 +517,15 @@ class Tree():
 				file_path = os.path.join(dir_name, file_name)
 				file_list.append(file_path)
 
-		blacklist = BlackList(self.source_dir, self.pak_format)
+		blacklist = BlackList(self.dir, self.pak_format)
 		file_list = blacklist.filter(file_list)
 
 		return file_list
 
 
 class Paktrace():
-	def __init__(self, source_dir, build_dir):
-		self.source_dir = os.path.realpath(source_dir)
+	def __init__(self, source_tree, build_dir):
+		self.source_dir = os.path.realpath(source_tree.dir)
 		self.build_dir = os.path.realpath(build_dir)
 		self.paktrace_dir = Default.paktrace_dir
 
@@ -727,7 +731,6 @@ class Paktrace():
 class Git():
 	def __init__(self, source_dir, pak_format):
 		self.source_dir = source_dir
-		self.pak_format = pak_format
 
 		self.git = ["git", "-C", self.source_dir]
 		self.subprocess_stdout = subprocess.DEVNULL
