@@ -218,7 +218,7 @@ class Action():
 			return False
 
 	def run(self):
-		Ui.print("Dumb action: " + self.file_path)
+		Ui.laconic("Dumb action: " + self.file_path)
 		return getProducedUnitList()
 
 	def getFileNewName(self):
@@ -310,7 +310,7 @@ class Action():
 					shutil.copystat(reference_path, produced_path)
 
 	def callProcess(self, command_list):
-		if Ui.verbosely:
+		if Ui.verbosity == "verbose":
 			subprocess_stdout = None
 			subprocess_stderr = None
 		else:
@@ -357,7 +357,7 @@ class Keep(Action):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		Ui.print("Keep: " + self.file_path)
+		Ui.laconic("Keep: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		self.setTimeStamp()
 
@@ -373,7 +373,7 @@ class Copy(Action):
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
-		Ui.print("Copy: " + self.file_path)
+		Ui.laconic("Copy: " + self.file_path)
 		shutil.copyfile(source_path, build_path)
 		self.setTimeStamp()
 
@@ -393,10 +393,10 @@ class ConvertJpg(Action):
 		self.createSubdirs()
 
 		if self.getExt() in ("jpg", "jpeg"):
-			Ui.print("File already in jpg, copy: " + self.file_path)
+			Ui.laconic("File already in jpg, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to " + self.printable_target_format + ": " + self.file_path)
+			Ui.laconic("Convert to " + self.printable_target_format + ": " + self.file_path)
 			self.callProcess(["convert", "-verbose", "-quality", str(self.convert_jpg_quality), source_path, build_path])
 
 		self.setTimeStamp()
@@ -425,10 +425,10 @@ class ConvertPng(Action):
 		self.createSubdirs()
 
 		if self.getExt() == "png":
-			Ui.print("File already in png, copy: " + self.file_path)
+			Ui.laconic("File already in png, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to png: " + self.file_path)
+			Ui.laconic("Convert to png: " + self.file_path)
 			self.callProcess(["convert", "-verbose", "-quality", "100", source_path, build_path])
 
 		self.setTimeStamp()
@@ -454,10 +454,10 @@ class ConvertLossyWebp(Action):
 		self.createSubdirs()
 
 		if self.getExt() == "webp":
-			Ui.print("File already in webp, copy: " + self.file_path)
+			Ui.laconic("File already in webp, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to " + self.printable_target_format +  ": " + self.file_path)
+			Ui.laconic("Convert to " + self.printable_target_format +  ": " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
 			self.callProcess(["convert", "-verbose", "-strip", source_path, "png:" + transient_path])
@@ -498,10 +498,10 @@ class ConvertCrn(Action):
 		self.createSubdirs()
 
 		if self.getExt() == self.file_ext:
-			Ui.print("File already in crn, copy: " + self.file_path)
+			Ui.laconic("File already in crn, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to " + self.printable_target_format + ": " + self.file_path)
+			Ui.laconic("Convert to " + self.printable_target_format + ": " + self.file_path)
 
 			# the convert tool from ImageMagick is known to fail to properly convert some jpg files to tga (some of them are produced upside down)
 			# see https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1838860
@@ -569,10 +569,10 @@ class ConvertVorbis(Action):
 		self.createSubdirs()
 
 		if self.getExt() == "ogg":
-			Ui.print("File already in vorbis, copy: " + self.file_path)
+			Ui.laconic("File already in vorbis, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to vorbis: " + self.file_path)
+			Ui.laconic("Convert to vorbis: " + self.file_path)
 			self.callProcess(["ffmpeg", "-acodec", "libvorbis", "-i", source_path, build_path])
 
 		self.setTimeStamp()
@@ -593,10 +593,10 @@ class ConvertOpus(Action):
 		self.createSubdirs()
 
 		if self.getExt() == "opus":
-			Ui.print("File already in opus, copy: " + self.file_path)
+			Ui.laconic("File already in opus, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
-			Ui.print("Convert to opus: " + self.file_path)
+			Ui.laconic("Convert to opus: " + self.file_path)
 			self.callProcess(["opusenc", source_path, build_path])
 
 		self.setTimeStamp()
@@ -617,7 +617,7 @@ class CompileIqm(Action):
 		self.createSubdirs()
 
 		if self.getExt() == "iqm":
-			Ui.print("File already in iqm, copy: " + self.file_path)
+			Ui.laconic("File already in iqm, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
 			iqe_command_file = source_path + os.path.extsep + "cfg"
@@ -631,10 +631,10 @@ class CompileIqm(Action):
 
 				iqm_config.writeFile(transient_path)
 
-				Ui.print("Compile to iqm using a command file: " + self.file_path)
+				Ui.laconic("Compile to iqm using a command file: " + self.file_path)
 				self.callProcess(["iqm", "--cmd", transient_path])
 			else:
-				Ui.print("Compile to iqm: " + self.file_path)
+				Ui.laconic("Compile to iqm: " + self.file_path)
 				self.callProcess(["iqm", build_path, source_path])
 
 		self.setTimeStamp()
@@ -769,7 +769,7 @@ class CopyBsp(DumbTransient):
 		bsp_path = self.getFileNewName()
 		bsp_transient_path = os.path.join(self.transient_path, bsp_path)
 
-		Ui.print("Copy bsp: " + self.file_path)
+		Ui.laconic("Copy bsp: " + self.file_path)
 		shutil.copyfile(source_path, bsp_transient_path)
 		# TODO: isn't it done in setTimeStamp()?
 		shutil.copystat(source_path, bsp_transient_path)
@@ -815,7 +815,7 @@ class MergeBsp(DumbTransient):
 		bspdir_path = self.getBspDirName()
 		bsp_path = self.getFileNewName()
 
-		Ui.print("Merging to bsp: " + bspdir_path)
+		Ui.laconic("Merging to bsp: " + bspdir_path)
 
 		bsp = Bsp.Bsp()
 		bsp.readDir(source_path)
@@ -871,7 +871,7 @@ class CompileBsp(DumbTransient):
 
 		self.createTransientPath()
 
-		Ui.print("Compiling to bsp: " + self.file_path)
+		Ui.laconic("Compiling to bsp: " + self.file_path)
 
 		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile=self.map_profile)
 		map_compiler.compile(source_path, self.transient_maps_path)

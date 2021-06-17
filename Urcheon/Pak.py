@@ -423,7 +423,7 @@ class Packager():
 		logging.debug("close: " + self.pak_file)
 		pak.close()
 
-		Ui.print("Package written: " + self.pak_file)
+		Ui.laconic("Package written: " + self.pak_file)
 
 
 class Cleaner():
@@ -438,7 +438,7 @@ class Cleaner():
 		for dir_name, subdir_name_list, file_name_list in os.walk(test_dir):
 			for file_name in file_name_list:
 				that_file = os.path.join(dir_name, file_name)
-				Ui.print("clean: " + that_file)
+				Ui.laconic("clean: " + that_file)
 				os.remove(that_file)
 				FileSystem.removeEmptyDir(dir_name)
 			for dir_name in subdir_name_list:
@@ -453,7 +453,7 @@ class Cleaner():
 			for file_name in file_name_list:
 				if file_name.startswith(self.pak_name) and file_name.endswith(self.game_profile.pak_ext):
 					pak_file = os.path.join(dir_name, file_name)
-					Ui.print("clean: " + pak_file)
+					Ui.laconic("clean: " + pak_file)
 					os.remove(pak_file)
 					FileSystem.removeEmptyDir(dir_name)
 		FileSystem.removeEmptyDir(pak_prefix)
@@ -465,31 +465,31 @@ class Cleaner():
 			for file_name in file_name_list:
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "bsp"):
 					bsp_file = os.path.join(dir_name, file_name)
-					Ui.print("clean: " + bsp_file)
+					Ui.laconic("clean: " + bsp_file)
 					os.remove(bsp_file)
 					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "map"):
 					map_file = os.path.join(dir_name, file_name)
-					Ui.print("clean: " + map_file)
+					Ui.laconic("clean: " + map_file)
 					os.remove(map_file)
 					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-2:-1] == ["maps"] and file_name.startswith("lm_"):
 					lightmap_file = os.path.join(dir_name, file_name)
-					Ui.print("clean: " + lightmap_file)
+					Ui.laconic("clean: " + lightmap_file)
 					os.remove(lightmap_file)
 					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["maps"] and file_name.endswith(os.path.extsep + "navMesh"):
 					navmesh_file = os.path.join(dir_name, file_name)
-					Ui.print("clean: " + navmesh_file)
+					Ui.laconic("clean: " + navmesh_file)
 					os.remove(navmesh_file)
 					FileSystem.removeEmptyDir(dir_name)
 
 				if dir_name.split("/")[-1:] == ["minimaps"]:
 					minimap_file = os.path.join(dir_name, file_name)
-					Ui.print("clean: " + minimap_file)
+					Ui.laconic("clean: " + minimap_file)
 					os.remove(minimap_file)
 					FileSystem.removeEmptyDir(dir_name)
 
@@ -507,7 +507,7 @@ class Cleaner():
 		for file_name in previous_file_list:
 			if file_name not in produced_file_list:
 				dust_file_path = os.path.normpath(os.path.join(test_dir, file_name))
-				Ui.print("clean dust file: " + file_name)
+				Ui.laconic("clean dust file: " + file_name)
 				dust_file_fullpath = os.path.realpath(dust_file_path)
 
 				if not os.path.isfile(dust_file_fullpath):
@@ -545,6 +545,7 @@ def discover(stage_name):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-l", "--laconic", dest="laconic", help="print laconic information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
@@ -558,8 +559,10 @@ def discover(stage_name):
 		logging.debug("Debug logging activated")
 		logging.debug("args: " + str(args))
 
-	if args.verbose:
-		Ui.verbosely = True
+	if args.laconic:
+		Ui.verbosity = "laconic"
+	elif args.verbose:
+		Ui.verbosity = "verbose"
 
 	if args.source_dir == ".":
 		# default
@@ -591,6 +594,7 @@ def prepare(stage_name):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-l", "--laconic", dest="laconic", help="print laconic information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
@@ -607,8 +611,10 @@ def prepare(stage_name):
 		logging.debug("Debug logging activated")
 		logging.debug("args: " + str(args))
 
-	if args.verbose:
-		Ui.verbosely = True
+	if args.laconic:
+		Ui.verbosity = "laconic"
+	elif args.verbose:
+		Ui.verbosity = "verbose"
 
 	if args.source_dir == ".":
 		# default
@@ -629,6 +635,7 @@ def build(stage_name):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-l", "--laconic", dest="laconic", help="print laconic information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
 	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="build test pakdir in %(metavar)s prefix, example: build/test")
@@ -649,8 +656,10 @@ def build(stage_name):
 		logging.debug("Debug logging activated")
 		logging.debug("args: " + str(args))
 
-	if args.verbose:
-		Ui.verbosely = True
+	if args.laconic:
+		Ui.verbosity = "laconic"
+	elif args.verbose:
+		Ui.verbosity = "verbose"
 
 	if args.source_dir == ".":
 		# default
@@ -674,6 +683,7 @@ def package(stage_name):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-l", "--laconic", dest="laconic", help="print laconic information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
 	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="use test pakdir from %(metavar)s prefix, example: build/test")
@@ -691,8 +701,10 @@ def package(stage_name):
 		logging.debug("Debug logging activated")
 		logging.debug("args: " + str(args))
 
-	if args.verbose:
-		Ui.verbosely = True
+	if args.laconic:
+		Ui.verbosity = "laconic"
+	elif args.verbose:
+		Ui.verbosity = "verbose"
 
 	if args.source_dir == ".":
 		# default
@@ -719,6 +731,7 @@ def clean(stage_name):
 
 	parser.add_argument("-D", "--debug", dest="debug", help="print debug information", action="store_true")
 	parser.add_argument("-v", "--verbose", dest="verbose", help="print verbose information", action="store_true")
+	parser.add_argument("-l", "--laconic", dest="laconic", help="print laconic information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="clean in %(metavar)s prefix, example: build")
 	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="clean test pakdir in %(metavar)s prefix, example: build/test")
@@ -738,8 +751,10 @@ def clean(stage_name):
 		logging.debug("Debug logging activated")
 		logging.debug("args: " + str(args))
 
-	if args.verbose:
-		Ui.verbosely = True
+	if args.laconic:
+		Ui.verbosity = "laconic"
+	elif args.verbose:
+		Ui.verbosity = "verbose"
 
 	clean_all = args.clean_all
 

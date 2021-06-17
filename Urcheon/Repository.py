@@ -939,7 +939,7 @@ class Deps():
 		return True
 
 	def translateTest(self, pakpath):
-		Ui.print("translating DEPS for testing")
+		Ui.laconic("translating DEPS for testing")
 		for pak_name in self.deps_dict.keys():
 			pak_version = self.get(pak_name)
 
@@ -949,7 +949,7 @@ class Deps():
 			self.set(pak_name, pak_version)
 
 	def translateRelease(self, pakpath):
-		Ui.print("translating DEPS for release")
+		Ui.laconic("translating DEPS for release")
 		for pak_name in self.deps_dict.keys():
 			pak_version = self.get(pak_name)
 

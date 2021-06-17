@@ -215,7 +215,7 @@ class PrevRun():
 
 		command_list += [ preview_fullpath ]
 
-		Ui.print("Generate preview: " + source_path)
+		Ui.laconic("Generate preview: " + source_path)
 
 		logging.debug("convert command list: " + str(command_list))
 		logging.debug("convert command line: '" + str("' '".join(command_list)) + "'")
@@ -456,7 +456,7 @@ class SlothRun():
 		logging.debug("sloth command list: " + str(command_list))
 		logging.debug("sloth command line: '" + str("' '".join(command_list)) + "'")
 
-		Ui.print("Sloth shader: " + self.slothrun_file_path)
+		Ui.laconic("Sloth shader: " + self.slothrun_file_path)
 
 		# TODO: set something else in verbose mode
 		subprocess_stdout = subprocess.DEVNULL

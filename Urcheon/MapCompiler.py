@@ -302,7 +302,7 @@ class Compiler():
 					continue
 
 				# otherwise run the stage
-				Ui.print("Building " + self.map_path + ", stage: " + stage_name)
+				Ui.laconic("Building " + self.map_path + ", stage: " + stage_name)
 
 				option_list = stage_option_list["options"]
 				logging.debug("stage options: " + str(option_list))
@@ -404,7 +404,7 @@ class Compiler():
 		self.q3map2(option_list, tool_name="daemonmap")
 
 	def copy(self, option_list):
-		Ui.print("Copying map source: " + self.map_path)
+		Ui.laconic("Copying map source: " + self.map_path)
 		source_path = os.path.join(self.source_dir, self.map_path)
 		if os.path.isfile(source_path):
 			copy_path = os.path.join(self.build_prefix, os.path.basename(self.map_path))
