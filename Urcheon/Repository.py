@@ -155,8 +155,6 @@ class FileProfile():
 		self.file_type_dict = {}
 		self.file_type_weight_dict = {}
 
-		pak_config = Config(source_tree)
-
 		if self.profile_name:
 			if not self.getProfilePath(self.profile_name):
 				self.profile_name = self.game_name

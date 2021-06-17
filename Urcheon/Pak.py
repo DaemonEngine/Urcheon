@@ -170,8 +170,7 @@ class Builder():
 								logging.debug("found prepared files for “" + file_path + "”: " + input_file_path)
 								file_list.append(input_file_path)
 			else:
-				file_tree = Repository.Tree(self.source_dir, game_name=self.game_name, is_nested=is_nested)
-				file_list = file_tree.listFiles()
+				file_list = source_tree.listFiles()
 
 		if not self.no_auto_actions:
 			action_list.computeActions(file_list)
@@ -579,8 +578,7 @@ def discover(stage_name):
 			Ui.error("not a supported tree, not going further", silent=True)
 
 		# TODO: find a way to update "prepare" actions too
-		file_tree = Repository.Tree(source_dir, game_name=args.game_name)
-		file_list = file_tree.listFiles()
+		file_list = source_tree.listFiles()
 
 		action_list = Action.List(source_tree, "build")
 		action_list.updateActions(action_list)

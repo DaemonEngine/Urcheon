@@ -137,8 +137,7 @@ class List():
 	def updateActions(self, action_list):
 		self.readActions()
 
-		file_tree = Repository.Tree(self.source_dir, game_name=self.game_name)
-		file_list = file_tree.listFiles()
+		file_list = self.source_tree.listFiles()
 		self.computeActions(file_list)
 
 		self.writeActions()
