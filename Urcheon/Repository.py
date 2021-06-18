@@ -782,7 +782,7 @@ class Git():
 
 		if not straight:
 			time_stamp = self.getCompactHumanTimeStamp(commit_date)
-			version += "+" + time_stamp + "+" + short_id
+			version += "-" + time_stamp + "-" + short_id
 
 		return version
 
