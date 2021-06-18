@@ -386,9 +386,25 @@ class Packager():
 			# maximum compression
 			zipfile.zlib.Z_DEFAULT_COMPRESSION = zipfile.zlib.Z_BEST_COMPRESSION
 
-		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
-
 		paktrace_dir = Default.paktrace_dir
+
+		found_file = False
+		paktrace_fulldir = os.path.join(self.test_dir, paktrace_dir)
+		for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_fulldir):
+			for file_name in file_name_list:
+				found_file = True
+				break
+
+			if found_file:
+				break
+
+		# FIXME: if only the DEPS file is modified, the package will
+		# not be created (it should be).
+		if not found_file:
+			Ui.print("Not writing empty package: " + self.pak_file)
+			return
+
+		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
 
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
@@ -404,6 +420,8 @@ class Packager():
 				# ignore DEPS file, will add it later
 				if file_path == "DEPS" and self.game_profile.pak_format == "dpk":
 					continue
+
+				found_file = True
 
 				Ui.print("add file to package " + os.path.basename(self.pak_file) + ": " + file_path)
 				pak.write(full_path, arcname=file_path)
