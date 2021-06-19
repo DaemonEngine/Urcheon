@@ -248,7 +248,7 @@ class Compiler():
 		os.makedirs(self.build_prefix, exist_ok=True)
 
 		self.map_config = Config(self.source_tree, map_path=map_path)
-		self.pakpath_list = Repository.PakPath().listPakPath()
+		self.pakpath_list = Repository.PakVfs().listPakPath()
 
 		build_stage_dict = self.map_config.profile_dict[self.map_profile]
 
