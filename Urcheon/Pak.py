@@ -305,7 +305,7 @@ class Builder():
 				if self.since_reference:
 					is_deps = True
 					git_repo = Repository.Git(self.source_dir, "dpk")
-					previous_version = git_repo.computeVersion(self.since_reference)
+					previous_version = git_repo.computeVersion(self.since_reference, since_reference=True)
 					deps.set(self.pak_name, previous_version)
 
 				if deps.read(self.source_dir):

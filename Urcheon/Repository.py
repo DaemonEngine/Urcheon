@@ -741,6 +741,8 @@ class Git():
 		self.subprocess_stdout = subprocess.DEVNULL
 		self.subprocess_stderr = subprocess.DEVNULL
 
+		self.version_tag_pattern = re.compile(r"^v[0-9].*")
+
 	# Unused
 	def test(self):
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -754,37 +756,79 @@ class Git():
 
 		return version
 
-	def computeVersion(self, reference):
-		commit = self.getCommit(reference)
+	def isVersionTag(self, reference):
+		return self.version_tag_pattern.match(reference)
 
-		straight = False
+	def computeVersion(self, reference, since_reference=False):
+		reference_id = self.getCommit(reference)
+
+		is_tag = self.isVersionTag(reference)
+		is_straight = False
+		is_empty = False
 		version = "0"
 
-		if commit == None:
+		if reference_id == None:
 			commit_date = int(time.strftime("%s", time.gmtime()))
 			short_id = '0000000'
 		else:
-			for reference in self.getCommitList(commit):
-				tag = self.getVersionTag(reference)
+			for commit in self.getCommitList(reference_id):
+				tag_name = self.getVersionTag(commit)
+				print(commit + " " + str(tag_name))
 
-				if tag:
+				# Skip commits without version tag when reference is
+				# a version tag producing an empty pak.
+				if since_reference and is_empty:
+					if is_tag and not tag_name:
+							# Look for next commit having a version tag.
+							continue
+
+					# If diff with previous reference produced empty pak,
+					# restart computeVersion on this reference instead.
+					return self.computeVersion(commit)
+
+				# If the commit does not modify files and a partial
+				# build would produce an empty pak and then the pak
+				# will not be written, look for older version tags
+				# so building a partial build with such reference
+				# will not depend on a non-existing pak.
+				if not self.hasModification(reference_id):
+					# Attempt to computeVersion on next reference.
+					print(commit + " no modif")
+					is_empty = True
+					continue
+
+				if tag_name:
 					# v1.0 → 1.0
-					version = tag[1:]
+					version = tag_name[1:]
 
-					if reference == commit:
-						straight = True
+					if commit == reference_id:
+						is_straight = True
 
 					break
 
-			if not straight:
-				commit_date = self.getDate(commit)
-				short_id = self.getShortId(commit)
+			if not is_straight:
+				commit_date = self.getDate(reference_id)
+				short_id = self.getShortId(reference_id)
 
-		if not straight:
+		if not is_straight:
 			time_stamp = self.getCompactHumanTimeStamp(commit_date)
 			version += "-" + time_stamp + "-" + short_id
 
 		return version
+
+	def hasModification(self, reference):
+		# Never call it on git tag, only on git commit id, because the output of
+		# the git call would print some tag related info and then the test will
+		# always be true and then produce a false positive.
+		# Test for ACMR: Added, Copied, Modified, Renamed
+		# Do not test for DTUX: Deleted, Changed (file Type), Unmerged, Unknown
+		proc = subprocess.Popen(self.git + ["show", "--diff-filter=ACMR", "--pretty=format:", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+
+		file_list = stdout.decode().splitlines()
+		print(str(file_list))
+
+		return len(file_list) != 0
 
 	def isDirty(self):
 		proc = subprocess.call(self.git + ["diff", "--quiet"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -836,8 +880,8 @@ class Git():
 			return None
 
 	def getVersionTag(self, reference):
-		# greater first
-		proc = subprocess.Popen(self.git + ["tag", "--points-at", reference, "--sort=-version:refname", "v*"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		# smaller first
+		proc = subprocess.Popen(self.git + ["tag", "--points-at", reference, "--sort=version:refname", "v[0-9]*"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
 
 		tag_list = stdout.decode().splitlines()
