@@ -30,6 +30,11 @@ import time
 
 # FIXME: do we need OrderedDict toml constructor here?
 
+dpk_special_files = [
+	"DELETED",
+	"DEPS",
+]
+
 
 class Config():
 	def __init__(self, source_tree):
@@ -273,6 +278,9 @@ class Inspector():
 		if not source_tree:
 			return
 
+		# Needed to detect symbolic links.
+		self.source_dir = source_tree.dir
+
 		self.stage = stage
 
 		self.disabled_action_list = disabled_action_list
@@ -347,7 +355,7 @@ class Inspector():
 			parents, subpath = os.path.split(parents)
 		return False
 
-	def inspect(self, file_path):
+	def inspect(self, file_path, deletion=False):
 		logging.debug("looking for file path:" + file_path)
 
 		# TODO: make a tree!
@@ -403,7 +411,24 @@ class Inspector():
 		else:
 			_print = Ui.print
 
-		_print(file_path + ": " + description + " found, will " + self.action_description_dict[action] + ".")
+		action_description = self.action_description_dict[action] 
+
+		full_path = os.path.join(self.source_dir, file_path)
+
+		# TODO: Maybe some filesystem doesn't support symbolic link
+		# and we would have to use another solution.
+		# TODO: Check if symbolic link is not outside of repository
+		# and if symbolic link is relative because only relative symbolic
+		# link is supported, usually with limited depth only.
+		# Even if we can solve absolute link to the same package and turn
+		# it into a relative link, no one should commit such link anyway.
+		if os.path.islink(full_path):
+			_print(file_path + ": " + description + " symbolic link found, will not " + action_description + " but link to source target.")
+		else:
+			if deletion:
+				_print(file_path + ": deleted.")
+			else:
+				_print(file_path + ": " + description + " found, will " + action_description + ".")
 
 		return action
 
@@ -433,7 +458,7 @@ class BlackList():
 		pass
 
 		if pak_format == "dpk":
-			self.blacklist.append("DEPS")
+			self.blacklist.extend(dpk_special_files)
 
 		pakignore_name = Default.ignore_list_base + Default.ignore_list_ext
 		pakignore_path = os.path.join(Default.pakinfo_dir, pakignore_name)
@@ -599,13 +624,24 @@ class Paktrace():
 		if head not in body:
 			body.append(head)
 
-		src_realpath = os.path.join(self.source_dir, src)
-		src_timestamp = self.getTimestampString(src_realpath)
-		src_sha256sum = self.computeSha256sumString(src_realpath)
-		src_dict = { "timestamp": src_timestamp, "sha256sum": src_sha256sum }
+		source_full_path = os.path.join(self.source_dir, src)
+		source_real_path = os.path.realpath(source_full_path)
+
+		source_timestamp = self.getTimestampString(source_real_path)
+		source_sha256sum = self.computeSha256sumString(source_real_path)
+
+		# TODO: Make sure files are in the same pakdir else error out.
+		source_real_dir = os.path.realpath(self.source_dir)
+		source_relpath = os.path.relpath(source_real_path, start=source_real_dir) 
+
+		source_dict = {
+			"relpath": source_relpath,
+			"timestamp": source_timestamp,
+			"sha256sum": source_sha256sum
+		}
 
 		json_dict = {}
-		json_dict["input"] = { src: src_dict }
+		json_dict["input"] = { src: source_dict }
 		json_dict["output"] = body
 
 		json_string = json.dumps(json_dict, sort_keys=True, indent=4)
@@ -712,21 +748,32 @@ class Paktrace():
 			return True;
 
 		for source_path in source_dict.keys():
-			source_realpath = os.path.join(self.source_dir, source_path)
-			if not os.path.exists( source_realpath ):
+			source_full_path = os.path.join(self.source_dir, source_path)
+			if not os.path.exists( source_full_path ):
 				return True;
 
+			# TODO: Make sure files are in the same pakdir else error out.
+			source_real_dir = os.path.realpath(self.source_dir)
+			current_relpath = os.path.relpath(source_full_path, start=source_real_dir) 
+
+			# Older versions of Urcheon were not writing the relpath key,
+			# ignore if it is not there.
+			if "relpath" in source_dict[source_path].keys():
+				previous_relpath = source_dict[source_path]["relpath"]
+				if previous_relpath != current_relpath:
+					return True
+
 			previous_timestamp = source_dict[source_path]["timestamp"]
-			current_timestamp = self.getTimestampString(source_realpath)
+			current_timestamp = self.getTimestampString(source_full_path)
 			if (previous_timestamp == current_timestamp):
 				# do not test for sha256sum
 				continue
 
 			previous_sha256sum = source_dict[source_path]["sha256sum"]
-			current_sha256sum = self.computeSha256sumString(source_realpath)
+			current_sha256sum = self.computeSha256sumString(source_full_path)
 			if (previous_sha256sum == current_sha256sum):
 				times = (-1, float(previous_timestamp))
-				os.utime(source_realpath, times)
+				os.utime(source_full_path, times)
 				os.utime(build_path, times)
 				continue
 			else:
@@ -736,9 +783,10 @@ class Paktrace():
 
 
 class Git():
-	def __init__(self, source_dir, pak_format):
+	def __init__(self, source_dir, pak_format, workaround_no_delete=False):
 		self.source_dir = source_dir
 		self.pak_format = pak_format
+		self.workaround_no_delete = workaround_no_delete
 
 		self.git = ["git", "-C", str(self.source_dir)]
 		self.subprocess_stdout = subprocess.DEVNULL
@@ -826,9 +874,20 @@ class Git():
 		# Never call it on git tag, only on git commit id, because the output of
 		# the git call would print some tag related info and then the test will
 		# always be true and then produce a false positive.
-		# Test for ACMR: Added, Copied, Modified, Renamed
-		# Do not test for DTUX: Deleted, Changed (file Type), Unmerged, Unknown
-		proc = subprocess.Popen(self.git + ["show", "--diff-filter=ACMR", "--pretty=format:", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+		# Unvanquished game did not supported DELETED file until after to 0.52.1.
+		if (self.pak_format == "dpk" and not self.workaround_no_delete):
+			# Test for ACMD: Added, Copied, Modified, Deleted
+			# Do not test for RTUX: Renamed, Changed (file Type), Unmerged, Unknown
+			# Disable renaming detection, original path of renamed file is listed
+			# as deleted.
+			proc = subprocess.Popen(self.git + ["show", "--diff-filter=ACMD", "--no-renames", "--pretty=format:", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+		else:
+			# Test for ACMR: Added, Copied, Modified, Renamed
+			# Do not test for DTUX: Deleted, Changed (file Type), Unmerged, Unknown
+			proc = subprocess.Popen(self.git + ["show", "--diff-filter=ACMR", "--pretty=format:", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
 		stdout, stderr = proc.communicate()
 
 		file_list = stdout.decode().splitlines()
@@ -851,6 +910,13 @@ class Git():
 		# added file
 		return len(file_list) > 0
 
+	def getDeletedFileList(self, reference):
+		proc = subprocess.Popen(self.git + ["diff", "--diff-filter=D", "--no-renames", "--pretty=format:", "--name-only", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		stdout, stderr = proc.communicate()
+
+		file_list = stdout.decode().splitlines()
+
+		return file_list
 
 	def getHexTimeStamp(self, commit_date):
 		# not used
@@ -947,13 +1013,171 @@ class Git():
 
 		return file_list
 
+class Deleted():
+	def __init__(self, source_tree, test_dir, stage_name):
+		self.source_tree = source_tree
+		self.source_dir = source_tree.dir
+		self.test_dir = test_dir
+		self.stage_name = stage_name
+		self.deleted_file_list = []
+		self.deleted_part_list = []
+
+	def get_source_path(self):
+		deleted_file_path = os.path.join(self.source_dir, "DELETED")
+		return deleted_file_path
+
+	def get_test_path(self):
+		deleted_file_path = os.path.join(self.test_dir, "DELETED")
+		return deleted_file_path
+
+	def read(self):
+		deleted_file_path = self.get_source_path()
+
+		if not os.path.isfile(deleted_file_path):
+			return False
+
+		deleted_file = open(deleted_file_path, "r")
+		line_list = [line.strip() for line in deleted_file]
+		deleted_file.close()
+
+		empty_line_pattern = re.compile(r"^[ \t]*$")
+		deleted_line_pattern = re.compile(r"^[ \t]*(?P<pak_name>[^ \t]*)[ \t]*(?P<file_path>.*)$")
+
+		for line in line_list:
+			line_match = empty_line_pattern.match(line)
+			if line_match:
+				continue
+
+			line_match = deleted_line_pattern.match(line)
+			if line_match:
+				pak_name = line_match.group("pak_name")
+				file_path = line_match.group("file_path")
+				self.set(pak_name, file_path)
+				continue
+
+			Ui.error("malformed line in DELETED file: " + line)
+
+		return True
+
+	def getActions(self):
+		if not self.read():
+			return []
+
+		action_list = []
+
+		for deleted_file_dict in self.deleted_file_list:
+			pak_name = deleted_file_dict["pak_name"]
+			file_path = deleted_file_dict["file_path"]
+
+			if pak_name == self.source_tree.pak_name:
+				action_dict = {
+					"action_name": "delete",
+					"file_path": file_path,
+				}
+
+				action_list.append(action_dict)
+
+		return action_list
+
+	def set(self, pak_name, file_path):
+		deleted_file_dict = {
+			"pak_name": pak_name,
+			"file_path": file_path,
+		}
+
+		if deleted_file_dict not in self.deleted_file_list:
+			self.deleted_file_list.append(deleted_file_dict)
+
+	def write(self):
+		if not self.deleted_part_list:
+			return False
+
+		Ui.laconic("writing DELETED file list")
+
+		deleted_file = open(self.get_test_path(), "w")
+		deleted_file.write(self.produce())
+		deleted_file.close()
+
+		return True
+
+	def produce(self):
+		line_list= []
+		for deleted_part_dict in self.deleted_part_list:
+			line = deleted_part_dict["pak_name"]
+			line += " "
+			line += deleted_part_dict["file_path"]
+			line_list.append(line)
+
+		line_list.sort()
+
+		string = ""
+		for line in line_list:
+			string += line
+			string += "\n"
+
+		return string
+
+	def translate(self):
+		inspector = Inspector(self.source_tree, self.stage_name)
+
+		for deleted_file_dict in self.deleted_file_list:
+			file_path = deleted_file_dict["file_path"]
+			action_name = inspector.inspect(file_path, deletion=True)
+
+			for action_type in Action.list():
+				if action_type.keyword == action_name:
+					target_action = action_type(self.source_tree, self.test_dir, file_path, self.stage_name)
+
+					translated_file_path = target_action.getFileNewName()
+
+					deleted_part_dict = {
+						"pak_name": deleted_file_dict["pak_name"],
+						"file_path": translated_file_path,
+					}
+
+					self.deleted_part_list.append(deleted_part_dict)
+					break;
+
+		return self.deleted_part_list
+
+	def removePart(self, pak_name, file_path):
+		deleted_part_dict = {
+			"pak_name": pak_name,
+			"file_path": file_path,
+		}
+
+		self.deleted_part_list.remove(deleted_part_dict)
+
+	def remove(self, pakdir_path):
+		deleted_file_path = os.path.join(pakdir_path, "DELETED")
+		if os.path.isfile(deleted_file_path):
+			os.remove(deleted_file_path)
+
 
 class Deps():
-	def __init__(self):
+	def __init__(self, source_tree, test_dir):
 		self.deps_dict = OrderedDict()
+		self.source_dir = source_tree.dir
+		self.test_dir = test_dir
 
-	def read(self, pakdir_path):
-		deps_file_path = os.path.join(pakdir_path, "DEPS")
+	def get_source_path(self, deps_dir):
+		if not deps_dir:
+			deps_dir = self.source_dir
+
+		deleted_file_path = os.path.join(deps_dir, "DEPS")
+
+		return deleted_file_path
+
+	def get_test_path(self, deps_dir):
+		if not deps_dir:
+			deps_dir = self.test_dir
+
+		deleted_file_path = os.path.join(deps_dir, "DEPS")
+
+		return deleted_file_path
+
+	def read(self, deps_dir=None):
+		deps_file_path = self.get_source_path(deps_dir)
 
 		if not os.path.isfile(deps_file_path):
 			return False
@@ -989,7 +1213,7 @@ class Deps():
 
 		return True
 
-	def translateTest(self, pakpath):
+	def translateTest(self):
 		Ui.laconic("translating DEPS for testing")
 		for pak_name in self.deps_dict.keys():
 			pak_version = self.get(pak_name)
@@ -1009,11 +1233,13 @@ class Deps():
 
 			self.set(pak_name, pak_version)
 
-	def write(self, pakdir_path):
-		deps_file_path = os.path.join(pakdir_path, "DEPS")
+	def write(self, deps_dir=None):
+		deps_file_path = self.get_test_path(deps_dir)
 		deps_file = open(deps_file_path, "w")
 		deps_file.write(self.produce())
-		return deps_file_path
+		deps_file.close()
+
+		return
 
 	def get(self, pak_name):
 		if pak_name not in self.deps_dict.keys():

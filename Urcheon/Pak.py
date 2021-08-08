@@ -25,6 +25,8 @@ import tempfile
 import time
 import zipfile
 from collections import OrderedDict
+from datetime import datetime
+from operator import attrgetter
 
 
 class MultiRunner():
@@ -114,6 +116,8 @@ class Builder():
 		self.pak_vfs = pak_vfs
 		self.source_tree = source_tree
 		self.source_dir = source_tree.dir
+		self.pak_name = source_tree.pak_name
+		self.pak_format = source_tree.pak_format
 		self.game_name = source_tree.game_name
 		self.stage_name = stage_name
 		self.test_dir = test_dir
@@ -126,16 +130,16 @@ class Builder():
 
 		action_list = Action.List(source_tree, stage_name, disabled_action_list=disabled_action_list)
 
+		if self.pak_format == "dpk":
+			self.deleted = Repository.Deleted(self.source_tree, self.test_dir, self.stage_name)
+			self.deps = Repository.Deps(self.source_tree, self.test_dir)
+
 		if not is_nested:
+			if self.pak_format == "dpk":
+				deleted_action_list = self.deleted.getActions()
+				action_list.readActions(action_list=deleted_action_list)
+
 			action_list.readActions()
-
-		# do not look for pak configuration in temporary directories
-		# do not build temporary stuff in system build directories
-		if not is_nested:
-			self.pak_name = self.source_tree.pak_name
-
-		else:
-			self.test_dir = test_dir
 
 		if not file_list:
 			# FIXME: only if one package?
@@ -144,7 +148,7 @@ class Builder():
 
 			# NOTE: already prepared file can be seen as source again, but there may be no easy way to solve it
 			if since_reference:
-				file_repo = Repository.Git(self.source_dir, self.source_tree.pak_config.game_profile.pak_format)
+				file_repo = Repository.Git(self.source_dir, self.pak_format)
 				file_list = file_repo.listFilesSinceReference(since_reference)
 
 				# also look for untracked files
@@ -245,7 +249,7 @@ class Builder():
 
 				if not self.is_parallel or not action_type.is_parallel:
 					# sequential build explicitely requested (like in recursion)
-					# or action that can't be run concurrently to others (like MergeBs)
+					# or action that can't be run concurrently to others (like MergeBsp)
 					produced_unit_list.extend(action.run())
 				else:
 					# do not use >= in case of there is some extra thread we don't think about
@@ -277,16 +281,40 @@ class Builder():
 		# must wait
 		Parallelism.joinThreads(action_thread_list)
 
+		# Handle symbolic links.
+		for action_type in Action.list():
+			for file_path in self.action_list.active_action_dict[action_type.keyword]:
+				action = action_type(self.source_tree, self.test_dir, file_path, self.stage_name, action_list=self.action_list, map_profile=self.map_profile, is_nested=self.is_nested)
+
+				# TODO: check for symbolic link to missing or deleted files.
+				produced_unit_list.extend(action.symlink())
+
 		# deduplication
 		unit_list = []
+		deleted_file_list = []
+		produced_file_list = []
 		for unit in produced_unit_list:
-			if unit == {}:
-				# because of ignore action
+			if unit == []:
 				continue
 
 			logging.debug("unit: " + str(unit))
 			head = unit["head"]
 			body = unit["body"]
+			action = unit["action"]
+
+			if action == "ignore":
+				continue
+
+			if action == "delete":
+				deleted_file_list += head
+
+			if head not in produced_file_list:
+				produced_file_list.append(head)
+
+				for part in body:
+					if part not in produced_file_list:
+						# FIXME: only if action was not “ignore”
+						produced_file_list.append(part)
 
 			# if multiple calls produce the same files (like merge_bsp)
 			if head in unit:
@@ -297,33 +325,101 @@ class Builder():
 		produced_unit_list = unit_list
 
 		if self.stage_name == "build" and not self.is_nested:
-			if self.game_profile.pak_format == "dpk":
+			if self.pak_format == "dpk":
+				is_deleted = False
+
+				if self.since_reference:
+					Ui.laconic("looking for deleted files")
+					# Unvanquished game did not support DELETED file until after 0.52.1.
+					workaround_no_delete = self.source_tree.game_name == "unvanquished" and self.since_reference in ["unvanquished/0.52.1", "v0.52.1"]
+
+					git_repo = Repository.Git(self.source_dir, "dpk", workaround_no_delete=workaround_no_delete)
+
+					previous_version = git_repo.computeVersion(self.since_reference, named_reference=True)
+					self.deps.set(self.pak_name, previous_version)
+
+					for deleted_file in git_repo.getDeletedFileList(self.since_reference):
+						if deleted_file not in deleted_file_list:
+							is_deleted = True
+							deleted_file_list.append(deleted_file)
+
+				if deleted_file_list:
+					is_deleted = True
+					for deleted_file in deleted_file_list:
+						self.deleted.set(self.pak_name, deleted_file)
+
+				if self.deleted.read():
+					is_deleted = True
+
+				if is_deleted:
+					deleted_part_list = self.deleted.translate()
+
+					# TODO: No need to mark as DELETED a file from the same
+					# package if it does not depend on itself.
+					# TODO: A way to not translate DELETED files may be needed
+					# in some cases.
+
+					# If flamer.jpg producing flamer.crn was replaced
+					# by flamer.png also producing flamer.crn, the
+					# flamer.crn file will be listed as deleted
+					# while it will be shipped, but built from another
+					# source file, so we must check deleted files
+					# aren't built in other way to avoid listing
+					# as deleted a file that is actually shipped.
+					for deleted_part_dict in deleted_part_list:
+						is_built = False
+						if deleted_part_dict["pak_name"] == self.pak_name:
+							deleted_part = deleted_part_dict["file_path"]
+
+							if deleted_part in produced_file_list:
+								is_built = True
+								Ui.laconic(deleted_part + ": do nothing because it is produced by another source file.")
+								self.deleted.removePart(self.pak_name, deleted_part)
+
+						if not is_built:
+							Ui.laconic(deleted_part + ": will mark as deleted.")
+
+					# Writing DELETED file.
+					for deleted_part in deleted_part_list:
+						self.deleted.set(self.source_tree.pak_name, deleted_part)
+
+					is_deleted = self.deleted.write()
+
+				if is_deleted:
+					unit = {
+						"head": "DELETED",
+						"body": [ "DELETED" ],
+					}
+
+					produced_unit_list.append(unit)
+				else:
+					# Remove DELETED leftover from partial build.
+					self.deps.remove(self.test_dir)
+
 				is_deps = False
 
-				deps = Repository.Deps()
-
-				# add itself to DEPS if partial build
+				# add itself to DEPS if partial build,
+				# also look for deleted files
 				if self.since_reference:
 					is_deps = True
-					git_repo = Repository.Git(self.source_dir, "dpk")
-					previous_version = git_repo.computeVersion(self.since_reference, named_reference=True)
-					deps.set(self.pak_name, previous_version)
 
-				if deps.read(self.source_dir):
+				if self.deps.read():
 					is_deps = True
 
 				if is_deps:
 					# translating DEPS file
-					deps.translateTest(self.pak_vfs)
-					deps.write(self.test_dir)
+					self.deps.translateTest()
+					self.deps.write()
 
-					unit = {}
-					unit["head"] = "DEPS"
-					unit["body"] = []
+					unit = {
+						"head": "DEPS",
+						"body": [ "DEPS" ],
+					}
+
 					produced_unit_list.append(unit)
 				else:
-					# remove DEPS leftover from partial build
-					deps.remove(self.test_dir)
+					# Remove DEPS leftover from partial build.
+					self.deps.remove(self.test_dir)
 
 		logging.debug("produced unit list:" + str(produced_unit_list))
 
@@ -347,6 +443,7 @@ class Packager():
 		self.pak_vfs = pak_vfs
 
 		self.pak_config = source_tree.pak_config
+		self.pak_format = source_tree.pak_format
 		self.no_compress = no_compress
 
 		self.test_dir = self.pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
@@ -418,23 +515,58 @@ class Packager():
 				if file_path.startswith(paktrace_dir + os.path.sep):
 					continue
 
-				# ignore DEPS file, will add it later
-				if file_path == "DEPS" and self.game_profile.pak_format == "dpk":
+				# ignore DELETED and DEPS file, will add it later
+				if self.pak_format == "dpk" and file_path in Repository.dpk_special_files:
 					continue
 
 				found_file = True
 
-				Ui.print("add file to package " + os.path.basename(self.pak_file) + ": " + file_path)
-				pak.write(full_path, arcname=file_path)
+				# TODO: add a mechanism to know if VFS supports
+				# symbolic links in packages or not.
+				# Dæmon's DPK VFS is supporting symbolic links.
+				# DarkPlaces' PK3 VFS is supporting symbolic links.
+				# Others may not.
+				is_symlink_supported = True
+				if is_symlink_supported and os.path.islink(full_path):
+					Ui.print("add symlink to package " + os.path.basename(self.pak_file) + ": " + file_path)
 
-		if self.game_profile.pak_format == "dpk":
-			# translating DEPS file
-			deps = Repository.Deps()
-			if deps.read(self.test_dir):
-				deps.translateRelease(self.pak_vfs)
+					# TODO: Remove this test when Urcheon deletes extra
+					# files in build directory. Currently a deleted but not
+					# committed file is kept.
+					if os.path.exists(full_path):
+						# FIXME: getmtime reads realpath datetime, not symbolic link datetime.
+						file_date_time = (datetime.fromtimestamp(os.path.getmtime(full_path)))
+
+					# See https://stackoverflow.com/a/61795576/9131399
+					attrs = ('year', 'month', 'day', 'hour', 'minute', 'second')
+					file_date_time_tuple = attrgetter(*attrs)(file_date_time)
+
+					# See https://stackoverflow.com/a/60691331/9131399
+					zip_info = zipfile.ZipInfo(file_path, date_time=file_date_time_tuple)
+					zip_info.create_system = 3
+
+					file_permissions = 0o777
+					file_permissions |= 0xA000
+					zip_info.external_attr = file_permissions << 16
+
+					target_path = os.readlink(full_path)
+					pak.writestr(zip_info, target_path)
+				else:
+					Ui.print("add file to package " + os.path.basename(self.pak_file) + ": " + file_path)
+					pak.write(full_path, arcname=file_path)
+
+		if self.pak_format == "dpk":
+			# Writing DELETED file.
+			deleted_file_path = self.deleted.get_test_path()
+			if os.path.isfile(deleted_file_pathe):
+					pak.write(deleted_file_path, arcname="DELETED")
+
+			# Translating DEPS file.
+			if self.deps.read(deps_dir=self.test_dir):
+				self.deps.translateRelease(self.pak_vfs)
 
 				deps_temp_dir = tempfile.mkdtemp()
-				deps_temp_file = deps.write(deps_temp_dir)
+				deps_temp_file = self.deps.write(deps_dir=deps_temp_dir)
 				Ui.print("add file to package " + os.path.basename(self.pak_file) + ": DEPS")
 				pak.write(deps_temp_file, arcname="DEPS")
 
@@ -516,6 +648,7 @@ class Cleaner():
 
 	def cleanDust(self, test_dir, produced_unit_list, previous_file_list):
 		# TODO: remove extra files that are not tracked in paktraces?
+		# FIXME: reuse produced_file_list from build()
 		produced_file_list = []
 		head_list = []
 		for unit in produced_unit_list:

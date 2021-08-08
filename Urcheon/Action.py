@@ -53,15 +53,21 @@ class List():
 			self.computed_active_action_dict[action_name] = []
 			self.computed_disabled_action_dict[action_name] = []
 
-	def readActions(self):
-		if os.path.isfile(self.action_list_path):
-			action_list_file = open(self.action_list_path, "r")
-			line_list = [line.strip() for line in action_list_file]
-			action_list_file.close()
+	def readActions(self, action_list=None):
+		if not action_list:
+			if os.path.isfile(self.action_list_path):
+				action_list_file = open(self.action_list_path, "r")
+				line_list = [line.strip() for line in action_list_file]
+				action_list_file.close()
+			else:
+				Ui.verbose("List not found: " + self.action_list_file_path)
+				return
 
 			action_line_pattern = re.compile(r"^[ \t]*(?P<action_name>[^ \t]*)[ \t]*(?P<file_path>.*)$")
 			quoted_path_pattern = re.compile(r"^\"(?P<file_path>.*)\"[ \t]*$")
 			disabled_action_pattern = re.compile(r"^#[ \t]*(?P<action_name>.*)$")
+
+			action_list = []
 
 			for line in line_list:
 				line_match = action_line_pattern.match(line)
@@ -82,17 +88,28 @@ class List():
 					if action_name == "":
 						# empty line
 						continue
-
-					file_fullpath = os.path.realpath(os.path.join(self.source_dir, file_path))
-					if os.path.isfile(file_fullpath):
-						Ui.print(file_path + ": Known rule, will " + self.inspector.action_description_dict[action_name] + " (predefined action).")
-						self.active_action_dict[action_name].append(file_path)
 					else:
-						Ui.print(file_path + ": Known rule, will not " + self.inspector.action_description_dict[action_name] + " (missing file).")
-						self.computed_disabled_action_dict[action_name].append(file_path)
+						action_dict = {
+							"action_name": action_name,
+							"file_path": file_path,
+						}
 
-		else:
-			Ui.verbose("List not found: " + self.action_list_file_path)
+						action_list.append(action_dict)
+
+		# This is not an else.
+		if action_list:
+			for action_dict in action_list:
+				action_name = action_dict["action_name"]
+				file_path = action_dict["file_path"]
+
+				file_fullpath = os.path.realpath(os.path.join(self.source_dir, file_path))
+				if os.path.isfile(file_fullpath):
+					Ui.print(file_path + ": Known rule, will " + self.inspector.action_description_dict[action_name] + " (predefined action).")
+					self.active_action_dict[action_name].append(file_path)
+				else:
+					Ui.print(file_path + ": Known rule, will not " + self.inspector.action_description_dict[action_name] + " (missing file).")
+					self.computed_disabled_action_dict[action_name].append(file_path)
+
 
 	def computeActions(self, file_list):
 		for file_path in file_list:
@@ -150,7 +167,7 @@ def list():
 	# can fill the available slots with quicker things
 	# when the slow tasks are not very well
 	# multithreaded
-	action_list = [
+	return [
 		# even bsp copying can be slow if it triggers minimap
 		# and navmesh generation
 		CopyBsp,
@@ -186,17 +203,18 @@ def list():
 		Copy,
 		Keep,
 		Ignore,
+		Delete,
 	]
-	return action_list
 
 
 class Action():
+	# TODO: rename keyword to name
 	keyword = "dumb"
 	description = "dumb action"
 	is_parallel = True
 	threaded = False
 
-	def __init__(self, source_tree, build_dir, file_path, stage_name, map_profile=None, thread_count=1, is_parallel=True, is_nested=False):
+	def __init__(self, source_tree, build_dir, file_path, stage_name, map_profile=None, action_list=None, thread_count=1, is_parallel=True, is_nested=False):
 		self.body = []
 		self.source_tree = source_tree
 		self.source_dir = source_tree.dir
@@ -205,6 +223,7 @@ class Action():
 		self.file_path = file_path
 		self.stage_name = stage_name
 		self.map_profile = map_profile
+		self.action_list = action_list
 		self.thread_count = thread_count
 		self.is_parallel = is_parallel
 		self.is_nested = is_nested
@@ -217,9 +236,92 @@ class Action():
 		else:
 			return False
 
+	# TODO: Maybe tell developer when nothing is done because he
+	# has to call both run() and symlink() to handle all the uses cases.
 	def run(self):
+		full_path = os.path.join(self.source_dir, self.file_path)
+
+		if os.path.islink(full_path):
+			return []
+		else:
+			return self.effective_run()
+
+	def symlink(self):
+		full_path = os.path.join(self.source_dir, self.file_path)
+
+		# It is not supported at prepare time,
+		# The symlink already exists in source since it's source.
+		# TODO: When we will be able to prepare to another directory
+		# we would have to enable for this use case.
+		if self.stage_name == "prepare":
+			return []
+
+		if os.path.islink(full_path):
+			return self.effective_symlink()
+		else:
+			return []
+
+	def effective_run(self):
 		Ui.laconic("Dumb action: " + self.file_path)
 		return getProducedUnitList()
+
+	def effective_symlink(self):
+		if not self.action_list:
+			Ui.error("Doing symbolic links with Action class requires to pass action_list on initialization")
+
+		full_path = os.path.join(self.source_dir, self.file_path)
+		real_path = os.path.realpath(full_path)
+
+		found_target = False
+		for action_type in list():
+			for target_file_path in self.action_list.active_action_dict[action_type.keyword]:
+				target_full_path = os.path.join(self.source_dir, target_file_path)
+
+				if self.file_path == target_file_path:
+					continue
+
+				target_real_path = os.path.realpath(target_full_path)
+
+				if real_path == target_real_path:
+					found_target = True
+
+					target_action = action_type(self.source_tree, self.build_dir, target_file_path, self.stage_name)
+
+					if not target_action.isDone():
+						Ui.error("Target symbolic link for " + self.file_path + " cannot be done because " + target_file_path + " isn't built yet.")
+
+					built_target_file_path = target_action.getFileNewName()
+					built_target_full_path = os.path.join(self.build_dir, built_target_file_path)
+					built_target_real_path = os.path.realpath(built_target_full_path)
+
+					# Get the new name for the source file with the action of the target file.
+					file_action = action_type(self.source_tree, self.build_dir, self.file_path, self.stage_name)
+					built_file_path = file_action.getFileNewName()
+					built_full_path = os.path.join(self.build_dir, built_file_path)
+
+					# The existing file must be deleted before calling realpath
+					# otherwise realpath may return path to a target path
+					# if the symbolic link is already created.
+					if os.path.exists(built_full_path):
+						os.remove(built_full_path)
+
+					built_real_path = os.path.realpath(built_full_path)
+
+					built_dir = os.path.dirname(built_real_path)
+					built_target_relative_path = os.path.relpath(built_target_real_path, start=built_dir)
+
+					# Do not use built_real_path or the symbolic link
+					# will be written to itself.
+					Ui.laconic("Writing " + built_file_path + " symbolic link")
+					os.symlink(built_target_relative_path, built_full_path)
+
+					logging.debug("setting stat from “" + real_path + "”: " + built_target_real_path)
+					shutil.copystat(real_path, built_full_path)
+
+					return self.getProducedUnitList(head=built_file_path)
+
+		if not found_target:
+			Ui.error("Target " + target_file_path + " not found for " + file_path)
 
 	def getFileNewName(self):
 		# must be overriden in sub class
@@ -232,29 +334,32 @@ class Action():
 	def getTargetPath(self):
 		return os.path.join(self.build_dir, self.getFileNewName())
 
-	def getBody(self):
-		head = self.getFileNewName()
-
+	def getBody(self, head):
 		if head not in self.body:
 			# head is always part of body
 			self.body += [ head ]
 
 		return self.body
 
-	def getProducedUnitList(self):
-		head = self.getFileNewName()
-		body = self.getBody()
+	def getProducedUnitList(self, head=None, write=True):
+		if not head:
+			head = self.getFileNewName()
 
+		body = self.getBody(head)
+
+		# If action is not ignore nor delete,
 		# always write paktrace, even if head is the only body part because
 		# the prepare stage clean-up needs to track all produced files
-		# except in nested build of course since they are already tracked
+		# except in nested build of course since they are already tracked.
 		if not self.is_nested:
 			head = self.getFileNewName()
-			self.paktrace.write(self.file_path, head, body)
+			if write:
+				self.paktrace.write(self.file_path, head, body)
 
 		unit = {
 			"head": head,
-			"body": body
+			"body": body,
+			"action": self.keyword
 		}
 
 		return [ unit ]
@@ -263,18 +368,21 @@ class Action():
 		head = self.getFileNewName()
 
 		# we are reusing already built files, reuse body
+		# TODO: write and read action
 		body = self.paktrace.readBody(head)
-		
+
 		unit = {
 			"head": head,
-			"body": body
+			"body": body,
+			# TODO: write and read action
+			"action": ""
 		}
 
 		return [ unit ]
 
 	def getExt(self):
 		return os.path.splitext(self.file_path)[1][len(os.path.extsep):].lower()
-	
+
 	def isDifferent(self):
 		if not os.path.isfile(self.getTargetPath()):
 			return True
@@ -330,28 +438,41 @@ class Action():
 
 		return FileSystem.getNewer(file_reference_list)
 
+
+# TODO: Catch when it is not supported and print a warning.
+# It is only supported on DPK VFS.
+# TODO: Raise a warning if used in an action file.
+# It is not expected to be used in action files
+# but generated by translating DELETED Files.
+class Delete(Action):
+	keyword = "delete"
+	description = "mark file as deleted"
+
+	def isDone(self):
+		return False
+
+	def effective_run(self):
+		# Marking file as deleted is done once everything else is built.
+		return self.getProducedUnitList(write=False)
+
+
 class Ignore(Action):
 	keyword = "ignore"
 	description = "ignore file"
 
 	def isDone(self):
-		# trick, the task is done in test stage to bypass the available thread compute
+		return False
+
+	def effective_run(self):
 		Ui.verbose("Ignore: " + self.file_path)
-		return True
-
-	def run(self):
-		# trick, the task is done in test stage to bypass the available thread compute
-		return self.getProducedUnitList()
-
-	def getProducedUnitList(self):
-		return {}
+		return self.getProducedUnitList(write=False)
 
 
 class Keep(Action):
 	keyword = "keep"
 	description = "keep file"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -367,7 +488,7 @@ class Copy(Action):
 	keyword = "copy"
 	description = "copy file"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -386,7 +507,7 @@ class ConvertJpg(Action):
 	printable_target_format = "jpg"
 	convert_jpg_quality = 92
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -421,7 +542,7 @@ class ConvertPng(Action):
 	keyword = "convert_png"
 	description = "convert to png format"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -451,7 +572,7 @@ class ConvertLossyWebp(Action):
 	printable_target_format = "lossy webp"
 	cwebp_extra_args = ["-m", "6", "-q", "95", "-pass", "10"]
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -477,7 +598,7 @@ class ConvertLossyWebp(Action):
 
 	def getFileNewName(self):
 		return self.switchExtension("webp")
-	
+
 
 class ConvertLosslessWebp(ConvertLossyWebp):
 	keyword = "convert_lossless_webp"
@@ -485,7 +606,7 @@ class ConvertLosslessWebp(ConvertLossyWebp):
 
 	printable_target_format = "lossless webp"
 	cwebp_extra_args = ["-lossless", "-z", "9"]
-	
+
 
 class ConvertCrn(Action):
 	threaded = True
@@ -498,7 +619,7 @@ class ConvertCrn(Action):
 
 	file_ext = "crn"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -566,7 +687,7 @@ class ConvertVorbis(Action):
 	keyword = "convert_vorbis"
 	description = "convert to vorbis format"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -590,7 +711,7 @@ class ConvertOpus(Action):
 	keyword = "convert_opus"
 	description = "convert to opus format"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -614,7 +735,7 @@ class CompileIqm(Action):
 	keyword = "compile_iqm"
 	description = "compile to iqm format"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -675,7 +796,7 @@ class PrevRun(Action):
 		# we can detect added files, but not removed files yet
 		return False
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 
 		self.prevrun = Texset.PrevRun(self.source_tree, source_path)
@@ -695,6 +816,7 @@ class PrevRun(Action):
 			unit = {
 				"head": head,
 				"body": body,
+				"action": self.keyword
 			}
 
 			unit_list.append(unit)
@@ -714,7 +836,7 @@ class SlothRun(Action):
 		# we can detect added files, but not removed files yet
 		return False
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 
 		self.slothrun = Texset.SlothRun(self.source_tree, source_path)
@@ -769,7 +891,7 @@ class CopyBsp(DumbTransient):
 	keyword = "copy_bsp"
 	description = "copy bsp file"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
@@ -798,7 +920,7 @@ class MergeBsp(DumbTransient):
 	description = "merge into a bsp file"
 	is_parallel = False
 
-	def run(self):
+	def effective_run(self):
 		# HACK: it's called on all the files but called for every file
 		# that's why this action is not callable in parallel:
 		# once the first run is done for one file, it's done
@@ -871,7 +993,7 @@ class CompileBsp(DumbTransient):
 	keyword = "compile_bsp"
 	description = "compile to bsp format"
 
-	def run(self):
+	def effective_run(self):
 		source_path = self.getSourcePath()
 		copy_path = self.getTargetPath()
 		build_path = self.getTargetPath()
