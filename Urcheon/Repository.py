@@ -759,10 +759,10 @@ class Git():
 	def isVersionTag(self, reference):
 		return self.version_tag_pattern.match(reference)
 
-	def computeVersion(self, reference, since_reference=False):
-		reference_id = self.getCommit(reference)
+	def computeVersion(self, since_reference, named_reference=False):
+		reference_id = self.getCommit(since_reference)
 
-		is_tag = self.isVersionTag(reference)
+		is_tag = self.isVersionTag(since_reference)
 		is_straight = False
 		is_empty = False
 		version = "0"
@@ -777,10 +777,10 @@ class Git():
 
 				# Skip commits without version tag when reference is
 				# a version tag producing an empty pak.
-				if since_reference and is_empty:
+				if named_reference and is_empty:
 					if is_tag and not tag_name:
-							# Look for next commit having a version tag.
-							continue
+						# Look for next commit having a version tag.
+						continue
 
 					# If diff with previous reference produced empty pak,
 					# restart computeVersion on this reference instead.
