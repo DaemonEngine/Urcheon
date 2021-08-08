@@ -773,7 +773,7 @@ class Git():
 		else:
 			for commit in self.getCommitList(reference_id):
 				tag_name = self.getVersionTag(commit)
-				print(commit + " " + str(tag_name))
+				logging.debug("commit name: " + commit + ", tag name: " + str(tag_name))
 
 				# Skip commits without version tag when reference is
 				# a version tag producing an empty pak.
@@ -793,7 +793,7 @@ class Git():
 				# will not depend on a non-existing pak.
 				if not self.hasModification(reference_id):
 					# Attempt to computeVersion on next reference.
-					print(commit + " no modif")
+					logging.debug("commit " + commit + " has no modification")
 					is_empty = True
 					continue
 
@@ -826,7 +826,7 @@ class Git():
 		stdout, stderr = proc.communicate()
 
 		file_list = stdout.decode().splitlines()
-		print(str(file_list))
+		logging.debug("modified file list: " + str(file_list))
 
 		return len(file_list) != 0
 
