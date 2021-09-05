@@ -17,7 +17,6 @@ import sys
 from collections import OrderedDict
 from logging import debug
 
-
 # see https://github.com/Unvanquished/Unvanquished/blob/master/src/gamelogic/game/g_spawn.cpp
 q3_sound_keyword_list = [
 	"noise",
@@ -27,11 +26,17 @@ q3_sound_keyword_list = [
 	"soundPos2",
 ]
 
-# see http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
+# Two kinds of Quake 3 brush formats are known:
+# - Q3 Brush, also known as “Axial Projection” or AP, sometime referred to as Q3 Legacy Brush, the historical and most used format, seems to be derived from Quake format.
+# - Q3 BP Brush, also known as “Brush Primitives” or BP, sometime referred to as “Alternate Texture Projection”, also very old but less old (introduced in Q3Radiant 192).
+
+# For Quake 3 brush and patch format, see:
+# see https://web.archive.org/web/20160316213335/http://forums.ubergames.net/topic/2658-understanding-the-quake-3-map-format/
 
 class Map():
 	def __init__(self):
 		self.entity_list = None
+
 		# write entity numbers or not
 		self.numbering_enabled = True
 
@@ -50,18 +55,18 @@ class Map():
 		in_entity = False
 		in_shape = False
 
-		in_brush = False
-
-		start_q3brush = False
 		in_q3brush = False
 
-		start_patch = False
-		in_patch = False
+		start_q3bpbrush = False
+		in_q3bpbrush = False
 
-		in_shader = False
+		start_q3patch = False
+		in_q3patch = False
 
-		start_matrix = False
-		in_matrix = False
+		in_q3patch_material = False
+
+		start_q3patch_matrix = False
+		in_q3patch_matrix = False
 
 		self.entity_list = []
 
@@ -87,10 +92,10 @@ class Map():
 		# // brush num
 		# shape_comment_pattern = re.compile(r"^[ \t]*//[ \t]+brush[ \t]+(?P<shape_num>[0-9]+)[ \t]*$")
 
-		# plane line
+		# q3 brush plane line
 		# coord, textures
-		# ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) shader shift_x shift_y rotation scale_x scale_y flags_content flags_surface value
-		q3legacybrush_plane_pattern = re.compile(r"""
+		# ( coord0_x coord0_y coord0_z ) ( coord1_x coord1_y coord1_z ) ( coord2_x coord2_y coord2_z ) material shift_x shift_y rotation scale_x scale_y flags_content flags_surface value
+		q3brush_plane_pattern = re.compile(r"""
 			[ \t]*\([ \t]*
 			(?P<coord0_x>-?[0-9.]+)[ \t]+
 			(?P<coord0_y>-?[0-9.]+)[ \t]+
@@ -106,7 +111,7 @@ class Map():
 			(?P<coord2_y>-?[0-9.]+)[ \t]+
 			(?P<coord2_z>-?[0-9.]+)[ \t]*
 			\)[ \t]*
-			(?P<shader>[^ \t]+)[ \t]+
+			(?P<material>[^ \t]+)[ \t]+
 			(?P<shift_x>-?[0-9.]+)[ \t]+
 			(?P<shift_y>-?[0-9.]+)[ \t]+
 			(?P<rotation>-?[0-9.]+)[ \t]+
@@ -118,14 +123,14 @@ class Map():
 			[ \t]*$
 			""", re.VERBOSE)
 
-		# patch start
+		# q3 bp brush start
 		# brushDef
-		q3brush_start_pattern = re.compile(r"^[ \t]*brushDef[ \t]*$")
+		q3bpbrush_start_pattern = re.compile(r"^[ \t]*brushDef[ \t]*$")
 
-		# q3brush plane line
+		# q3 bp brush plane line
 		# coord, textures
-		# ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) ( orig_x orig_y orig_z ) ( ( texdef_xx texdef_yx texdef_tx ) ( texdef_xy texdef_yy texdef_ty ) ) shader flag_content flag_surface value
-		q3brush_plane_pattern = re.compile(r"""
+		# ( coord0_x coord0_y coord0_z ) ( coord1_x coord1_y coord1_z ) ( coord2_x coord2_y coord2_z ) ( ( texdef_xx texdef_yx texdef_tx ) ( texdef_xy texdef_yy texdef_ty ) ) material flag_content flag_surface value
+		q3bpbrush_plane_pattern = re.compile(r"""
 			[ \t]*\([ \t]*
 			(?P<coord0_x>-?[0-9.]+)[ \t]+
 			(?P<coord0_y>-?[0-9.]+)[ \t]+
@@ -153,24 +158,24 @@ class Map():
 			(?P<texdef_ty>-?[0-9.]+)[ \t]*
 			\)[ \t]*
 			\)[ \t]*
-			(?P<shader>[^ \t]+)[ \t]+
+			(?P<material>[^ \t]+)[ \t]+
 			(?P<flag_content>[0-9]+)[ \t]+
 			(?P<flag_surface>[0-9]+)[ \t]+
 			(?P<value>[0-9]+)
 			[ \t]*$
 			""", re.VERBOSE)
 
-		# patch start
+		# q3 patch start
 		# patchDef2
 		q3patch_start_pattern = re.compile(r"^[ \t]*patchDef2[ \t]*$")
 
-		# shader
+		# q3 patch material
 		# somename
-		q3patch_shader_pattern = re.compile(r"^[ \t]*(?P<shader>[^ \t]+)[ \t]*$")
+		q3patch_material_pattern = re.compile(r"^[ \t]*(?P<material>[^ \t]+)[ \t]*$")
 
 		# vertex matrix info
 		# ( width height reserved0 reserved1 reserved2 )
-		vertex_matrix_info_pattern = re.compile(r"""
+		q3patch_vertex_q3patch_matrix_info_pattern = re.compile(r"""
 			^[ \t]*\([ \t]*
 			(?P<width>[0-9]+)[ \t]+
 			(?P<height>[0-9]+)[ \t]+
@@ -182,17 +187,17 @@ class Map():
 
 		# vertex matrix opening
 		# (
-		vertex_matrix_opening_pattern = re.compile(r"^[ \t]*\([ \t]*$")
+		q3patch_vertex_q3patch_matrix_opening_pattern = re.compile(r"^[ \t]*\([ \t]*$")
 
 		# vertex line
-		vertex_line_pattern = re.compile(r"""
+		q3patch_vertex_line_pattern = re.compile(r"""
 			^[ \t]*\([ \t]*
-			(?P<vertex_list>\([ \t]*[ \t0-9.\(\)-]+[ \t]*\))[ \t]*
+			(?P<q3patch_vertex_list>\([ \t]*[ \t0-9.\(\)-]+[ \t]*\))[ \t]*
 			\)[ \t]*$
 			""", re.VERBOSE)
 
 		# vertex list
-		vertex_list_pattern = re.compile(r"""
+		q3patch_vertex_list_pattern = re.compile(r"""
 			^[ \t]*\([ \t]*
 			(?P<origin_x>-?[0-9.]+)[ \t]*
 			(?P<origin_y>-?[0-9.]+)[ \t]*
@@ -206,7 +211,7 @@ class Map():
 
 		# vertex matrix ending
 		# )
-		vertex_matrix_ending_pattern = re.compile(r"^[ \t]*\)[ \t]*$")
+		q3patch_vertex_q3patch_matrix_ending_pattern = re.compile(r"^[ \t]*\)[ \t]*$")
 
 		# block ending
 		# }
@@ -240,7 +245,7 @@ class Map():
 
 			# In Entity
 
-			if not in_brush and not start_q3brush and not in_q3brush and not start_patch and not in_patch:
+			if not in_q3brush and not start_q3bpbrush and not in_q3bpbrush and not start_q3patch and not in_q3patch:
 				# We can only find KeyValue or Shape opening block at this point
 				if not in_shape:
 					# KeyValue pair
@@ -264,53 +269,53 @@ class Map():
 
 				# Brush/Patch start
 				else: # in_shape
-					if q3brush_start_pattern.match(line):
-						debug("Start Q3 Brush")
-						self.entity_list[-1].thing_list.append(Q3Brush())
-						in_q3brush = False
-						start_q3brush = True
+					if q3bpbrush_start_pattern.match(line):
+						debug("Start Q3 BP Brush")
+						self.entity_list[-1].thing_list.append(Q3BPBrush())
+						in_q3bpbrush = False
+						start_q3bpbrush = True
 						continue
 
 					if q3patch_start_pattern.match(line):
 						debug("Start Q3 Patch")
 						self.entity_list[-1].thing_list.append(Q3Patch())
 						in_shape = False
-						start_patch = True
+						start_q3patch = True
 						continue
 
 					# if we are not a brush or patch, and not a ending brush or patch (ending shape)
 					if not block_ending_pattern.match(line):
-						debug("In Q3 Legacy Brush")
-						self.entity_list[-1].thing_list.append(Q3LegacyBrush())
+						debug("In Q3Brush")
+						self.entity_list[-1].thing_list.append(Q3Brush())
 						in_shape = False
-						in_brush = True
+						in_q3brush = True
 						# do not continue! this line must be read one more time!
 						# this is brush content!
 
 			# Q3 Patch opening
-			if start_patch and not in_patch:
+			if start_q3patch and not in_q3patch:
 				if block_opening_pattern.match(line):
 					debug("In Q3 Patch")
-					start_patch = False
-					in_patch = True
-					in_shader = True
+					start_q3patch = False
+					in_q3patch = True
+					in_q3patch_material = True
 					continue
 
-			# Q3 Brush opening
-			if start_q3brush and not in_q3brush:
+			# Q3 BP Brush opening
+			if start_q3bpbrush and not in_q3bpbrush:
 				if block_opening_pattern.match(line):
-					debug("In Q3 Brush")
-					start_q3brush = False
-					in_q3brush = True
+					debug("In Q3 BP Brush")
+					start_q3bpbrush = False
+					in_q3bpbrush = True
 					continue
 
-			# Q3 Legacy Brush content
-			if in_brush:
+			# Q3Brush content
+			if in_q3brush:
 
 				# Plane content
-				match = q3legacybrush_plane_pattern.match(line)
+				match = q3brush_plane_pattern.match(line)
 				if match:
-					debug("Add Plane to Q3 Legacy Brush")
+					debug("Add Plane to Q3Brush")
 					plane = OrderedDict()
 					plane["coord0_x"] = match.group("coord0_x")
 					plane["coord0_y"] = match.group("coord0_y")
@@ -321,7 +326,7 @@ class Map():
 					plane["coord2_x"] = match.group("coord2_x")
 					plane["coord2_y"] = match.group("coord2_y")
 					plane["coord2_z"] = match.group("coord2_z")
-					plane["shader"] = match.group("shader")
+					plane["material"] = match.group("material")
 					plane["shift_x"] = match.group("shift_x")
 					plane["shift_y"] = match.group("shift_y")
 					plane["rotation"] = match.group("rotation")
@@ -334,16 +339,16 @@ class Map():
 					self.entity_list[-1].thing_list[-1].plane_list.append(plane)
 					continue
 
-				# Q3 Legacy Brush End
+				# Q3Brush End
 				if block_ending_pattern.match(line):
-					debug("End Q3 Legacy Brush")
-					in_brush = False
+					debug("End Q3Brush")
+					in_q3brush = False
 					continue
 
-			# Q3 Brush content
-			if in_q3brush:
+			# Q3 BP Brush content
+			if in_q3bpbrush:
 				# Plane content
-				match = q3brush_plane_pattern.match(line)
+				match = q3bpbrush_plane_pattern.match(line)
 				if match:
 					plane = OrderedDict()
 					plane["coord0_x"] = match.group("coord0_x")
@@ -361,7 +366,7 @@ class Map():
 					plane["texdef_xy"] = match.group("texdef_xy")
 					plane["texdef_yy"] = match.group("texdef_yy")
 					plane["texdef_ty"] = match.group("texdef_ty")
-					plane["shader"] = match.group("shader")
+					plane["material"] = match.group("material")
 					plane["flag_content"] = match.group("flag_content")
 					plane["flag_surface"] = match.group("flag_surface")
 					plane["value"] = match.group("value")
@@ -369,57 +374,54 @@ class Map():
 					self.entity_list[-1].thing_list[-1].plane_list.append(plane)
 					continue
 
-				# Q3 Brush End
+				# Q3 BP Brush End
 				if block_ending_pattern.match(line):
-					debug("End Q3 Legacy Brush")
-					in_q3brush = False
+					debug("End Q3Brush")
+					in_q3bpbrush = False
 					in_shape = True
 					continue
 
 			# Q3 Patch content
-			if in_patch:
-				# Stub
-				# vertexe: ( orig_x orig_y orig_z texcoord_x texcoord_y )
-
-				# Q3 Patch shader
-				if in_shader:
-					match = q3patch_shader_pattern.match(line)
+			if in_q3patch:
+				# Q3 Patch material
+				if in_q3patch_material:
+					match = q3patch_material_pattern.match(line)
 					if match:
-						debug("Add Shader name to Q3 Patch")
-						self.entity_list[-1].thing_list[-1].shader = match.group("shader")
-						in_shader = False
-						in_matrix_info = True
+						debug("Add Material name to Q3 Patch")
+						self.entity_list[-1].thing_list[-1].q3patch_material = match.group("material")
+						in_q3patch_material = False
+						in_q3patch_matrix_info = True
 						continue
 
-				if in_matrix_info:
-					match = vertex_matrix_info_pattern.match(line)
+				if in_q3patch_matrix_info:
+					match = q3patch_vertex_q3patch_matrix_info_pattern.match(line)
 					if match:
 						debug("Add Vertex matrix info to Q3 Patch")
-						self.entity_list[-1].thing_list[-1].vertex_matrix_info["width"] = match.group("width")
-						self.entity_list[-1].thing_list[-1].vertex_matrix_info["height"] = match.group("height")
-						self.entity_list[-1].thing_list[-1].vertex_matrix_info["reserved0"] = match.group("reserved0")
-						self.entity_list[-1].thing_list[-1].vertex_matrix_info["reserved1"] = match.group("reserved1")
-						self.entity_list[-1].thing_list[-1].vertex_matrix_info["reserved2"] = match.group("reserved2")
-						in_matrix_info = False
-						start_matrix = True
+						self.entity_list[-1].thing_list[-1].q3patch_vertex_q3patch_matrix_info["width"] = match.group("width")
+						self.entity_list[-1].thing_list[-1].q3patch_vertex_q3patch_matrix_info["height"] = match.group("height")
+						self.entity_list[-1].thing_list[-1].q3patch_vertex_q3patch_matrix_info["reserved0"] = match.group("reserved0")
+						self.entity_list[-1].thing_list[-1].q3patch_vertex_q3patch_matrix_info["reserved1"] = match.group("reserved1")
+						self.entity_list[-1].thing_list[-1].q3patch_vertex_q3patch_matrix_info["reserved2"] = match.group("reserved2")
+						in_q3patch_matrix_info = False
+						start_q3patch_matrix = True
 						continue
 
-				if start_matrix:
-					if vertex_matrix_opening_pattern.match(line):
-						start_matrix = False
-						in_matrix = True
+				if start_q3patch_matrix:
+					if q3patch_vertex_q3patch_matrix_opening_pattern.match(line):
+						start_q3patch_matrix = False
+						in_q3patch_matrix = True
 						continue
 
-				if in_matrix:
-					if not vertex_matrix_ending_pattern.match(line):
-						match = vertex_line_pattern.match(line)
+				if in_q3patch_matrix:
+					if not q3patch_vertex_q3patch_matrix_ending_pattern.match(line):
+						match = q3patch_vertex_line_pattern.match(line)
 						if match:
 							debug("Add line to patch")
-							vertex_list = []
-							vertex_list_string = match.group("vertex_list")
+							q3patch_vertex_list = []
+							q3patch_vertex_list_string = match.group("q3patch_vertex_list")
 
-							debug("Reading substring: " + vertex_list_string)
-							match = vertex_list_pattern.match(vertex_list_string)
+							debug("Reading substring: " + q3patch_vertex_list_string)
+							match = q3patch_vertex_list_pattern.match(q3patch_vertex_list_string)
 							while match:
 								debug("Add vertex to patch line")
 								vertex = {}
@@ -429,24 +431,24 @@ class Map():
 								vertex["texcoord_x"] = match.group("texcoord_x")
 								vertex["texcoord_y"] = match.group("texcoord_y")
 
-								vertex_list.append(vertex)
+								q3patch_vertex_list.append(vertex)
 
 								remaining = match.group("remaining")
 								debug("Reading substring: " + remaining)
-								match = vertex_list_pattern.match(remaining)
+								match = q3patch_vertex_list_pattern.match(remaining)
 
-							self.entity_list[-1].thing_list[-1].vertex_matrix.append(vertex_list)
+							self.entity_list[-1].thing_list[-1].q3patch_vertex_q3patch_matrix.append(q3patch_vertex_list)
 
 						continue
 
-					if vertex_matrix_ending_pattern.match(line):
-						in_matrix = False
+					if q3patch_vertex_q3patch_matrix_ending_pattern.match(line):
+						in_q3patch_matrix = False
 						continue
 
 				# Q3 Patch End
 				if block_ending_pattern.match(line):
 					debug("End Q3 Patch")
-					in_patch = False
+					in_q3patch = False
 					in_shape = True
 					continue
 
@@ -467,7 +469,6 @@ class Map():
 			Ui.error("Unknown line: " + line)
 
 		# an empty file is not an error
-
 
 	def exportFile(self, bsp_entities_only=False):
 		if self.entity_list == None:
@@ -533,8 +534,8 @@ class Map():
 						entity_string += "{\n"
 						debug("Exporting Shape #" + str(shape_count))
 
-						if isinstance(shape, Q3LegacyBrush):
-							debug("Exporting Q3 Legacy Brush")
+						if isinstance(shape, Q3Brush):
+							debug("Exporting Q3Brush")
 
 							for plane in shape.plane_list:
 								entity_string += "( "
@@ -552,7 +553,7 @@ class Map():
 								entity_string += plane["coord2_y"] + " "
 								entity_string += plane["coord2_z"] + " "
 								entity_string += ") "
-								entity_string += plane["shader"] + " "
+								entity_string += plane["material"] + " "
 								entity_string += plane["shift_x"] + " "
 								entity_string += plane["shift_y"] + " "
 								entity_string += plane["rotation"] + " "
@@ -563,8 +564,8 @@ class Map():
 								entity_string += plane["value"]
 								entity_string += "\n"
 
-						elif isinstance(shape, Q3Brush):
-							debug("Exporting Q3 Brush")
+						elif isinstance(shape, Q3BPBrush):
+							debug("Exporting Q3 BP Brush")
 							entity_string += "brushDef\n"
 							entity_string += "{\n"
 
@@ -596,7 +597,7 @@ class Map():
 								entity_string += plane["texdef_ty"] + " "
 								entity_string += ") "
 								entity_string += ") "
-								entity_string += plane["shader"] + " "
+								entity_string += plane["material"] + " "
 								entity_string += plane["flag_content"] + " "
 								entity_string += plane["flag_surface"] + " "
 								entity_string += plane["value"]
@@ -608,19 +609,19 @@ class Map():
 							debug("Exporting Q3 Patch")
 							entity_string += "patchDef2\n"
 							entity_string += "{\n"
-							entity_string += shape.shader + "\n"
+							entity_string += shape.q3patch_material + "\n"
 							entity_string += "( "
-							entity_string += shape.vertex_matrix_info["width"] + " "
-							entity_string += shape.vertex_matrix_info["height"] + " "
-							entity_string += shape.vertex_matrix_info["reserved0"] + " "
-							entity_string += shape.vertex_matrix_info["reserved1"] + " "
-							entity_string += shape.vertex_matrix_info["reserved2"] + " "
+							entity_string += shape.q3patch_vertex_q3patch_matrix_info["width"] + " "
+							entity_string += shape.q3patch_vertex_q3patch_matrix_info["height"] + " "
+							entity_string += shape.q3patch_vertex_q3patch_matrix_info["reserved0"] + " "
+							entity_string += shape.q3patch_vertex_q3patch_matrix_info["reserved1"] + " "
+							entity_string += shape.q3patch_vertex_q3patch_matrix_info["reserved2"] + " "
 							entity_string += ")\n"
 							entity_string += "(\n"
 
-							for vertex_line in shape.vertex_matrix:
+							for q3patch_vertex_line in shape.q3patch_vertex_q3patch_matrix:
 								entity_string += "( "
-								for vertex in vertex_line:
+								for vertex in q3patch_vertex_line:
 									entity_string += "( "
 									entity_string += vertex["origin_x"] + " "
 									entity_string += vertex["origin_y"] + " "
@@ -660,7 +661,6 @@ class Map():
 
 		return map_string
 
-
 	def writeFile(self, file_name):
 		map_string = self.exportFile()
 		if map_string:
@@ -668,10 +668,8 @@ class Map():
 			input_map_file.write(str.encode(map_string))
 			input_map_file.close()
 
-
 	def exportBspEntities(self):
 		return self.exportFile(bsp_entities_only=True)
-
 
 	def writeBspEntities(self, file_name):
 		bsp_entities_string = self.exportBspEntities()
@@ -679,7 +677,6 @@ class Map():
 			bsp_entities_file = open(file_name, 'wb')
 			bsp_entities_file.write(str.encode(bsp_entities_string))
 			bsp_entities_file.close()
-
 
 	def substituteKeywords(self, substitution):
 		if not self.entity_list:
@@ -696,23 +693,20 @@ class Map():
 					if thing.key in [ "model", "targetShaderName" ] + q3_sound_keyword_list:
 						thing.value = thing.value.lower()
 
-				elif isinstance(thing, Q3LegacyBrush):
-					for plane in thing.plane_list:
-						plane["shader"] = plane["shader"].lower()
-
 				elif isinstance(thing, Q3Brush):
 					for plane in thing.plane_list:
-						plane["shader"] = plane["shader"].lower()
+						plane["material"] = plane["material"].lower()
+
+				elif isinstance(thing, Q3BPBrush):
+					for plane in thing.plane_list:
+						plane["material"] = plane["material"].lower()
 
 				elif isinstance(thing, Q3Patch):
-					thing.shader = thing.shader.lower()
-
-
+					thing.q3patch_material = thing.q3patch_material.lower()
 
 class Entity():
 	def __init__(self):
 		self.thing_list = []
-
 
 	def substituteKeys(self, substitution):
 		for old_key, new_key in substitution.key_dict.items():
@@ -721,7 +715,6 @@ class Entity():
 				if isinstance(thing, KeyValue):
 					if str.lower(thing.key) == str.lower(old_key):
 						thing.key = new_key
-
 
 	def substituteValues(self, substitution):
 		for old_value, new_value in substitution.value_dict.items():
@@ -735,27 +728,22 @@ class KeyValue():
 		self.key = ""
 		self.value = ""
 
-
 class Shape():
 	pass
-
-
-class Q3LegacyBrush(Shape):
-	def __init__(self):
-		self.plane_list = []
-
 
 class Q3Brush(Shape):
 	def __init__(self):
 		self.plane_list = []
 
+class Q3BPBrush(Shape):
+	def __init__(self):
+		self.plane_list = []
 
 class Q3Patch(Shape):
 	def __init__(self):
-		self.shader = None
-		self.vertex_matrix_info = {}
-		self.vertex_matrix = []
-
+		self.q3patch_material = None
+		self.q3patch_vertex_q3patch_matrix_info = {}
+		self.q3patch_vertex_q3patch_matrix = []
 
 class KeyValueSubstitution():
 	def __init__(self):
@@ -796,9 +784,7 @@ class KeyValueSubstitution():
 					debug("Add Value Substitution [ " + old_value + ", " + new_value + " ]")
 					self.value_dict[old_value] = new_value
 
-
 def main(stage=None):
-
 	if stage:
 		prog_name = os.path.basename(m.__file__) + " " + stage
 	else:
@@ -844,7 +830,6 @@ def main(stage=None):
 
 	if args.output_map_file:
 		map.writeFile(args.output_map_file)
-
 
 if __name__ == "__main__":
 	main()
