@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 from collections import OrderedDict
+from PIL import Image
 
 
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
@@ -396,7 +397,8 @@ class ConvertJpg(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.laconic("Convert to " + self.printable_target_format + ": " + self.file_path)
-			self.callProcess(["convert", "-verbose", "-quality", str(self.convert_jpg_quality), source_path, build_path])
+			image = Image.open(source_path)
+			image.save(build_path, quality=self.convert_jpg_quality)
 
 		self.setTimeStamp()
 
@@ -428,7 +430,8 @@ class ConvertPng(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.laconic("Convert to png: " + self.file_path)
-			self.callProcess(["convert", "-verbose", "-quality", "100", source_path, build_path])
+			image = Image.open(source_path)
+			image.save(build_path)
 
 		self.setTimeStamp()
 
@@ -459,7 +462,10 @@ class ConvertLossyWebp(Action):
 			Ui.laconic("Convert to " + self.printable_target_format +  ": " + self.file_path)
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
-			self.callProcess(["convert", "-verbose", "-strip", source_path, "png:" + transient_path])
+
+			image = Image.open(source_path)
+			image.save(transient_path)
+
 			self.callProcess(["cwebp", "-v", "-mt"] + self.cwebp_extra_args + [transient_path, "-o", build_path])
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
@@ -502,26 +508,20 @@ class ConvertCrn(Action):
 		else:
 			Ui.laconic("Convert to " + self.printable_target_format + ": " + self.file_path)
 
-			# the convert tool from ImageMagick is known to fail to properly convert some jpg files to tga (some of them are produced upside down)
-			# see https://bugs.launchpad.net/ubuntu/+source/imagemagick/+bug/1838860
-			# we know that convert properly converts those jpg to png if we strip metadata
-			# so we can convert them to png to tga before converting them to crn
-			# we must strip metadata to be sure the bug is not postponed to the png to tga conversion 
-			transient_transient_handle, transient_transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient_transient" + os.path.extsep + "png")
-			os.close(transient_transient_handle)
-			self.callProcess(["convert", "-verbose", "-strip", source_path, "png:" + transient_transient_path])
-
-			# the crunch tool only supports a small number of formats, and is known to fail on some variants of the format it handles (example: png)
+			# The crunch tool only supports a small number of formats, and is known to fail on some variants of the format it handles (example: PNG)
 			# See https://github.com/DaemonEngine/crunch/issues/13
-			# the tga format produced by the `convert` tool is believed to be a safe input format for crunch
+			# So, better convert to TGA first.
+
+			# The TGA format produced by the ImageMagick "convert" tool is known to be broken so we don't use the "convert" tool anymore.
+			# See https://gitlab.com/illwieckz/investigating-tga-orientation-in-imagemagick
+
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
-			self.callProcess(["convert", "-verbose", "-strip", transient_transient_path, "tga:" + transient_path])
+
+			image = Image.open(source_path)
+			image.save(transient_path)
 
 			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path] + self.crunch_extra_args + ["-quality", "255", "-out", build_path])
-
-			if os.path.isfile(transient_transient_path):
-				os.remove(transient_transient_path)
 
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
