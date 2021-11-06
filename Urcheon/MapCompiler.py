@@ -352,6 +352,8 @@ class Compiler():
 		scriptdir_path = os.path.realpath(os.path.join(self.build_prefix, "..", "scripts"))
 		os.makedirs(scriptdir_path, exist_ok=True)
 
+		thread_option_list = ["-threads", str(Parallelism.countCPU())]
+
 		pakpath_option_list = ["-fs_nobasepath", "-fs_nohomepath", "-fs_nomagicpath"]
 
 		# FIXME: is os.path.abspath() needed?
@@ -388,7 +390,7 @@ class Compiler():
 			Ui.warning("unknown q3map2 stage in command line, remind that -bsp is required by Urcheon: " + " ".join(option_list))
 			source_path = self.map_path
 
-		command_list = [tool_name] + option_list + pakpath_option_list + extended_option_list + [source_path]
+		command_list = [tool_name] + option_list + thread_option_list + pakpath_option_list + extended_option_list + [source_path]
 		logging.debug("call list: " + str(command_list))
 		Ui.verbose("Build command: " + " ".join(command_list))
 
