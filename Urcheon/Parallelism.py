@@ -8,11 +8,37 @@
 #
 
 import psutil
+import subprocess
 import threading
 
 
 getProcess = psutil.Process
-countCPU = psutil.cpu_count
+
+
+def countCPU():
+	# Reuse computed value
+	if not hasattr(countCPU, "count"):
+
+		try:
+			# On Linux, psutil.cpu_count() and “nproc” may only return the
+			# amount of currently enabled core while the system may disable
+			# or disable them according to the current load, meaning the
+			# reported cpu count may be far lower to what's available.
+			# If we don't ask for the amount of available the present software
+			# may limit itself to a small amount of cores if the system was
+			# idling at the time the present software is called.
+			# The ”nproc --all” command is known to report the amount of
+			# available cores.
+			result = subprocess.run(['nproc', '--all'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+			if result.stdout != b'':
+				countCPU.count = int(result.stdout)
+			else:
+				countCPU.count = psutil.cpu_count()
+		except:
+			countCPU.count = psutil.cpu_count()
+
+	return countCPU.count
 
 
 def countThread(process):
