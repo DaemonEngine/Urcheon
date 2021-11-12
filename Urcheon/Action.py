@@ -515,10 +515,13 @@ class ConvertCrn(Action):
 			# The TGA format produced by the ImageMagick "convert" tool is known to be broken so we don't use the "convert" tool anymore.
 			# See https://gitlab.com/illwieckz/investigating-tga-orientation-in-imagemagick
 
+			# The image is conveted to RGBA to make sure the produced TGA is readable by crunch, and does not use an unsupported TGA variant.
+
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
 
 			image = Image.open(source_path)
+			image = image.convert("RGBA")
 			image.save(transient_path)
 
 			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path] + self.crunch_extra_args + ["-quality", "255", "-out", build_path])
