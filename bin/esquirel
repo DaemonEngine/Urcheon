@@ -10,10 +10,13 @@
 import os.path
 import sys
 
-module_path = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+prefix_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 
-if os.path.isfile(os.path.join(module_path, "Urcheon", "Esquirel.py")):
-	sys.path.append(module_path)
+for sub_dir in [".", "lib/python3/dist-packages"]:
+	module_path = os.path.realpath(os.path.join(prefix_dir, sub_dir))
+	if os.path.isfile(os.path.join(module_path, "Urcheon", "Esquirel.py")):
+		sys.path.append(module_path)
+		break
 
 from Urcheon import Esquirel
 
