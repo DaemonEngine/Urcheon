@@ -398,6 +398,8 @@ class ConvertJpg(Action):
 		else:
 			Ui.laconic("Convert to " + self.printable_target_format + ": " + self.file_path)
 			image = Image.open(source_path)
+			# OSError: cannot write mode RGBA as JPEG
+			image = image.convert("RGB")
 			image.save(build_path, quality=self.convert_jpg_quality)
 
 		self.setTimeStamp()
