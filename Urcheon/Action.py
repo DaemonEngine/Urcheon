@@ -624,6 +624,12 @@ class CompileIqm(Action):
 			Ui.laconic("File already in iqm, copy: " + self.file_path)
 			shutil.copyfile(source_path, build_path)
 		else:
+			for command_name in [ "iqmtool", "iqm", None ]:
+				if command_name == None:
+					Ui.error("FTEQW iqmtool utility not found")
+				elif shutil.which(command_name) != None:
+					break
+
 			iqe_command_file = source_path + os.path.extsep + "cfg"
 			if os.path.isfile(iqe_command_file):
 				iqm_config = IqmConfig.File()
@@ -636,10 +642,10 @@ class CompileIqm(Action):
 				iqm_config.writeFile(transient_path)
 
 				Ui.laconic("Compile to iqm using a command file: " + self.file_path)
-				self.callProcess(["iqm", "--cmd", transient_path])
+				self.callProcess([command_name, "--cmd", transient_path])
 			else:
 				Ui.laconic("Compile to iqm: " + self.file_path)
-				self.callProcess(["iqm", build_path, source_path])
+				self.callProcess([command_name, build_path, source_path])
 
 		self.setTimeStamp()
 
