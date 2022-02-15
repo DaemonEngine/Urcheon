@@ -769,7 +769,7 @@ class Git():
 
 		if reference_id == None:
 			commit_date = int(time.strftime("%s", time.gmtime()))
-			short_id = '0000000'
+			short_id = '0'
 		else:
 			for commit in self.getCommitList(reference_id):
 				tag_name = self.getVersionTag(commit)
