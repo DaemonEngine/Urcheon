@@ -791,7 +791,7 @@ class Git():
 				# will not be written, look for older version tags
 				# so building a partial build with such reference
 				# will not depend on a non-existing pak.
-				if not self.hasModification(reference_id):
+				if named_reference and not self.hasModification(reference_id):
 					# Attempt to computeVersion on next reference.
 					logging.debug("commit " + commit + " has no modification")
 					is_empty = True
