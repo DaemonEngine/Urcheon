@@ -63,6 +63,7 @@
             crunch.defaultPackage.x86_64-linux
             sloth.defaultPackage.x86_64-linux
             opusTools
+            libwebp
           ];
 
           installPhase = ''
