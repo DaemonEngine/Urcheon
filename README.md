@@ -111,12 +111,13 @@ The `urcheon` tool relies on:
 - [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp) to convert images to webp format;
 - [`crunch` from Dæmon](https://github.com/DaemonEngine/crunch) to convert images to crn format (the one from BinomialLLC is not compatible and the one from Unity lacks required features);
 - [`opusenc` from Xiph](http://opus-codec.org) to convert sound files to opus format;
-- [`iqm` from FTE QuakeWorld](https://sourceforge.net/p/fteqw/code/HEAD/tree/trunk/iqm/) to convert iqe models (the one from Sauerbraten is lacking required features).
+- [`iqmtool` from FTE QuakeWorld](https://sourceforge.net/p/fteqw/code/HEAD/tree/trunk/iqm/) to convert iqe models (the one from Sauerbraten is lacking required features).
+- [`sloth`](https://github.com/DaemonEngine/Sloth/) to generate .shader material files.
 
 To summarize:
 
 * Python3 modules: `argparse colorama pillow psutil toml>=0.9.0`
-* Third party tools: `convert crunch cwebp daemonmap iqm opusenc q3map2 sloth.py`
+* Third party tools: `crunch cwebp daemonmap iqmtool opusenc q3map2 sloth.py`
 
 
 Esquirel help
