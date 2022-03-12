@@ -835,7 +835,7 @@ class Git():
 
 		# modified file
 		if proc.numerator != 0:
-			return true
+			return True
 
 		proc = subprocess.Popen(self.git + ["ls-files", "--others", "--exclude-standard"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
