@@ -19,10 +19,10 @@
 
   outputs = { self, nixpkgs, crunch, netradiant, sloth }:
     let
-      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      lib = nixpkgs.legacyPackages.x86_64-linux.lib;
     in {
 
-      packages.x86_64-linux = {
+      packages = lib.mapAttrs (system: pkgs: {
         iqmtool =
           pkgs.stdenv.mkDerivation {
             name = "iqmtool";
@@ -59,9 +59,9 @@
           ];
 
           propagatedBuildInputs = with pkgs; [
-            netradiant.packages.x86_64-linux.quake-tools
-            crunch.defaultPackage.x86_64-linux
-            sloth.defaultPackage.x86_64-linux
+            netradiant.packages."${system}".quake-tools
+            crunch.defaultPackage."${system}"
+            sloth.defaultPackage."${system}"
             opusTools
             libwebp
           ];
@@ -76,29 +76,29 @@
           '';
         };
 
-        crunch = crunch.defaultPackage.x86_64-linux;
-        sloth = sloth.defaultPackage.x86_64-linux;
-      } // netradiant.packages.x86_64-linux;
+        crunch = crunch.defaultPackage."${system}";
+        sloth = sloth.defaultPackage."${system}";
+      } // netradiant.packages."${system}") nixpkgs.legacyPackages;
 
-      apps.x86_64-linux = {
+      apps = lib.mapAttrs (system: pkgs: {
         iqmtool = {
           type = "app";
-          program = "${self.packages.x86_64-linux.iqmtool}/bin/iqmtool";
+          program = "${self.packages."${system}".iqmtool}/bin/iqmtool";
         };
 
         urcheon = {
           type = "app";
-          program = "${self.packages.x86_64-linux.urcheon}/bin/urcheon";
+          program = "${self.packages."${system}".urcheon}/bin/urcheon";
         };
 
         esquirel = {
           type = "app";
-          program = "${self.packages.x86_64-linux.urcheon}/bin/esquirel";
+          program = "${self.packages."${system}".urcheon}/bin/esquirel";
         };
 
-        crunch = crunch.defaultApp.x86_64-linux;
-        sloth = sloth.defaultApp.x86_64-linux;
-      };
+        crunch = crunch.defaultApp."${system}";
+        sloth = sloth.defaultApp."${system}";
+      }) nixpkgs.legacyPackages;
 
     };
 }
