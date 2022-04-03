@@ -46,7 +46,7 @@
             '';
           };
 
-        urcheon = pkgs.python310.pkgs.buildPythonPackage {
+        urcheon = pkgs.python3.pkgs.buildPythonPackage {
           name = "urcheon";
 
           src = pkgs.lib.cleanSource ./.;
@@ -54,7 +54,7 @@
           format = "other";
 
           buildInputs = [
-            (pkgs.python310.withPackages
+            (pkgs.python3.withPackages
               (ps: [ ps.colorama ps.psutil ps.toml ps.pillow ]))
           ];
 
