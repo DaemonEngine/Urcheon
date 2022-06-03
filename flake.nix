@@ -27,10 +27,9 @@
           pkgs.stdenv.mkDerivation {
             name = "iqmtool";
             src = pkgs.fetchsvn {
-              # this is an old-ish, better tested version
               url = "http://svn.code.sf.net/p/fteqw/code/trunk/iqm/";
-              rev = 5570;
-              sha256 = "sha256-o6ZufY8dNjf1Bl14knkrgpo/JyPnP8uU516CFVzvZAk=";
+              rev = 6258;
+              sha256 = "sha256-ddRG4waOSDNfw0OlAnQAFRfdF4caXVefVZWXAvUaszQ=";
             };
 
             buildInputs = with pkgs; [
