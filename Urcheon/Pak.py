@@ -28,7 +28,7 @@ from collections import OrderedDict
 
 
 class MultiRunner():
-	def __init__(self, source_dir_list, stage_name, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, since_reference=None, no_auto_actions=False, clean_map=False, keep_dust=False, pak_prefix=None, pak_file=None, no_compress=False, is_parallel=True):
+	def __init__(self, source_dir_list, stage_name, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, since_reference=None, no_auto_actions=False, clean_map=False, keep_dust=False, pak_prefix=None, pak_file=None, version_suffix=None, no_compress=False, is_parallel=True):
 
 		# common
 		self.source_dir_list = source_dir_list
@@ -49,6 +49,7 @@ class MultiRunner():
 		# package
 		self.pak_prefix = pak_prefix
 		self.pak_file = pak_file
+		self.version_suffix = version_suffix
 		self.no_compress = no_compress
 
 		self.pak_vfs = None
@@ -87,7 +88,7 @@ class MultiRunner():
 			if self.stage_name in ["prepare", "build"]:
 				runner = Builder(source_tree, self.pak_vfs, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
 			elif self.stage_name in ["package"]:
-				runner = Packager(source_tree, self.pak_vfs, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, no_compress=self.no_compress)
+				runner = Packager(source_tree, self.pak_vfs, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, version_suffix=self.version_suffix, no_compress=self.no_compress)
 
 			if not self.is_parallel:
 				runner.build()
@@ -340,7 +341,7 @@ class Builder():
 
 class Packager():
 	# TODO: reuse paktraces, do not walk for files
-	def __init__(self, source_tree, pak_vfs, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, no_compress=False):
+	def __init__(self, source_tree, pak_vfs, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, version_suffix=None, no_compress=False):
 		self.run = self.pack
 
 		self.pak_vfs = pak_vfs
@@ -349,7 +350,7 @@ class Packager():
 		self.no_compress = no_compress
 
 		self.test_dir = self.pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
-		self.pak_file = self.pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file)
+		self.pak_file = self.pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file, version_suffix=version_suffix)
 
 		self.game_profile = Game.Game(source_tree)
 
@@ -706,6 +707,7 @@ def package(stage_name):
 	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in %(metavar)s prefix, example: build/pkg")
 	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
 	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as %(metavar)s file")
+	parser.add_argument("--version-suffix", dest="version_suffix", metavar="STRING", default=None, help="version suffix string, default: %(default)s")
 	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="package sequentially (disable parallel package)", action="store_true")
 	parser.add_argument("-nc", "--no-compress", dest="no_compress", help="package without compression", action="store_true")
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build from %(metavar)s directory, default: %(default)s")
@@ -735,7 +737,7 @@ def package(stage_name):
 		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
 	is_parallel = not args.no_parallel
-	multi_runner = MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, no_compress=args.no_compress, is_parallel=is_parallel)
+	multi_runner = MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, version_suffix=args.version_suffix, no_compress=args.no_compress, is_parallel=is_parallel)
 	multi_runner.run()
 
 

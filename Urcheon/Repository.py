@@ -127,7 +127,7 @@ class Config():
 
 		return os.path.abspath(test_dir)
 
-	def getPakFile(self, build_prefix=None, pak_prefix=None, pak_file=None, pak_name=None):
+	def getPakFile(self, build_prefix=None, pak_prefix=None, pak_file=None, pak_name=None, version_suffix=None):
 		if not pak_file:
 			if not pak_prefix:
 				pak_prefix = self.getPakPrefix(build_prefix=build_prefix)
@@ -136,7 +136,10 @@ class Config():
 
 			if pak_version == "${ref}":
 				file_repo = Git(self.source_dir, self.game_profile.pak_format)
-				pak_version = file_repo.getVersion()
+				pak_version = file_repo.getVersion(version_suffix=version_suffix)
+			else:
+				if version_suffix:
+					pak_version += version_suffix
 
 			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + self.game_profile.pak_ext
 
@@ -748,8 +751,11 @@ class Git():
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		return proc.numerator == 0
 
-	def getVersion(self):
+	def getVersion(self, version_suffix=None):
 		version = self.computeVersion("HEAD")
+
+		if version_suffix:
+			version += version_suffix
 
 		if self.isDirty():
 			version += "-dirty"
