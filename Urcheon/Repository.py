@@ -489,7 +489,7 @@ class BlackList():
 
 
 class Tree():
-	# Always path game_name when nested
+	# Always pass game_name when nested
 	def __init__(self, source_dir, game_name=None, is_nested=False):
 		self.dir = os.path.realpath(source_dir)
 
