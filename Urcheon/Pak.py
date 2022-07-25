@@ -262,7 +262,7 @@ class Builder():
 
 					action.thread_count = max(2, cpu_count - child_thread_count)
 
-					# wrapper does: produced_unit_list.append(a.run())
+					# wrapper does: produced_unit_list.extend(action.run())
 					action_thread = Parallelism.Thread(target=self.threadExtendRes, args=(action.run, (), produced_unit_list))
 					action_thread_list.append(action_thread)
 					action_thread.start()
