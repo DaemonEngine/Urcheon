@@ -245,13 +245,12 @@ class Action():
 		head = self.getFileNewName()
 		body = self.getBody()
 
-		if body:
-			# always write paktrace, even if head is the only body part because
-			# the prepare stage clean-up needs to track all produced files
-			# except in nested build of course since they are already tracked
-			if not self.is_nested:
-				head = self.getFileNewName()
-				self.paktrace.write(self.file_path, head, body)
+		# always write paktrace, even if head is the only body part because
+		# the prepare stage clean-up needs to track all produced files
+		# except in nested build of course since they are already tracked
+		if not self.is_nested:
+			head = self.getFileNewName()
+			self.paktrace.write(self.file_path, head, body)
 
 		unit = {
 			"head": head,
