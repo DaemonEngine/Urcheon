@@ -926,6 +926,8 @@ class MergeBsp(DumbTransient):
 		# once the first run is done for one file, it's done
 		# for others files too
 
+		# FIXME: Add other files to the paktrace.
+
 		# TODO: ensure bsp is already copied/compiled if modifying copied/compiled bsp
 		# TODO: this is not yet possible to merge over something built
 		# Ui.warning("Bsp file already there, will reuse: " + source_path)
