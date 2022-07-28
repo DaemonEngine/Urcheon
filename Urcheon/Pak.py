@@ -317,6 +317,9 @@ class Builder():
 						produced_file_list.append(part)
 
 			# if multiple calls produce the same files (like merge_bsp)
+			# FIXME: that can't work, this is probably a leftover
+			# or we may have to do “if head in body” instead.
+			# See https://github.com/DaemonEngine/Urcheon/issues/48
 			if head in unit:
 				continue
 
