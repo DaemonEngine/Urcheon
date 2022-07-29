@@ -811,7 +811,7 @@ class PrevRun(Action):
 		unit_list = []
 		for head in self.preview_list:
 			body = [ head ]
-			self.paktrace.write(head, body)
+			self.paktrace.write(self.file_path, head, body)
 
 			unit = {
 				"head": head,
