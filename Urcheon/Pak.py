@@ -561,7 +561,7 @@ class Packager():
 		if self.pak_format == "dpk":
 			# Writing DELETED file.
 			deleted_file_path = self.deleted.get_test_path()
-			if os.path.isfile(deleted_file_pathe):
+			if os.path.isfile(deleted_file_path):
 					pak.write(deleted_file_path, arcname="DELETED")
 
 			# Translating DEPS file.
