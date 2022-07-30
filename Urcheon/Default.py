@@ -41,6 +41,10 @@ pak_prefix = "pkg"
 
 prefix_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 
+# HACK: if installed in lib/python3/dist-packages
+if os.path.basename(prefix_dir) == "dist-packages":
+	prefix_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../../.."))
+
 for sub_dir in [".", "share/Urcheon"]:
 	share_dir = os.path.realpath(os.path.join(prefix_dir, sub_dir))
 	if os.path.isdir(os.path.join(share_dir, profile_dir)):
