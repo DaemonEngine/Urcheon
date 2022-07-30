@@ -188,7 +188,7 @@ class FileProfile():
 		file_profile_file = open(file_profile_path, "r")
 		file_profile_dict = toml.load(file_profile_file, _dict=OrderedDict)
 		file_profile_file.close()
-		
+
 		if "_init_" in file_profile_dict.keys():
 			logging.debug("found “_init_” section in file profile: " + file_profile_path)
 			if "extend" in file_profile_dict["_init_"]:
@@ -202,7 +202,7 @@ class FileProfile():
 				logging.debug("loading parent file profile")
 				self.readProfile(profile_parent_name)
 			del file_profile_dict["_init_"]
-		
+
 		logging.debug("file profiles found: " + str(file_profile_dict.keys()))
 
 		for file_type in file_profile_dict.keys():
@@ -411,7 +411,7 @@ class Inspector():
 		else:
 			_print = Ui.print
 
-		action_description = self.action_description_dict[action] 
+		action_description = self.action_description_dict[action]
 
 		full_path = os.path.join(self.source_dir, file_path)
 
@@ -632,7 +632,7 @@ class Paktrace():
 
 		# TODO: Make sure files are in the same pakdir else error out.
 		source_real_dir = os.path.realpath(self.source_dir)
-		source_relpath = os.path.relpath(source_real_path, start=source_real_dir) 
+		source_relpath = os.path.relpath(source_real_path, start=source_real_dir)
 
 		source_dict = {
 			"relpath": source_relpath,
@@ -702,7 +702,7 @@ class Paktrace():
 						file_list += body
 
 		return file_list
-	
+
 	def getFileDict(self):
 		paktrace_dir = Default.paktrace_dir
 		paktrace_path = os.path.join(self.build_dir, paktrace_dir)
@@ -754,7 +754,7 @@ class Paktrace():
 
 			# TODO: Make sure files are in the same pakdir else error out.
 			source_real_dir = os.path.realpath(self.source_dir)
-			current_relpath = os.path.relpath(source_full_path, start=source_real_dir) 
+			current_relpath = os.path.relpath(source_full_path, start=source_real_dir)
 
 			# Older versions of Urcheon were not writing the relpath key,
 			# ignore if it is not there.
@@ -926,7 +926,7 @@ class Git():
 	def getCompactHumanTimeStamp(self, commit_date):
 		time_stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime(int(commit_date)))
 		return time_stamp
-		
+
 	def getCommitList(self, reference):
 		# more recent first
 		# repository without commit displays an error on stderr we silent
@@ -939,7 +939,7 @@ class Git():
 			return commit_list
 		else:
 			return []
-	
+
 	def getCommit(self, reference):
 		# repository without commit displays an error on stderr we silent
 		proc = subprocess.Popen(self.git + ["rev-list", "-n", "1", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -963,7 +963,7 @@ class Git():
 			return tag_list[0]
 		else:
 			return None
-	
+
 	def getShortId(self, reference):
 		return self.getCommit(reference)[:7]
 
@@ -1239,7 +1239,7 @@ class Deps():
 		deps_file.write(self.produce())
 		deps_file.close()
 
-		return
+		return deps_file_path
 
 	def get(self, pak_name):
 		if pak_name not in self.deps_dict.keys():
