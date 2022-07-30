@@ -179,7 +179,7 @@ class Builder():
 
 		if not self.no_auto_actions:
 			action_list.computeActions(file_list)
-		
+
 		self.action_list = action_list
 
 		self.game_profile = Game.Game(source_tree)
@@ -454,6 +454,9 @@ class Packager():
 
 		self.game_profile = Game.Game(source_tree)
 
+		if self.pak_format == "dpk":
+			self.deleted = Repository.Deleted(source_tree, test_dir, None)
+			self.deps = Repository.Deps(source_tree, test_dir)
 
 	def createSubdirs(self, pak_file):
 		pak_subdir = os.path.dirname(pak_file)
@@ -669,7 +672,7 @@ class Cleaner():
 					continue
 
 				FileSystem.cleanRemoveFile(dust_file_fullpath)
-			
+
 		paktrace_dir = Default.paktrace_dir
 		paktrace_fulldir = os.path.join(test_dir, paktrace_dir)
 
