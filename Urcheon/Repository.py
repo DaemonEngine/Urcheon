@@ -840,6 +840,32 @@ class Git():
 					# restart computeVersion on this reference instead.
 					return self.computeVersion(commit)
 
+				if tag_name:
+					# v1.0 → 1.0
+					version = tag_name[1:]
+
+					if commit == reference_id:
+						is_straight = True
+
+					break
+
+				# We should skip commit with unmodified files
+				# only if the reference is not a version tag,
+				# otherwise doing:
+				#   urcheon build -r unvanquished/0.52.0 src/unvanquished_src.dpkdir
+				#   urcheon package src/unvanquished_src.dpkdir
+				# would produce a DEPS file with this line:
+				#   unvanquished 0.51.1-20210506-112416-ea9badd
+				# instead of this line:
+				#  unvanquished 0.52.0
+				# because the commit tagged unvanquished/0.52.0
+				# is a merge commit and then doesn't have any
+				# change.
+
+				# We assume a version tag always had been previously
+				# built, even if that meant to rebuild the package
+				# entirely.
+
 				# If the commit does not modify files and a partial
 				# build would produce an empty pak and then the pak
 				# will not be written, look for older version tags
@@ -850,15 +876,6 @@ class Git():
 					logging.debug("commit " + commit + " has no modification")
 					is_empty = True
 					continue
-
-				if tag_name:
-					# v1.0 → 1.0
-					version = tag_name[1:]
-
-					if commit == reference_id:
-						is_straight = True
-
-					break
 
 			if not is_straight:
 				commit_date = self.getDate(reference_id)
@@ -960,7 +977,48 @@ class Git():
 		tag_list = stdout.decode().splitlines()
 
 		if len(tag_list) > 0:
-			return tag_list[0]
+			# If there are more than one tag we should use
+			# the more recent one by default.
+
+			# For example doing:
+			#  urcheon build src/map-parpax_src.dpkdir
+			#  urcheon package src/map-parpax_src.dpkdir
+			# at unvanquished/0.53.1 time would produce:
+			#  map-parpax_2.7.2.dpk
+			# and not
+			#  map-parpax_2.7.1.dpk
+			# despite the v2.7.2 version just being a
+			# rebuild with newer daemonmap tool and then
+			# the v2.7.1 tag and the v2.7.2 tag are set on
+			# the same commit and then there is no change
+			# in source repository between them.
+
+			# Historians wanting to rebuild v2.7.1 package
+			# with tools used at v2.7.1 time after v2.7.2
+			# is tagged would have to rename the package
+			# themselves.
+
+			# One cannot really make an option to use
+			# the first tag instead because it may even
+			# happens that v2.7.3 would be a new repackage
+			# without navmeshes even if source did not
+			# change and then no one can decide what tag to
+			# use among v2.7.1, v2.7.2 and v2.7.3.
+			# In such situation where a v2.7.3 tag is added
+			# to the same commit and if an historian wants
+			# to rebuild v2.7.2 only him would know the
+			# version string he wants. The tool cannot
+			# know which tag to use: the oldest one,
+			# the most recent one, or which one in between.
+
+			# The greatest one is the most recent one
+			# because those are version numbers.
+			greatest_tag = tag_list[-1]
+
+			if len(tag_list) > 1:
+				Ui.warning("more than one version tag for reference " + reference + ": " + ", ".join(tag_list) + ", using " + greatest_tag)
+
+			return greatest_tag
 		else:
 			return None
 
