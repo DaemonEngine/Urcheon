@@ -313,6 +313,10 @@ class Action():
 					# Do not use built_real_path or the symbolic link
 					# will be written to itself.
 					Ui.laconic("Writing " + built_file_path + " symbolic link")
+
+					symlink_parent_dir = os.path.dirname(built_full_path)
+					os.makedirs(symlink_parent_dir, exist_ok=True)
+
 					os.symlink(built_target_relative_path, built_full_path)
 
 					logging.debug("setting stat from “" + real_path + "”: " + built_target_real_path)
