@@ -39,6 +39,7 @@ dpk_special_files = [
 class Config():
 	def __init__(self, source_tree):
 		self.source_dir = source_tree.dir
+		self.base_name = source_tree.base_name
 		self.profile_fs = Profile.Fs(source_tree.dir)
 
 		self.key_dict = {}
@@ -46,36 +47,100 @@ class Config():
 		config_name = Default.pak_config_base + Default.pak_config_ext
 		self.readConfig(config_name)
 
-		# This is needed by Game.Game, so better set them in source_tree
+		if "type" not in self.key_dict.keys():
+			self.guessConfig("type")
+
+		if "name" not in self.key_dict.keys():
+			self.guessConfig("name")
+
+		if "version" not in self.key_dict.keys():
+			self.guessConfig("version")
+
+		# This is needed by Game.Game, so better set it in source_tree
 		if not source_tree.game_name:
-			source_tree.game_name = self.requireKey("game")
+			game_name = self.requireKey("game", silent=True)
+
+			if not game_name:
+				Ui.help("You can use the --game argument to set a game without writing any configuration", exit=True)
+
+			source_tree.game_name = game_name
 
 		self.game_profile = Game.Game(source_tree)
+
+	def guessConfig(self, key_name):
+		pak_type = None
+		pak_name = None
+		pak_version = None
+
+		for type_name in ["pk3", "pk4", "dpk"]:
+			pakdir_ext = "." + type_name + "dir"
+
+			if not self.base_name.endswith(pakdir_ext):
+				continue
+
+			pak_type = type_name
+
+			base_name = self.base_name[:-len(pakdir_ext)]
+
+			if pak_type == "dpk":
+				if "_" in base_name:
+					pak_name = base_name.split("_")[0]
+					pak_version = base_name.split("_")[1]
+
+				if pak_version == "src":
+					pak_version = "${ref}"
+
+			else:
+				pak_name = base_name
+
+			break
+
+		if key_name == "type":
+			if not pak_type:
+				Ui.error("cannot guess pak type for :" + self.source_dir)
+
+			self.key_dict["type"] = pak_type
+
+		if key_name == "name":
+			if not pak_name:
+				Ui.error("cannot guess pak name for " + self.source_dir)
+
+			self.key_dict["name"] = pak_name
+
+		if key_name == "version":
+			if pak_type == "dpk":
+				if not pak_version:
+					Ui.error("cannot guess pak version for " + self.source_dir)
+
+				self.key_dict["version"] = pak_version
 
 	def readConfig(self, config_name):
 		config_path = self.profile_fs.getPath(config_name)
 
 		if not config_path:
-			Ui.error("pak config file not found: " + config_name)
+			logging.debug("pak config file not found: " + config_name)
+			return
 
 		logging.debug("reading pak config file " + config_path)
 
+		# FIXME: Catch error.
 		config_file = open(config_path, "r")
 		config_dict = toml.load(config_file, _dict=OrderedDict)
 		config_file.close()
 
 		if not "config" in config_dict.keys():
-			Ui.error("can't find config section in pak config file: " + config_path)
+			logging.debug("can't find config section in pak config file: " + config_path)
+			return
 
 		logging.debug("config found in pak config file: " + config_path)
 		self.key_dict = config_dict["config"]
 
-	def requireKey(self, key_name):
+	def requireKey(self, key_name, silent=False):
 		# TODO: strip quotes
 		if key_name in self.key_dict.keys():
 			return self.key_dict[key_name]
 		else:
-			Ui.error("key not found in pak config: " + key_name)
+			Ui.error("key not found in pak config: " + key_name, silent=silent, exit=False)
 
 	def getKey(self, key_name):
 		# TODO: strip quotes
@@ -127,8 +192,15 @@ class Config():
 		if not test_dir:
 			if not test_prefix:
 				test_prefix = self.getTestPrefix(build_prefix=build_prefix)
+
 			pak_name = self.requireKey("name")
-			test_dir = test_prefix + os.path.sep + pak_name + "_test" + self.game_profile.pakdir_ext
+
+			pak_type = self.requireKey("type")
+
+			if pak_type == "dpk":
+				test_dir = test_prefix + os.path.sep + pak_name + "_test" + self.game_profile.pakdir_ext
+			else:
+				test_dir = test_prefix + os.path.sep + pak_name + self.game_profile.pakdir_ext
 
 		return os.path.abspath(test_dir)
 
@@ -136,17 +208,25 @@ class Config():
 		if not pak_file:
 			if not pak_prefix:
 				pak_prefix = self.getPakPrefix(build_prefix=build_prefix)
+
 			pak_name = self.requireKey("name")
-			pak_version = self.requireKey("version")
 
-			if pak_version == "${ref}":
-				file_repo = Git(self.source_dir, self.game_profile.pak_format)
-				pak_version = file_repo.getVersion(version_suffix=version_suffix)
+			pak_type = self.requireKey("type")
+
+			if pak_type == "dpk":
+				pak_version = self.requireKey("version")
+
+				if pak_version == "${ref}":
+					file_repo = Git(self.source_dir, self.game_profile.pak_format)
+					pak_version = file_repo.getVersion(version_suffix=version_suffix)
+				else:
+					if version_suffix:
+						pak_version += version_suffix
+
+				pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + self.game_profile.pak_ext
+
 			else:
-				if version_suffix:
-					pak_version += version_suffix
-
-			pak_file = pak_prefix + os.path.sep + pak_name + "_" + pak_version + self.game_profile.pak_ext
+				pak_file = pak_prefix + os.path.sep + pak_name + self.game_profile.pak_ext
 
 		return os.path.abspath(pak_file)
 
@@ -517,6 +597,9 @@ class Tree():
 	# Always pass game_name when nested
 	def __init__(self, source_dir, game_name=None, is_nested=False):
 		self.dir = os.path.realpath(source_dir)
+		# FIXME: even if using source_dir, a symlink would contain the real path.
+		# We still need to use the real path when building the current directory with ”.”.
+		self.base_name = os.path.basename(self.dir)
 
 		self.game_name = game_name
 		self.pak_name = None
@@ -530,9 +613,6 @@ class Tree():
 			self.pak_format = "pk3"
 
 			assert self.game_name != None, "game_name can't be empty when is_nested is true"
-
-	def isValid(self):
-		return os.path.isfile(os.path.join(self.dir, Default.pakinfo_dir, Default.pak_config_base + Default.pak_config_ext))
 
 	def listFiles(self):
 		file_list = []
