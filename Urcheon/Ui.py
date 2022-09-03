@@ -17,12 +17,10 @@ _print = print
 
 verbosity = None
 
-
 def laconic(message):
 	if sys.stdout.isatty():
 		message = Fore.GREEN + message + Style.RESET_ALL
 	_print(message)
-
 
 def print(message):
 	if verbosity != "laconic":
@@ -30,14 +28,12 @@ def print(message):
 			message = Fore.GREEN + message + Style.RESET_ALL
 		_print(message)
 
-
 def verbose(message):
 	if verbosity == verbose:
 		if sys.stdout.isatty():
 			message = Style.DIM + message + Style.RESET_ALL
 
 		_print(message)
-
 
 def warning(message):
 	message = "Warning: " + message
@@ -47,17 +43,26 @@ def warning(message):
 
 	_print(message)
 
+def help(message, exit=False):
+	message = "Help: " + message
+
+	if sys.stdout.isatty():
+		message = Fore.MAGENTA + message + Style.RESET_ALL
+
+	_print(message)
+
+	if exit:
+		raise SystemExit()
 
 def notice(message):
 	message = "Notice: " + message
 
 	if sys.stdout.isatty():
-		message = Style.BRIGHT + message + Style.RESET_ALL
+		message = Fore.CYAN + message + Style.RESET_ALL
 
 	_print(message)
 
-
-def error(message, silent=False):
+def error(message, silent=False, exit=True):
 	_message = message
 	message = "Error: " + message
 
@@ -65,7 +70,8 @@ def error(message, silent=False):
 		message = Fore.RED + message + Style.RESET_ALL
 	_print(message)
 
-	if silent:
-		raise SystemExit()
-	else:
-		raise ValueError(_message)
+	if exit:
+		if silent:
+			raise SystemExit()
+		else:
+			raise ValueError(_message)
