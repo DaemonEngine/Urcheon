@@ -66,8 +66,6 @@ class MultiRunner():
 			source_dir = os.path.realpath(source_dir)
 
 			source_tree = Repository.Tree(source_dir, game_name=self.game_name)
-			if not source_tree.isValid():
-				Ui.error("not a supported tree: " + source_dir)
 
 			if self.stage_name in ["prepare"]:
 				dest_dir = source_dir
@@ -732,8 +730,6 @@ def discover(stage_name):
 		source_dir = os.path.realpath(args.source_dir[0])
 
 		source_tree = Repository.Tree(source_dir, game_name=args.game_name)
-		if not source_tree.isValid():
-			Ui.error("not a supported tree, not going further", silent=True)
 
 		# TODO: find a way to update "prepare" actions too
 		file_list = source_tree.listFiles()
@@ -932,8 +928,6 @@ def clean(stage_name):
 		source_dir = os.path.realpath(source_dir)
 
 		source_tree = Repository.Tree(source_dir, game_name=args.game_name)
-		if not source_tree.isValid():
-			Ui.error("not a supported tree, not going further", silent=True)
 
 		cleaner = Cleaner(source_tree)
 
