@@ -910,7 +910,7 @@ class CopyBsp(DumbTransient):
 		shutil.copystat(source_path, bsp_transient_path)
 
 		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile=self.map_profile, is_parallel=self.is_parallel)
-		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_done=["bsp", "vis", "light"])
+		map_compiler.compile(bsp_transient_path, self.transient_maps_path, stage_done=["copy", "bsp", "vis", "light"])
 
 		self.buildTransientPath(disabled_action_list=["copy_bsp"])
 
