@@ -21,7 +21,6 @@ from collections import OrderedDict
 from logging import debug
 from PIL import Image
 
-
 class Lump():
 	bsp_parser_dict = None
 
@@ -773,44 +772,35 @@ bsp_dict = {
 }
 
 
-def main(stage=None):
-	# TODO: check files
+def add_arguments(parser):
+	parser.add_argument("-ib", "--input-bsp", dest="input_bsp_file", metavar="FILENAME",  help="read from .bsp file %(metavar)s")
+	parser.add_argument("-id", "--input-bspdir", dest="input_bsp_dir", metavar="DIRNAME", help="read from .bspdir directory %(metavar)s")
+	parser.add_argument("-ob", "--output-bsp", dest="output_bsp_file", metavar="FILENAME", help="write to .bsp file %(metavar)s")
+	parser.add_argument("-od", "--output-bspdir", dest="output_bsp_dir", metavar="DIRNAME", help="write to .bspdir directory %(metavar)s")
+	parser.add_argument("-ie", "--input-entities", dest="input_entities_file", metavar="FILENAME",  help="read from entities .txt file %(metavar)s")
+	parser.add_argument("-oe", "--output-entities", dest="output_entities_file", metavar="FILENAME", help="write to entities .txt file %(metavar)s")
+	parser.add_argument("-it", "--input-textures", dest="input_textures_file", metavar="FILENAME",  help="read rom textures .csv file %(metavar)s")
+	parser.add_argument("-ot", "--output-textures", dest="output_textures_file", metavar="FILENAME", help="write to textures .csv file %(metavar)s")
+	parser.add_argument("-il", "--input-lightmaps", dest="input_lightmaps_dir", metavar="DIRNAME",  help="read from lightmaps directory %(metavar)s")
+	parser.add_argument("-ol", "--output-lightmaps", dest="output_lightmaps_dir", metavar="DIRNAME", help="write to lightmaps directory %(metavar)s")
+	parser.add_argument("-sl", "--strip-lightmaps", help="empty the lightmap lump", action="store_true")
+	parser.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
+	parser.add_argument("-Lf", "--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
+	parser.add_argument("-la", "--list-all", help="list all", action="store_true")
+	parser.add_argument("-lL", "--list-lumps", help="list lumps", action="store_true")
+	parser.add_argument("-le", "--list-entities", help="list entities", action="store_true")
+	parser.add_argument("-ls", "--list-sounds", help="list sounds", action="store_true")
+	parser.add_argument("-lt", "--list-textures", help="list textures", action="store_true")
+	parser.add_argument("-ll", "--list-lightmaps", help="list lightmaps", action="store_true")
+	parser.add_argument("-pe", "--print-entities", help="print entities", action="store_true")
 
-	if stage:
-		prog_name = os.path.basename(m.__file__) + " " + stage
-	else:
-		prog_name = os.path.basename(m.__file__)
-
-	description="%(prog)s is a BSP parser for my lovely granger."
-
-	args = argparse.ArgumentParser(description=description, prog=prog_name)
-	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
-	args.add_argument("-ib", "--input-bsp", dest="input_bsp_file", metavar="FILENAME",  help="read from .bsp file %(metavar)s")
-	args.add_argument("-id", "--input-bspdir", dest="input_bsp_dir", metavar="DIRNAME", help="read from .bspdir directory %(metavar)s")
-	args.add_argument("-ob", "--output-bsp", dest="output_bsp_file", metavar="FILENAME", help="write to .bsp file %(metavar)s")
-	args.add_argument("-od", "--output-bspdir", dest="output_bsp_dir", metavar="DIRNAME", help="write to .bspdir directory %(metavar)s")
-	args.add_argument("-ie", "--input-entities", dest="input_entities_file", metavar="FILENAME",  help="read from entities .txt file %(metavar)s")
-	args.add_argument("-oe", "--output-entities", dest="output_entities_file", metavar="FILENAME", help="write to entities .txt file %(metavar)s")
-	args.add_argument("-it", "--input-textures", dest="input_textures_file", metavar="FILENAME",  help="read rom textures .csv file %(metavar)s")
-	args.add_argument("-ot", "--output-textures", dest="output_textures_file", metavar="FILENAME", help="write to textures .csv file %(metavar)s")
-	args.add_argument("-il", "--input-lightmaps", dest="input_lightmaps_dir", metavar="DIRNAME",  help="read from lightmaps directory %(metavar)s")
-	args.add_argument("-ol", "--output-lightmaps", dest="output_lightmaps_dir", metavar="DIRNAME", help="write to lightmaps directory %(metavar)s")
-	args.add_argument("-sl", "--strip-lightmaps", help="empty the lightmap lump", action="store_true")
-	args.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
-	args.add_argument("-Lf", "--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
-	args.add_argument("-la", "--list-all", help="list all", action="store_true")
-	args.add_argument("-lL", "--list-lumps", help="list lumps", action="store_true")
-	args.add_argument("-le", "--list-entities", help="list entities", action="store_true")
-	args.add_argument("-ls", "--list-sounds", help="list sounds", action="store_true")
-	args.add_argument("-lt", "--list-textures", help="list textures", action="store_true")
-	args.add_argument("-ll", "--list-lightmaps", help="list lightmaps", action="store_true")
-	args.add_argument("-pe", "--print-entities", help="print entities", action="store_true")
-
-	args = args.parse_args()
-	if args.debug:
-		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-		debug("Debug logging activated")
-		debug("args: " + str(args))
+def main(args=None):
+	if not args:
+		description="Esquirel bsp is a bsp parser for my lovely granger."
+		parser = argparse.ArgumentParser(description=description)
+		parser.add_argument("-D", "--debug", help="print debug information", action="store_true")
+		add_arguments(parser)
+		args = parser.parse_args()
 
 	bsp = Bsp()
 	entities = Q3Entities()

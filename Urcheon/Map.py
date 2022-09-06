@@ -784,28 +784,21 @@ class KeyValueSubstitution():
 					debug("Add Value Substitution [ " + old_value + ", " + new_value + " ]")
 					self.value_dict[old_value] = new_value
 
-def main(stage=None):
-	if stage:
-		prog_name = os.path.basename(m.__file__) + " " + stage
-	else:
-		prog_name = os.path.basename(m.__file__)
+def add_arguments(parser):
+	parser.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
+	parser.add_argument("-oe", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
+	parser.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
+	parser.add_argument("-Lf", "--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
+	parser.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
+	parser.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
 
-	description="%(prog)s is a map parser for my lovely granger."
-
-	args = argparse.ArgumentParser(description=description, prog=prog_name)
-	args.add_argument("-D", "--debug", help="print debug information", action="store_true")
-	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
-	args.add_argument("-oe", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
-	args.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
-	args.add_argument("-Lf", "--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
-	args.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
-	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
-
-	args = args.parse_args()
-	if args.debug:
-		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-		debug("Debug logging activated")
-		debug("args: " + str(args))
+def main(args=None):
+	if not args:
+		description="Esquirel bsp is a map parser for my lovely granger."
+		parser = argparse.ArgumentParser(description=description)
+		parser.add_argument("-D", "--debug", help="print debug information", action="store_true")
+		add_arguments(parser)
+		args = parser.parse_args()
 
 	map = Map()
 
