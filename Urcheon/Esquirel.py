@@ -8,31 +8,36 @@
 #
 
 
-from Urcheon.StageParse import StageParse
-from Urcheon import Map
 from Urcheon import Bsp
+from Urcheon import Map
+import argparse
+import logging
+from logging import debug
 import sys
 
 
 def main():
-	arg_stage = StageParse(description="%(prog)s is a gentle intendant for my lovely granger's garden.")
-	arg_stage.addStage("map", help="map parser")
-	arg_stage.addStage("bsp", help="bsp parser")
+	description="Esquirel is a gentle intendant for my lovely granger's garden."
+	parser = argparse.ArgumentParser(description=description)
 
-	arg_stage = arg_stage.parseArgs()
+	parser.add_argument("-D", "--debug", help="print debug information", action="store_true")
 
-	stage = None
+	subparsers = parser.add_subparsers(help='contexts')
+	subparsers.required = True
 
-	if arg_stage.map:
-		stage = Map
+	map_parser = subparsers.add_parser('map', help='inspect or edit a map file')
+	Map.add_arguments(map_parser)
+	map_parser.set_defaults(func=Map.main)
 
-	if arg_stage.bsp:
-		stage = Bsp
+	bsp_parser = subparsers.add_parser('bsp', help='inspect or edit a bsp file')
+	Bsp.add_arguments(bsp_parser)
+	bsp_parser.set_defaults(func=Bsp.main)
 
-	if stage:
-		del sys.argv[1]
-		stage.main(stage=arg_stage.stage)
-		
+	args = parser.parse_args()
 
-if __name__ == "__main__":
-	main()
+	if args.debug:
+		logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+		debug("Debug logging activated")
+		debug("args: " + str(args))
+
+	args.func(args)
