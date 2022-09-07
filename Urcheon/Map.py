@@ -797,7 +797,7 @@ def main(stage=None):
 	args.add_argument("-im", "--input-map", dest="input_map_file", metavar="FILENAME", help="read from .map file %(metavar)s")
 	args.add_argument("-oe", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
 	args.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
-	args.add_argument("-Lf', '--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
+	args.add_argument("-Lf", "--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
 	args.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
 	args.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
 
