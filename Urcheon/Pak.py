@@ -705,7 +705,7 @@ def discover(stage_name):
 	parser.add_argument("--build-prefix", dest="build_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("--test-prefix", dest="test_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
-	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build %(metavar)s directory, default: %(default)s")
+	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="discover %(metavar)s directory, default: %(default)s")
 
 	args = parser.parse_args()
 
@@ -753,7 +753,7 @@ def prepare(stage_name):
 	parser.add_argument("--pak-prefix", dest="pak_prefix", help=argparse.SUPPRESS)
 	parser.add_argument("-n", "--no-auto-actions", dest="no_auto_actions", help="do not compute actions at build time", action="store_true")
 	parser.add_argument("-k", "--keep", dest="keep_dust", help="keep dust from previous build", action="store_true")
-	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="build sequentially (disable parallel build)", action="store_true")
+	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="prepare sequentially (disable parallel build)", action="store_true")
 	parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build %(metavar)s directory, default: %(default)s")
 
 	args = parser.parse_args()
