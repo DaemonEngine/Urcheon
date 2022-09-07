@@ -727,7 +727,7 @@ def discover(stage_name):
 
 	for source_dir in source_dir_list:
 		Ui.notice("discover from: " + source_dir)
-		source_dir = os.path.realpath(args.source_dir[0])
+		source_dir = os.path.realpath(source_dir)
 
 		source_tree = Repository.Tree(source_dir, game_name=args.game_name)
 
