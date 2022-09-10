@@ -304,7 +304,7 @@ class Builder():
 				continue
 
 			if action == "delete":
-				deleted_file_list += head
+				deleted_file_list.append( head )
 
 			if head not in produced_file_list:
 				produced_file_list.append(head)
