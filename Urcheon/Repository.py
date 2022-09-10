@@ -516,7 +516,6 @@ class Inspector():
 class BlackList():
 	def __init__(self, source_dir, pak_format):
 		self.blacklist = [
-			"README.md", # it's a repository thing, not a package one, use about/<something> for readme stuff to put in vfs
 			"Makefile",
 			"CMakeLists.txt",
 			"Thumbs.db",
