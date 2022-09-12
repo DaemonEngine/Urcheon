@@ -20,10 +20,11 @@ class Fs():
 		self.file_dict = {}
 
 		profile_dir = os.path.join(Default.share_dir, Default.profile_dir)
-		pakinfo_dir = os.path.abspath(os.path.join(source_dir , Default.pakinfo_dir))
-
 		self.walk(profile_dir)
-		self.walk(pakinfo_dir)
+
+		config_dir = Default.getPakConfigDir(source_dir)
+		self.walk(config_dir)
+
 		logging.debug("files found: " + str(self.file_dict))
 
 	def walk(self, dir_path):

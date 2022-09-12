@@ -378,7 +378,7 @@ class SlothRun():
 			full_path = os.path.realpath(os.path.join(self.source_dir, file_path))
 			sourcedir_file_list.append(full_path)
 
-		# TODO: check also slothrun and sloth files in pakinfo and profiles directories
+		# TODO: check also slothrun and sloth files in .urcheon and profiles directories
 		file_reference_list = sourcedir_file_list
 		file_reference = FileSystem.getNewer(file_reference_list)
 

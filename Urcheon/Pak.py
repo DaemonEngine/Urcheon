@@ -54,8 +54,6 @@ class MultiRunner():
 		self.version_suffix = version_suffix
 		self.no_compress = no_compress
 
-		self.pak_vfs = None
-
 	def run(self):
 		cpu_count = Parallelism.countCPU()
 		runner_thread_list = []
@@ -81,14 +79,10 @@ class MultiRunner():
 			else:
 				is_parallel_runner = self.is_parallel
 
-			if self.stage_name in ["build", "package"]:
-				if not self.pak_vfs:
-					self.pak_vfs = Repository.PakVfs()
-
 			if self.stage_name in ["prepare", "build"]:
-				runner = Builder(source_tree, self.pak_vfs, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
+				runner = Builder(source_tree, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
 			elif self.stage_name in ["package"]:
-				runner = Packager(source_tree, self.pak_vfs, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, version_suffix=self.version_suffix, no_compress=self.no_compress)
+				runner = Packager(source_tree, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, version_suffix=self.version_suffix, no_compress=self.no_compress)
 
 			if not self.is_parallel:
 				runner.build()
@@ -108,10 +102,9 @@ class MultiRunner():
 
 
 class Builder():
-	def __init__(self, source_tree, pak_vfs, stage_name, test_dir, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
+	def __init__(self, source_tree, stage_name, test_dir, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
 		self.run = self.build
 
-		self.pak_vfs = pak_vfs
 		self.source_tree = source_tree
 		self.source_dir = source_tree.dir
 		self.pak_name = source_tree.pak_name
@@ -191,6 +184,11 @@ class Builder():
 
 
 	def build(self):
+		if self.source_dir == self.test_dir:
+			Ui.print("Preparing: " + self.source_dir)
+		else:
+			Ui.print("Building “" + self.source_dir + "” as: " + self.test_dir)
+
 		# TODO: check if not a directory
 		if os.path.isdir(self.test_dir):
 			logging.debug("found build dir: " + self.test_dir)
@@ -438,11 +436,10 @@ class Builder():
 
 class Packager():
 	# TODO: reuse paktraces, do not walk for files
-	def __init__(self, source_tree, pak_vfs, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, version_suffix=None, no_compress=False):
+	def __init__(self, source_tree, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, version_suffix=None, no_compress=False):
 		self.run = self.pack
 
-		self.pak_vfs = pak_vfs
-
+		self.pak_vfs = source_tree.pak_vfs
 		self.pak_config = source_tree.pak_config
 		self.pak_format = source_tree.pak_format
 		self.no_compress = no_compress
@@ -472,11 +469,11 @@ class Packager():
 		if not os.path.isdir(self.test_dir):
 			Ui.error("test pakdir not built: " + self.test_dir)
 
-		Ui.print("Packing " + self.test_dir + " to: " + self.pak_file)
+		Ui.print("Packaging “" + self.test_dir + "” as: " + self.pak_file)
 		self.createSubdirs(self.pak_file)
 		logging.debug("opening: " + self.pak_file)
 
-		# remove existing file (do not write in place) to “”force the game engine to reread the file
+		# remove existing file (do not write in place) to force the game engine to reread the file
 		if os.path.isfile(self.pak_file):
 			logging.debug("remove existing package: " + self.pak_file)
 			os.remove(self.pak_file)
@@ -488,11 +485,11 @@ class Packager():
 			# maximum compression
 			zipfile.zlib.Z_DEFAULT_COMPRESSION = zipfile.zlib.Z_BEST_COMPRESSION
 
-		paktrace_dir = Default.paktrace_dir
-
 		found_file = False
-		paktrace_fulldir = os.path.join(self.test_dir, paktrace_dir)
-		for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_fulldir):
+		paktrace_dir = Default.getPakTraceDir(self.test_dir)
+		relative_paktrace_dir = os.path.relpath(paktrace_dir, self.test_dir)
+
+		for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_dir):
 			for file_name in file_name_list:
 				found_file = True
 				break
@@ -516,7 +513,7 @@ class Packager():
 				file_path = os.path.relpath(full_path, self.test_dir)
 
 				# ignore paktrace files
-				if file_path.startswith(paktrace_dir + os.path.sep):
+				if file_path.startswith(relative_paktrace_dir + os.path.sep):
 					continue
 
 				# ignore DELETED and DEPS file, will add it later
@@ -671,12 +668,11 @@ class Cleaner():
 
 				FileSystem.cleanRemoveFile(dust_file_fullpath)
 
-		paktrace_dir = Default.paktrace_dir
-		paktrace_fulldir = os.path.join(test_dir, paktrace_dir)
+		paktrace_dir = Default.getPakTraceDir(test_dir)
 
-		if os.path.isdir(paktrace_fulldir):
+		if os.path.isdir(paktrace_dir):
 			logging.debug("look for dust in directory: " + paktrace_dir)
-			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_fulldir):
+			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_dir):
 				dir_name = os.path.relpath(dir_name, test_dir)
 				logging.debug("found paktrace dir: " + dir_name)
 
@@ -684,7 +680,10 @@ class Cleaner():
 					file_path = os.path.join(dir_name, file_name)
 					file_path = os.path.normpath(file_path)
 
-					head_name = os.path.relpath(file_path, Default.paktrace_dir)[:-len(Default.paktrace_file_ext)]
+					relative_paktrace_dir = os.path.relpath(paktrace_dir, test_dir)
+					trace_file = os.path.relpath(file_path, relative_paktrace_dir)
+					head_name=trace_file[:-len(Default.paktrace_file_ext)]
+
 					if head_name not in head_list:
 						Ui.print("clean dust paktrace: " + file_path)
 						dust_paktrace_path = os.path.normpath(os.path.join(test_dir, file_path))

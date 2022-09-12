@@ -71,7 +71,11 @@ def package(args):
 def clean(args):
 	clean_all = args.clean_all
 
-	if not args.clean_map and not args.clean_build and not args.clean_package and not args.clean_all:
+	if not args.clean_map \
+		and not args.clean_build \
+		and not args.clean_test \
+		and not args.clean_package \
+		and not args.clean_all:
 		clean_all = True
 
 	source_dir_list = args.source_dir
@@ -97,12 +101,12 @@ def clean(args):
 			previous_file_list = paktrace.listAll()
 			cleaner.cleanDust(source_dir, [], previous_file_list)
 
-		if args.clean_build or clean_all:
+		if args.clean_test or args.clean_build or clean_all:
 			pak_config = Repository.Config(source_tree)
 			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 			cleaner.cleanTest(test_dir)
 
-		if args.clean_package or clean_all:
+		if args.clean_package or args.clean_build or clean_all:
 			pak_config = Repository.Config(source_tree)
 			pak_prefix = pak_config.getPakPrefix(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix)
 			cleaner.cleanPak(pak_prefix)
@@ -164,9 +168,10 @@ def main():
 	clean_parser.set_defaults(func=clean)
 
 	clean_parser.add_argument("-a", "--all", dest="clean_all", help="clean all (default)", action="store_true")
-	clean_parser.add_argument("-s", "--source", dest="clean_source", help="clean previous source preparation", action="store_true")
-	clean_parser.add_argument("-m", "--map", dest="clean_map", help="clean previous map build", action="store_true")
-	clean_parser.add_argument("-b", "--build", dest="clean_build", help="clean build directory", action="store_true")
+	clean_parser.add_argument("-b", "--build", dest="clean_build", help="clean test directory and generated packages (alias for --test --package)", action="store_true")
+	clean_parser.add_argument("-s", "--source", dest="clean_source", help="clean source directory", action="store_true")
+	clean_parser.add_argument("-t", "--test", dest="clean_test", help="clean test directory", action="store_true")
+	clean_parser.add_argument("-m", "--map", dest="clean_map", help="clean map build", action="store_true")
 	clean_parser.add_argument("-p", "--package", dest="clean_package", help="clean previously generated packages", action="store_true")
 	clean_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=[ "." ], help="clean %(metavar)s directory, default: .")
 

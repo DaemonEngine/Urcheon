@@ -36,8 +36,11 @@ class List():
 		self.source_tree = source_tree
 		self.source_dir = source_tree.dir
 		self.game_name = source_tree.game_name
+
+		config_dir = Default.getPakConfigDir(self.source_dir)
+
 		action_list_file_name = os.path.join(Default.action_list_dir, stage_name + Default.action_list_ext)
-		self.action_list_file_path = os.path.join(Default.pakinfo_dir, action_list_file_name)
+		self.action_list_file_path = os.path.join(config_dir, action_list_file_name)
 		self.action_list_path = os.path.join(self.source_dir, self.action_list_file_path)
 
 		self.inspector = Repository.Inspector(self.source_tree, stage_name, disabled_action_list=disabled_action_list)
@@ -136,9 +139,9 @@ class List():
 	def writeActions(self):
 		pak_config_subdir = os.path.dirname(self.action_list_path)
 		if os.path.isdir(pak_config_subdir):
-			logging.debug("found pakinfo subdir: " +  pak_config_subdir)
+			logging.debug("found package configuration subdirectory: " +  pak_config_subdir)
 		else:
-			logging.debug("create pakinfo subdir: " + pak_config_subdir)
+			logging.debug("create package configuration subdirectory: " + pak_config_subdir)
 			os.makedirs(pak_config_subdir, exist_ok=True)
 
 		action_list_file = open(self.action_list_path, "w")
@@ -871,15 +874,7 @@ class DumbTransient(Action):
 		file_tree = Repository.Tree(self.transient_path, game_name=self.game_name, is_nested=True)
 		file_list = file_tree.listFiles()
 
-		### TODO: write better code to write dummy pak.conf
-		transient_pakinfo_dir = os.path.join(self.transient_path, Default.pakinfo_dir)
-		os.mkdir(transient_pakinfo_dir)
-		transient_pakinfo_file_path = os.path.join(transient_pakinfo_dir, "pak" + os.path.extsep + "conf")
-
-		transient_pakinfo_file = open(transient_pakinfo_file_path, 'wt', encoding='utf-8')
-		transient_pakinfo_file.write("[config]")
-		transient_pakinfo_file.close()
-
+		# No need for stub configuration in dummy pak anymore.
 		builder = Pak.Builder(file_tree, None, self.stage_name, self.build_dir, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
 		# keep track of built files
 		produced_unit_list = builder.build()
