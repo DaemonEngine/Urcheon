@@ -35,44 +35,48 @@ dpk_special_files = [
 	"DEPS",
 ]
 
-
 class Config():
 	def __init__(self, source_tree):
 		self.source_dir = source_tree.dir
 		self.base_name = source_tree.base_name
 		self.profile_fs = Profile.Fs(source_tree.dir)
 
+		self.known_key_name_list = [ "type", "game", "name", "version" ]
+		self.known_pak_name_list = [ "dpk", "pk3", "pk4" ]
 		self.key_dict = {}
 
-		config_name = Default.pak_config_base + Default.pak_config_ext
-		self.readConfig(config_name)
+		for key_name in self.known_key_name_list:
+			self.key_dict[key_name] = None
 
-		if "type" not in self.key_dict.keys():
-			self.guessConfig("type")
+		self.readLegacyConfig()
+		self.readConfig()
+		self.guessConfig()
 
-		if "name" not in self.key_dict.keys():
-			self.guessConfig("name")
+		# Override game name from command line.
+		if source_tree.game_name:
+			game_name = self.getKey("game")
+			if game_name:
+				Ui.warning("Overriding “game” config key “" + game_name + "” with: " + source_tree.game_name )
+			self.setKey("game", source_tree.game_name)
 
-		if "version" not in self.key_dict.keys():
-			self.guessConfig("version")
+		# This is needed by Game.Game, so better set it in source_tree directly.
+		# Do not exit on error to display an help message.
+		source_tree.game_name = self.requireKey("game", silent=True, exit=False)
 
-		# This is needed by Game.Game, so better set it in source_tree
 		if not source_tree.game_name:
-			game_name = self.requireKey("game", silent=True)
-
-			if not game_name:
-				Ui.help("You can use the --game argument to set a game without writing any configuration", exit=True)
-
-			source_tree.game_name = game_name
+			Ui.help("You can use the --game argument to set a game without writing any configuration", exit=True)
 
 		self.game_profile = Game.Game(source_tree)
 
-	def guessConfig(self, key_name):
+	def getKeyNameListWithout(self, ignored_key_name):
+		return [key_name for key_name in self.known_key_name_list if key_name != ignored_key_name]
+
+	def guessConfig(self):
 		pak_type = None
 		pak_name = None
 		pak_version = None
 
-		for type_name in ["pk3", "pk4", "dpk"]:
+		for type_name in self.known_pak_name_list:
 			pakdir_ext = "." + type_name + "dir"
 
 			if not self.base_name.endswith(pakdir_ext):
@@ -95,72 +99,125 @@ class Config():
 
 			break
 
-		if key_name == "type":
-			if not pak_type:
-				Ui.error("cannot guess pak type for :" + self.source_dir)
+		guessed_config_dict = {
+			"type": pak_type,
+			"name": pak_name,
+			"version": pak_version,
+		}
 
-			self.key_dict["type"] = pak_type
+		for key_name in self.getKeyNameListWithout("game"):
+			if not self.getKey(key_name):
+				value = guessed_config_dict[key_name]
 
-		if key_name == "name":
-			if not pak_name:
-				Ui.error("cannot guess pak name for " + self.source_dir)
+				if not value:
+					Ui.error("Cannot guess “" + key_name + "” config key for :" + self.source_dir)
 
-			self.key_dict["name"] = pak_name
+				logging.debug("Guessed “" + key_name + "” config key with:" + value)
+				self.setKey(key_name, value)
 
-		if key_name == "version":
-			if pak_type == "dpk":
-				if not pak_version:
-					Ui.error("cannot guess pak version for " + self.source_dir)
+	def readKeyFile(self, config_file_path):
+		config_file = open(config_file_path, "r")
+		# TODO: Add a warning if more than one line.
+		value = config_file.readline().strip()
+		config_file.close()
+		return value
 
-				self.key_dict["version"] = pak_version
+	def readConfig(self):
+		for key_name in self.known_key_name_list:
+			config_file_name = key_name + ".txt"
+			config_file_path = self.profile_fs.getPath(config_file_name)
 
-	def readConfig(self, config_name):
-		config_path = self.profile_fs.getPath(config_name)
+			if config_file_path:
+				value = self.readKeyFile(config_file_path)
 
-		if not config_path:
-			logging.debug("pak config file not found: " + config_name)
+				if value:
+					if self.getKey(key_name):
+						Ui.warning("Duplicated config key: " + key_name)
+					else:
+						logging.debug("Found config key “" + key_name + "” with: " + value)
+						self.setKey(key_name, value)
+
+	def readLegacyConfig(self):
+		config_file_name = "pak.conf"
+
+		config_file_path = self.profile_fs.getPath(config_file_name)
+
+		if not config_file_path:
+			logging.debug("Legacy pak config file not found: " + config_file_name)
 			return
 
-		logging.debug("reading pak config file " + config_path)
+		logging.debug("reading pak config file " + config_file_path)
 
 		# FIXME: Catch error.
-		config_file = open(config_path, "r")
+		config_file = open(config_file_path, "r")
 		config_dict = toml.load(config_file, _dict=OrderedDict)
 		config_file.close()
 
 		if not "config" in config_dict.keys():
-			logging.debug("can't find config section in pak config file: " + config_path)
+			logging.debug("can't find config section in pak config file: " + config_file_path)
 			return
 
-		logging.debug("config found in pak config file: " + config_path)
-		self.key_dict = config_dict["config"]
+		logging.debug("config found in pak config file: " + config_file_path)
 
-	def requireKey(self, key_name, silent=False):
-		# TODO: strip quotes
-		if key_name in self.key_dict.keys():
-			return self.key_dict[key_name]
-		else:
-			Ui.error("key not found in pak config: " + key_name, silent=silent, exit=False)
+		for key_name in config_dict["config"].keys():
+			value = config_dict["config"][key_name]
+			logging.debug("Found legacy config key “" + key_name + "” with value: " + value)
+			self.setKey(key_name, value)
+
+	def requireKey(self, key_name, silent=False, exit=True):
+		value = self.getKey(key_name)
+
+		if not value:
+			Ui.error("key not found in pak config: " + key_name, silent=silent, exit=exit)
+
+		return value
 
 	def getKey(self, key_name):
-		# TODO: strip quotes
-		if key_name in self.key_dict.keys():
-			return self.key_dict[key_name]
-		else:
-			return None
+		return self.key_dict[key_name]
+
+	def setKey(self, key_name, value):
+		self.key_dict[key_name] = value
 
 	def getBuildPrefix(self, build_prefix=None):
 		if not build_prefix:
 			env_build_prefix = os.getenv("BUILDPREFIX")
+
 			if env_build_prefix:
 				Ui.notice("BUILDPREFIX set, will use: " + env_build_prefix)
 				build_prefix = env_build_prefix
+
 			else:
-				# HACK: FIXME: ugly quick&dirty .setinfo implementation
-				if os.path.isfile(os.path.join(os.getcwd(), ".setinfo", "set.conf")):
-					build_prefix = os.path.join(os.getcwd(), Default.build_prefix)
+				build_parent_dir = None
+
+				source_real_path = os.path.realpath(self.source_dir)
+				parent_dir = os.path.dirname(source_real_path)
+
+				if os.path.basename(parent_dir) == Default.source_prefix:
+					grand_parent_dir = os.path.dirname(parent_dir)
+
+					set_build_prefix = os.path.join(grand_parent_dir, Default.build_prefix)
+					pak_build_prefix = os.path.join(self.source_dir, Default.build_prefix)
+
+					config_dir = Default.getCollectionConfigDir(grand_parent_dir)
+
+					config_file_path = os.path.join(grand_parent_dir, config_dir, "collection.txt")
+					legacy_config_file_path = os.path.join(grand_parent_dir, config_dir, "set.conf")
+
+					if os.path.isfile(config_file_path):
+						logging.debug("Found collection config file: " + config_file_path)
+						build_parent_dir = grand_parent_dir
+
+					elif os.path.isfile(legacy_config_file_path):
+						logging.debug("Found legacy config file: " + legacy_config_file_path)
+						build_parent_dir = grand_parent_dir
+
+				if build_parent_dir:
+					logging.debug("Found package collection directory “" + build_parent_dir + "” for: " + self.source_dir )
 				else:
-					build_prefix = self.source_dir + os.path.sep + Default.build_prefix
+					logging.debug("Found lone package directory: " + self.source_dir )
+					build_parent_dir = self.source_dir
+
+				build_prefix = os.path.join(build_parent_dir, Default.build_prefix)
 
 		return os.path.abspath(build_prefix)
 
@@ -515,33 +572,61 @@ class Inspector():
 
 class BlackList():
 	def __init__(self, source_dir, pak_format):
-		self.blacklist = [
-			"Makefile",
-			"CMakeLists.txt",
+		dust_blacklist = [
 			"Thumbs.db",
 			"__MACOSX",
 			"*.DS_Store",
+			"*~",
+			".*.swp",
+		]
+
+		build_blacklist = [
+			"Makefile",
+			"CMakeLists.txt",
+		]
+
+		q3map2_blacklist = [
 			"*.autosave",
 			"*.autosave.map",
 			"*.bak",
 			"*.lin",
 			"*.prt",
 			"*.srf",
-			"*~",
-			".*.swp",
+		]
+
+		git_blacklist = [
 			".git*",
-			Default.pakinfo_dir,
-			Default.paktrace_dir,
+		]
+
+		urcheon_blacklist = [
+			Default.legacy_pakinfo_dir,
+			Default.repository_config_dir,
+			Default.legacy_paktrace_dir,
+			Default.cache_dir,
 			Default.build_prefix,
 		]
-		pass
+
+		blacklist_list = [
+			dust_blacklist,
+			build_blacklist,
+			q3map2_blacklist,
+			git_blacklist,
+			urcheon_blacklist
+		]
+
+		self.blacklist = []
+
+		for blacklist in blacklist_list:
+			self.blacklist.extend(blacklist)
 
 		if pak_format == "dpk":
 			self.blacklist.extend(dpk_special_files)
 
-		pakignore_name = Default.ignore_list_base + Default.ignore_list_ext
-		pakignore_path = os.path.join(Default.pakinfo_dir, pakignore_name)
-		pakignore_path = os.path.join(source_dir, pakignore_path)
+		pakignore_name = Default.ignore_list_file
+
+		config_dir = Default.getPakConfigDir(source_dir)
+
+		pakignore_path = os.path.join(config_dir, pakignore_name)
 
 		if os.path.isfile(pakignore_path):
 			pakignore_file = open(pakignore_path, "r")
@@ -603,6 +688,8 @@ class Tree():
 		self.game_name = game_name
 		self.pak_name = None
 
+		self.pak_vfs = PakVfs(source_dir)
+
 		if not is_nested:
 			self.pak_config = Config(self)
 			self.pak_format = self.pak_config.game_profile.pak_format
@@ -634,7 +721,6 @@ class Paktrace():
 	def __init__(self, source_tree, build_dir):
 		self.source_dir = os.path.realpath(source_tree.dir)
 		self.build_dir = os.path.realpath(build_dir)
-		self.paktrace_dir = Default.paktrace_dir
 
 	def readTraceFile(self, paktrace_path):
 		logging.debug("read paktrace from path: " + paktrace_path)
@@ -761,19 +847,19 @@ class Paktrace():
 		if not old_format:
 			self.remove(head, old_format=True)
 
+		paktrace_dir = Default.getPakTraceDir(self.build_dir)
 		paktrace_name = self.getName(head, old_format=old_format)
-		paktrace_dirpath = os.path.join(self.build_dir, self.paktrace_dir)
-		paktrace_path = os.path.join(paktrace_dirpath, paktrace_name)
+
+		paktrace_path = os.path.join(paktrace_dir, paktrace_name)
 
 		return paktrace_path
 
 	def listAll(self):
-		paktrace_dir = Default.paktrace_dir
-		paktrace_path = os.path.join(self.build_dir, paktrace_dir)
+		paktrace_dir = Default.getPakTraceDir(self.build_dir)
 
 		file_list = []
-		if os.path.isdir(paktrace_path):
-			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_path):
+		if os.path.isdir(paktrace_dir):
+			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_dir):
 				for file_name in file_name_list:
 					if file_name.endswith(Default.paktrace_file_ext):
 						file_path = os.path.join(dir_name, file_name)
@@ -783,16 +869,15 @@ class Paktrace():
 		return file_list
 
 	def getFileDict(self):
-		paktrace_dir = Default.paktrace_dir
-		paktrace_path = os.path.join(self.build_dir, paktrace_dir)
+		paktrace_dir = Default.getPakTraceDir(self.build_dir)
 
 		file_dict = {
 			"input": {},
 			"output": {},
 		}
 
-		if os.path.isdir(paktrace_path):
-			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_path):
+		if os.path.isdir(paktrace_dir):
+			for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_dir):
 				for file_name in file_name_list:
 					if file_name.endswith(Default.paktrace_file_ext):
 						file_path = os.path.join(dir_name, file_name)
@@ -1416,36 +1501,46 @@ class Deps():
 
 
 class PakVfs:
-	def __init__(self):
+	def __init__(self, source_dir):
 		self.pakpath_list = []
-		pakdir_ext = ".dpkdir"
 
-		# ugly quick&dirty .setinfo implementation
-		# TODO: please fix
-		if os.path.isfile(os.path.join(os.getcwd(), ".setinfo", "set.conf")):
-			pakpath = os.path.join(os.getcwd(), Default.source_prefix)
-			self.pakpath_list.append(pakpath)
+		# FIXME: Ugly quick&dirty pakpath lookup.
+		pakpath = os.path.dirname(os.path.realpath(source_dir))
+		self.pakpath_list.append(pakpath)
 
 		pakpath_env = os.getenv("PAKPATH")
+
 		if pakpath_env:
-			self.pakpath_list.extend(pakpath_env.split(":"))
+			separator = ":"
 
-			while "" in self.pakpath_list:
-				self.pakpath_list.remove("")
+			if os.name == 'nt':
+				separator = ";"
 
-			Ui.notice("PAKPATH set, will use: " + ":".join(self.pakpath_list))
+			pakpath_list = pakpath_env.split(separator)
+
+			for pakpath in pakpath_list:
+				if pakpath != "":
+					self.pakpath_list.append(os.path.realpath(pakpath))
+
+			Ui.notice("PAKPATH set, will use: " + separator.join(self.pakpath_list))
 
 		self.pakdir_dict = {}
+
 		for pakpath in self.pakpath_list:
 			for dir_name in os.listdir(pakpath):
 				full_path = os.path.abspath(os.path.join(pakpath, dir_name))
+
 				if os.path.isdir(full_path):
-					if dir_name.endswith(pakdir_ext):
-						# FIXME: Handle properly multiple pakdir with same name
-						# in multiple pakpaths
+					# HACK: Only support dpkdir for now.
+					dpkdir_ext = ".dpkdir"
+
+					if dir_name.endswith(dpkdir_ext):
+						# FIXME: Handle properly multiple dpkdir with same name
+						# in multiple pakpaths.
+
 						if dir_name not in self.pakdir_dict:
 							pak_name = dir_name.split('_')[0]
-							pak_version = dir_name.split('_')[1][:-len(pakdir_ext)]
+							pak_version = dir_name.split('_')[1][:-len(dpkdir_ext)]
 
 							logging.debug("found version for pakdir “" + dir_name + "”: " + pak_version)
 
@@ -1468,13 +1563,8 @@ class PakVfs:
 
 		if pak_version == "src":
 			full_path = self.pakdir_dict[pak_name]["full_path"]
-			print("hoho")
-			startTime = time.time()
 			git = Git(full_path, "dpk")
-			print(str(time.time() - startTime))
-			startTime = time.time()
 			pak_version = git.getVersion()
-			print(str(time.time() - startTime))
 
 		logging.debug("found version for pak “" + pak_name + "”: " + pak_version)
 
