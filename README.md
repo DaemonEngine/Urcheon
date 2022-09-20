@@ -81,19 +81,6 @@ urcheon package res-helloworld_src.dpkdir
 ```
 
 
-### Special case of prepared dpkdir
-
-Some packages need to be prepared before being built. This is because some third-party software requires some files to exist in source directories, for example map editors and compilers.
-
-Urcheon can produce `.shader` material files or model formats and others in source directory with the `prepare` command, for such package, the build and package routine is:
-
-```sh
-urcheon prepare <dpkdir>
-urcheon build <dpkdir>
-urcheon package <dpkdir>
-```
-
-
 ### Building in an arbitrary folder
 
 As you noticed with our previous example, the built files were produced within the source dpkdir, with this layout:
@@ -115,6 +102,19 @@ You get:
 ```
 build/test/res-helloworld_test.dpkdir
 build/pkg/res-helloworld_<version>.dpk
+```
+
+
+### Special case of prepared dpkdir
+
+Some packages need to be prepared before being built. This is because some third-party software requires some files to exist in source directories, for example map editors and compilers.
+
+Urcheon can produce `.shader` material files or model formats and others in source directory with the `prepare` command, for such package, the build and package routine is:
+
+```sh
+urcheon prepare <dpkdir>
+urcheon build <dpkdir>
+urcheon package <dpkdir>
 ```
 
 
