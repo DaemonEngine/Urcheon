@@ -9,7 +9,7 @@ _My lovely granger needs a tender knight to care for his little flower._
 Description
 -----------
 
-Urcheon is purposed to manage and build source directories to produce game packages like Dæmon engine `dpk` or id Tech engines `pk3` or `pk4`.
+Urcheon is purposed to manage and build source directories to produce game packages like Dæmon engine `dpk` packages or id Tech engines `pk3` or `pk4` packages.
 
 The primary usage of this toolset is to build of [Unvanquished](http://unvanquished.net) game media files. It was initially  developed and tested against the files from [Interstellar Oasis](https://github.com/interstellar-oasis/interstellar-oasis).
 
@@ -105,7 +105,7 @@ res-helloworld_src.dpkdir/build/pkg/res-helloworld_<version>.dpk
 
 You may not want this, especially if you want to build many package and want to get a single build directory. You can use the `--build-prefix <path>` option to change that, like that:
 
-```
+```sh
 urcheon --build-prefix build build res-helloworld_src.dpkdir
 urcheon --build-prefix build package res-helloworld_src.dpkdir
 ```
@@ -124,7 +124,7 @@ A package collection is a folder containing a `src` subdirectory full of source 
 
 Let's create a package collection, enter it and create the basic layout:
 
-```
+```sh
 mkdir PackageCollection
 cd PackageCollection
 ```
@@ -138,7 +138,7 @@ touch .urcheon/collection.txt
 
 Then we create two packages, they must be stored in a subdirectory named `src`:
 
-```
+```sh
 mkdir src
 
 mkdir src/res-package1_src.dpkdir
@@ -255,7 +255,7 @@ If the dpkdir is not a git repository, Urcheon provides two ways to set the vers
 
 One way is to write the version string in the `.urcheon/version.txt` file, like this:
 
-```
+```sh
 echo '0.1' > .urcheon/version.txt
 ```
 
@@ -398,7 +398,7 @@ It allows to parse some maps (id Tech 3 format only supported at this time): de-
 
 Example:
 
-```
+```sh
 esquirel map --input-map file.map \
 	--substitute-keywords substitution.csv \
 	--disable-numbering \
