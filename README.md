@@ -19,7 +19,7 @@ The primary usage of this toolset is to build of [Unvanquished](http://unvanquis
 How to run Urcheon and Esquirel
 -------------------------------
 
-ℹ️ You may want to install the [DaemonMediaAuthoringKit](https://github.com/DaemonEngine/DaemonMediaAuthoringKit). The _DaemonMediaAuthoringKit_ provides a convenient way to install Urcheon with its dependencies alongside some other usual edition tools (like the NetRadiant level editor). This makes easy to set-up a complete production environment.
+💡️ You may want to install the [DaemonMediaAuthoringKit](https://github.com/DaemonEngine/DaemonMediaAuthoringKit). The _DaemonMediaAuthoringKit_ provides a convenient way to install Urcheon with its dependencies alongside some other usual edition tools (like the NetRadiant level editor). This makes easy to set-up a complete production environment.
 
 If you're installing Urcheon separately, for example if you already own all tools required by Urcheon (see [Dependencies](#dependencies)), once you cloned this repository you can add this `bin/` directory to your `$PATH` environment variable to run them easily.
 
@@ -372,7 +372,7 @@ Type `urcheon clean --help` for help about the specific `clean` command options.
 
 ### Dependencies
 
-ℹ️ The [DaemonMediaAuthoringKit](https://github.com/DaemonEngine/DaemonMediaAuthoringKit) makes easy to set-up a complete production environment with Urcheon, its dependencies, and other tools.
+💡️ The [DaemonMediaAuthoringKit](https://github.com/DaemonEngine/DaemonMediaAuthoringKit) makes easy to set-up a complete production environment with Urcheon, its dependencies, and other tools.
 
 These are the Python3 modules you will need to run `urcheon`: `argparse`, `colorama`, `pillow`, `psutil`, and `toml` >= 0.9.0.
 
