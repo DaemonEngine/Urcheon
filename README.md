@@ -9,21 +9,28 @@ _My lovely granger needs a tender knight to care for his little flower._
 Description
 -----------
 
-Urcheon is purposed to manage and build source directories to produce game packages like Dæmon engine `dpk` packages or id Tech engines `pk3` or `pk4` packages.
+ℹ️ Urcheon is purposed to manage and build source directories to produce game packages like Dæmon engine `dpk` packages or id Tech engines `pk3` or `pk4` packages.
 
 The primary usage of this toolset is to build of [Unvanquished](http://unvanquished.net) game media files. It was initially  developed and tested against the files from [Interstellar Oasis](https://github.com/interstellar-oasis/interstellar-oasis).
 
-The Esquirel tool is also shipped with Urcheon, which is a tool to some common editions on `.map` and `.bsp` files. Esquirel is a bit id Tech 3 map and bsp format centric at this time.
+ℹ️ The Esquirel tool is also shipped with Urcheon, which is a tool to some common editions on `.map` and `.bsp` files. Esquirel is a bit id Tech 3 map and bsp format centric at this time.
 
 
 How to run Urcheon and Esquirel
 -------------------------------
 
-Executables are stored within `bin/` directory, so once you cloned this repository you can add this `bin/` directory to your `$PATH` environment variable to run them easily.
+ℹ️ You may want to install the [DaemonMediaAuthoringKit](https://github.com/DaemonEngine/DaemonMediaAuthoringKit). The _DaemonMediaAuthoringKit_ provides a convenient way to install Urcheon with its dependencies alongside some other usual edition tools (like the NetRadiant level editor). This makes easy to set-up a complete production environment.
+
+If you're installing Urcheon separately, for example if you already own all tools required by Urcheon (see [Dependencies](#dependencies)), once you cloned this repository you can add this `bin/` directory to your `$PATH` environment variable to run them easily.
 
 
 Urcheon help
 ------------
+
+ℹ️ Urcheon is a game data package builder and packager. It converts files, compile maps, and produce distributables packages from them.
+
+
+Type `urcheon --help` for generic help.
 
 
 ### Creating a package source
@@ -66,7 +73,7 @@ Then we can produce the distributable `dpk` package.
 
 It will be stored as `res-helloworld_src.dpkdir/build/pkg/map-castle_<version>.dpk`. The version will be computed by Urcheon (see below).
 
-you can tell the game engine to use `res-helloworld_src.dpkdir/build/test` as a pakpath to be able to find the package (example: `daemon -pakpath res-helloworld_src.dpkdir/build/test`).
+You can tell the game engine to use `res-helloworld_src.dpkdir/build/test` as a pakpath to be able to find the package (example: `daemon -pakpath res-helloworld_src.dpkdir/build/test`).
 
 ```sh
 urcheon package
@@ -365,6 +372,8 @@ Type `urcheon clean --help` for help about the specific `clean` command options.
 
 ### Dependencies
 
+ℹ️ The [DaemonMediaAuthoringKit](https://github.com/DaemonEngine/DaemonMediaAuthoringKit) makes easy to set-up a complete production environment with Urcheon, its dependencies, and other tools.
+
 These are the Python3 modules you will need to run `urcheon`: `argparse`, `colorama`, `pillow`, `psutil`, and `toml` >= 0.9.0.
 
 The `urcheon` tool relies on:
@@ -386,6 +395,8 @@ To summarize:
 
 Esquirel help
 -------------
+
+ℹ️ Esquirel is a tool to inspect `.map` and `.bsp` files and apply some modifications to them.
 
 Type `esquirel --help` for generic help.
 
