@@ -79,7 +79,7 @@ You can tell the game engine to use `res-helloworld_src.dpkdir/build/test` as a 
 urcheon package
 ```
 
-We can also pas the dpkdir path to Urcheon, this way:
+We can also pass the dpkdir path to Urcheon, this way:
 
 ```sh
 cd ..
