@@ -875,7 +875,7 @@ class DumbTransient(Action):
 		file_list = file_tree.listFiles()
 
 		# No need for stub configuration in dummy pak anymore.
-		builder = Pak.Builder(file_tree, None, self.stage_name, self.build_dir, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
+		builder = Pak.Builder(file_tree, self.stage_name, self.build_dir, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
 		# keep track of built files
 		produced_unit_list = builder.build()
 
