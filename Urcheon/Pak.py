@@ -370,6 +370,12 @@ class Builder():
 						if deleted_part_dict["pak_name"] == self.pak_name:
 							deleted_part = deleted_part_dict["file_path"]
 
+							if deleted_part.startswith(Default.repository_config_dir + os.path.sep):
+								continue
+
+							if deleted_part.startswith(Default.legacy_pakinfo_dir + os.path.sep):
+								continue
+
 							if deleted_part in produced_file_list:
 								is_built = True
 								Ui.laconic(deleted_part + ": do nothing because it is produced by another source file.")

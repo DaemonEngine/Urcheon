@@ -563,7 +563,12 @@ class Inspector():
 			_print(file_path + ": " + description + " symbolic link found, will not " + action_description + " but link to source target.")
 		else:
 			if deletion:
-				_print(file_path + ": deleted.")
+				if file_path.startswith(Default.repository_config_dir + os.path.sep):
+					pass
+				elif file_path.startswith(Default.legacy_pakinfo_dir + os.path.sep):
+					pass
+				else:
+					_print(file_path + ": deleted.")
 			else:
 				_print(file_path + ": " + description + " found, will " + action_description + ".")
 
