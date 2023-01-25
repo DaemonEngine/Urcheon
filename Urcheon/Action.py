@@ -669,7 +669,7 @@ class ConvertCrn(Action):
 
 			image.save(transient_path)
 
-			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-file", transient_path] + self.crunch_extra_args + ["-quality", "255", "-out", build_path])
+			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-noNormalDetection", "-file", transient_path] + self.crunch_extra_args + ["-quality", "255", "-out", build_path])
 
 			if os.path.isfile(transient_path):
 				os.remove(transient_path)
