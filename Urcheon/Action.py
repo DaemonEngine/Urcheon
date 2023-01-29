@@ -113,7 +113,6 @@ class List():
 					Ui.print(file_path + ": Known rule, will not " + self.inspector.action_description_dict[action_name] + " (missing file).")
 					self.computed_disabled_action_dict[action_name].append(file_path)
 
-
 	def computeActions(self, file_list):
 		for file_path in file_list:
 			file_path = os.path.normpath(file_path)
@@ -445,6 +444,48 @@ class Action():
 
 		return FileSystem.getNewer(file_reference_list)
 
+	# Produce an image that is properly writable.
+	def openAndSanitizeImage(self):
+
+		# HACK: Pillow has a bug and converts 8-bit greyscale PNG to 1-bit black and white image when converting to RGB,
+		# We workaround the issue by converting PNG images to lossless WebP first, to get an RGB WebP
+		# that will be properly loaded and converted to other RGB formats by Pillow.
+
+		source_path = self.getSourcePath()
+
+		if source_path[-4:].lower() == ".png":
+			build_path = self.getTargetPath()
+
+			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "webp")
+			os.close(transient_handle)
+
+			self.callProcess(["cwebp", "-v", "-mt", "-lossless", "-z", "0", source_path, "-o", transient_path])
+
+			image = Image.open(transient_path)
+
+			os.remove(transient_path)
+		else:
+			image = Image.open(source_path)
+
+		image = image.convert("RGBA")
+
+		has_alpha = False
+
+		# Strip the alpha channel if it's fully opaque.
+		for x in range(0, image.width):
+			for y in range(0, image.height):
+				if image.getpixel((x, y))[3] != 255:
+					has_alpha = True
+					break
+
+			if has_alpha:
+				break
+
+		if not has_alpha:
+			image = image.convert("RGB")
+
+		return image
+
 
 # TODO: Catch when it is not supported and print a warning.
 # It is only supported on DPK VFS.
@@ -524,9 +565,11 @@ class ConvertJpg(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.laconic("Convert to " + self.printable_target_format + ": " + self.file_path)
-			image = Image.open(source_path)
+			image = self.openAndSanitizeImage()
+
 			# OSError: cannot write mode RGBA as JPEG
 			image = image.convert("RGB")
+
 			image.save(build_path, quality=self.convert_jpg_quality)
 
 		self.setTimeStamp()
@@ -559,7 +602,7 @@ class ConvertPng(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.laconic("Convert to png: " + self.file_path)
-			image = Image.open(source_path)
+			image = self.openAndSanitizeImage()
 			image.save(build_path)
 
 		self.setTimeStamp()
@@ -589,15 +632,19 @@ class ConvertLossyWebp(Action):
 			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.laconic("Convert to " + self.printable_target_format +  ": " + self.file_path)
+
+			image = self.openAndSanitizeImage()
+
+			# cwebp doesn't support many input format, PNG is known to be well supported,
+			# so we convert the image to PNG first.
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "png")
 			os.close(transient_handle)
 
-			image = Image.open(source_path)
 			image.save(transient_path)
 
 			self.callProcess(["cwebp", "-v", "-mt"] + self.cwebp_extra_args + [transient_path, "-o", build_path])
-			if os.path.isfile(transient_path):
-				os.remove(transient_path)
+
+			os.remove(transient_path)
 
 		self.setTimeStamp()
 
@@ -637,42 +684,28 @@ class ConvertCrn(Action):
 		else:
 			Ui.laconic("Convert to " + self.printable_target_format + ": " + self.file_path)
 
-			# The crunch tool only supports a small number of formats, and is known to fail on some variants of the format it handles (example: PNG)
+			# HACK: The crunch tool only supports a small number of formats, and is
+			# known to fail on some variants of the format it handles (example: PNG).
 			# See https://github.com/DaemonEngine/crunch/issues/13
 			# So, better convert to TGA first.
 
-			# The TGA format produced by the ImageMagick "convert" tool is known to be broken so we don't use the "convert" tool anymore.
+			# The TGA format produced by the ImageMagick "convert" tool is known to
+			# be broken so we don't use the "convert" tool anymore.
 			# See https://gitlab.com/illwieckz/investigating-tga-orientation-in-imagemagick
 
-			# The image is converted to RGB or RGBA to make sure the produced TGA is readable by crunch, and does not use an unsupported TGA variant.
+			# The image is converted to RGB or RGBA to make sure the produced TGA
+			# is readable by crunch, and does not use an unsupported TGA variant.
+
+			image = self.openAndSanitizeImage()
 
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "tga")
 			os.close(transient_handle)
-
-			image = Image.open(source_path)
-			image = image.convert("RGBA")
-
-			has_alpha = False
-
-			# Strip the alpha channel if it's fully opaque.
-			for x in range(0, image.width):
-				for y in range(0, image.height):
-					if image.getpixel((x, y))[3] != 255:
-						has_alpha = True
-						break
-
-				if has_alpha:
-					break
-
-			if not has_alpha:
-				image = image.convert("RGB")
 
 			image.save(transient_path)
 
 			self.callProcess(["crunch", "-helperThreads", str(self.thread_count), "-noNormalDetection", "-file", transient_path] + self.crunch_extra_args + ["-quality", "255", "-out", build_path])
 
-			if os.path.isfile(transient_path):
-				os.remove(transient_path)
+			os.remove(transient_path)
 
 		self.setTimeStamp()
 
