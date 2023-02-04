@@ -233,7 +233,6 @@ class Compiler():
 
 		tool_dict = {
 			"q3map2": self.q3map2,
-			"daemonmap": self.daemonmap,
 			"copy": self.copy,
 			"dummy": self.dummy,
 		}
@@ -307,7 +306,7 @@ class Compiler():
 				option_list = stage_option_list["options"]
 				logging.debug("stage options: " + str(option_list))
 
-				if tool_name in ["q3map2", "daemonmap"]:
+				if tool_name == "q3map2":
 					option_list = ["-v"] + option_list
 					# default game
 					if not "-game" in option_list:
@@ -401,9 +400,6 @@ class Compiler():
 		if "-bsp" in option_list and self.map_config.keep_source:
 			self.copy([])
 
-
-	def daemonmap(self, option_list):
-		self.q3map2(option_list, tool_name="daemonmap")
 
 	def copy(self, option_list):
 		Ui.laconic("Copying map source: " + self.map_path)

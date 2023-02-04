@@ -385,7 +385,6 @@ These are the Python3 modules you will need to run `urcheon`: `argparse`, `color
 The `urcheon` tool relies on:
 
 - [`q3map2` from NetRadiant](https://gitlab.com/xonotic/netradiant), the one maintained by the Xonotic team, to compile maps (the one from GtkRadiant is lacking required features);
-- [`daemonmap`](https://github.com/DaemonEngine/daemonmap) if you want to generate Unvanquished navmeshes;
 - [Sloth](https://github.com/Unvanquished/Sloth) if you need it to generate shader files;
 - [`cwebp` from Google](https://developers.google.com/speed/webp/docs/cwebp) to convert images to webp format;
 - [`crunch` from Dæmon](https://github.com/DaemonEngine/crunch) to convert images to crn format (the one from BinomialLLC is not compatible and the one from Unity lacks required features);
@@ -396,7 +395,7 @@ The `urcheon` tool relies on:
 To summarize:
 
 * Python3 modules: `argparse colorama pillow psutil toml>=0.9.0`
-* Third party tools: `crunch cwebp daemonmap iqmtool opusenc q3map2 sloth.py`
+* Third party tools: `crunch cwebp iqmtool opusenc q3map2 sloth.py`
 
 
 Esquirel help
