@@ -216,7 +216,7 @@ class Action():
 	is_parallel = True
 	threaded = False
 
-	cwebp_base_command = ["cwebp", "-v", "-mt"]
+	cwebp_base_command = ["cwebp", "-v", "-mt", "-exact"]
 
 	def __init__(self, source_tree, build_dir, file_path, stage_name, map_profile=None, action_list=None, thread_count=1, is_parallel=True, is_nested=False):
 		self.body = []
