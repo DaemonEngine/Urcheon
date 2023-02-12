@@ -216,6 +216,8 @@ class Action():
 	is_parallel = True
 	threaded = False
 
+	cwebp_base_command = ["cwebp", "-v", "-mt"]
+
 	def __init__(self, source_tree, build_dir, file_path, stage_name, map_profile=None, action_list=None, thread_count=1, is_parallel=True, is_nested=False):
 		self.body = []
 		self.source_tree = source_tree
@@ -459,7 +461,7 @@ class Action():
 			transient_handle, transient_path = tempfile.mkstemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "webp")
 			os.close(transient_handle)
 
-			self.callProcess(["cwebp", "-v", "-mt", "-lossless", "-z", "0", source_path, "-o", transient_path])
+			self.callProcess(self.cwebp_base_command + ["-lossless", "-z", "0", source_path, "-o", transient_path])
 
 			image = Image.open(transient_path)
 
@@ -642,7 +644,7 @@ class ConvertLossyWebp(Action):
 
 			image.save(transient_path)
 
-			self.callProcess(["cwebp", "-v", "-mt"] + self.cwebp_extra_args + [transient_path, "-o", build_path])
+			self.callProcess(self.cwebp_base_command + self.cwebp_extra_args + [transient_path, "-o", build_path])
 
 			os.remove(transient_path)
 
