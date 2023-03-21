@@ -65,7 +65,7 @@ def package(args):
 		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
 	is_parallel = not args.no_parallel
-	multi_runner = Pak.MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, version_suffix=args.version_suffix, no_compress=args.no_compress, is_parallel=is_parallel)
+	multi_runner = Pak.MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, version_suffix=args.version_suffix, allow_dirty=args.allow_dirty, no_compress=args.no_compress, is_parallel=is_parallel)
 	multi_runner.run()
 
 def clean(args):
@@ -160,6 +160,7 @@ def main():
 	package_parser = subparsers.add_parser('package', help='package a package')
 	package_parser.set_defaults(func=package)
 
+	package_parser.add_argument("-ad", "--allow-dirty", dest="allow_dirty", help="allow to package from repositories with uncommitted files", action="store_true")
 	package_parser.add_argument("-nc", "--no-compress", dest="no_compress", help="package without compression", action="store_true")
 	package_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="package from %(metavar)s directory, default: %(default)s")
 

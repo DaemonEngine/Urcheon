@@ -30,7 +30,7 @@ from operator import attrgetter
 
 
 class MultiRunner():
-	def __init__(self, source_dir_list, stage_name, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, since_reference=None, no_auto_actions=False, clean_map=False, keep_dust=False, pak_prefix=None, pak_file=None, version_suffix=None, no_compress=False, is_parallel=True):
+	def __init__(self, source_dir_list, stage_name, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, since_reference=None, no_auto_actions=False, clean_map=False, keep_dust=False, pak_prefix=None, pak_file=None, version_suffix=None, allow_dirty=False, no_compress=False, is_parallel=True):
 
 		# common
 		self.source_dir_list = source_dir_list
@@ -52,6 +52,7 @@ class MultiRunner():
 		self.pak_prefix = pak_prefix
 		self.pak_file = pak_file
 		self.version_suffix = version_suffix
+		self.allow_dirty = allow_dirty
 		self.no_compress = no_compress
 
 	def run(self):
@@ -82,7 +83,7 @@ class MultiRunner():
 			if self.stage_name in ["prepare", "build"]:
 				runner = Builder(source_tree, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
 			elif self.stage_name in ["package"]:
-				runner = Packager(source_tree, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, version_suffix=self.version_suffix, no_compress=self.no_compress)
+				runner = Packager(source_tree, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, version_suffix=self.version_suffix, allow_dirty=self.allow_dirty, no_compress=self.no_compress)
 
 			if not self.is_parallel:
 				runner.build()
@@ -442,13 +443,14 @@ class Builder():
 
 class Packager():
 	# TODO: reuse paktraces, do not walk for files
-	def __init__(self, source_tree, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, version_suffix=None, no_compress=False):
+	def __init__(self, source_tree, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, version_suffix=None, allow_dirty=False, no_compress=False):
 		self.run = self.pack
 
 		self.source_dir = source_tree.dir
 		self.pak_vfs = source_tree.pak_vfs
 		self.pak_config = source_tree.pak_config
 		self.pak_format = source_tree.pak_format
+		self.allow_dirty = allow_dirty
 		self.no_compress = no_compress
 
 		self.test_dir = self.pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
@@ -476,7 +478,15 @@ class Packager():
 		if not os.path.isdir(self.test_dir):
 			Ui.error("test pakdir not built: " + self.test_dir)
 
+		file_repo = Repository.Git(self.source_dir, self.pak_format)
+		if file_repo.isGit() and file_repo.isDirty():
+			if self.allow_dirty:
+				Ui.warning("Dirty repository: " + self.source_dir)
+			else:
+				Ui.error("Dirty repository isn't allowed to be packaged (use --allow-dirty to override): " + self.source_dir)
+
 		Ui.print("Packaging “" + self.test_dir + "” as: " + self.pak_file)
+
 		self.createSubdirs(self.pak_file)
 		logging.debug("opening: " + self.pak_file)
 
@@ -581,7 +591,6 @@ class Packager():
 		logging.debug("close: " + self.pak_file)
 		pak.close()
 
-		file_repo = Repository.Git(self.source_dir, self.pak_format)
 		if file_repo.isGit():
 			repo_date = int(file_repo.getDate("HEAD"))
 			os.utime(self.pak_file, (repo_date, repo_date))
