@@ -974,7 +974,7 @@ class Git():
 			version += version_suffix
 
 		if self.isDirty():
-			version += "-dirty"
+			version += "+dirty"
 
 		return version
 
