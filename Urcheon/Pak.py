@@ -445,6 +445,7 @@ class Packager():
 	def __init__(self, source_tree, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, version_suffix=None, no_compress=False):
 		self.run = self.pack
 
+		self.source_dir = source_tree.dir
 		self.pak_vfs = source_tree.pak_vfs
 		self.pak_config = source_tree.pak_config
 		self.pak_format = source_tree.pak_format
@@ -579,6 +580,11 @@ class Packager():
 
 		logging.debug("close: " + self.pak_file)
 		pak.close()
+
+		file_repo = Repository.Git(self.source_dir, self.pak_format)
+		if file_repo.isGit():
+			repo_date = int(file_repo.getDate("HEAD"))
+			os.utime(self.pak_file, (repo_date, repo_date))
 
 		Ui.laconic("Package written: " + self.pak_file)
 

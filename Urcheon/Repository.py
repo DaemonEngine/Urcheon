@@ -963,8 +963,7 @@ class Git():
 
 		self.version_tag_pattern = re.compile(r"^v[0-9].*")
 
-	# Unused
-	def test(self):
+	def isGit(self):
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		return proc.numerator == 0
 
