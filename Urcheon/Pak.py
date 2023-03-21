@@ -478,8 +478,8 @@ class Packager():
 		if not os.path.isdir(self.test_dir):
 			Ui.error("test pakdir not built: " + self.test_dir)
 
-		file_repo = Repository.Git(self.source_dir, self.pak_format)
-		if file_repo.isGit() and file_repo.isDirty():
+		source_repository = Repository.Git(self.source_dir, self.pak_format)
+		if source_repository.isGit() and source_repository.isDirty():
 			if self.allow_dirty:
 				Ui.warning("Dirty repository: " + self.source_dir)
 			else:
@@ -591,8 +591,8 @@ class Packager():
 		logging.debug("close: " + self.pak_file)
 		pak.close()
 
-		if file_repo.isGit():
-			repo_date = int(file_repo.getDate("HEAD"))
+		if source_repository.isGit():
+			repo_date = int(source_repository.getDate("HEAD"))
 			os.utime(self.pak_file, (repo_date, repo_date))
 
 		Ui.laconic("Package written: " + self.pak_file)
