@@ -13,7 +13,7 @@ Description
 
 The primary usage of this toolset is to build of [Unvanquished](http://unvanquished.net) game media files. It was initially  developed and tested against the files from [Interstellar Oasis](https://github.com/interstellar-oasis/interstellar-oasis).
 
-ℹ️ The Esquirel tool is also shipped with Urcheon, which is a tool to some common editions on `.map` and `.bsp` files. Esquirel is a bit id Tech 3 map and bsp format centric at this time.
+ℹ️ The Esquirel tool is also shipped with Urcheon, which is a tool to do some common editions on `.map` and `.bsp` files. Esquirel is a bit id Tech 3 map and bsp format centric at this time.
 
 
 How to run Urcheon and Esquirel
