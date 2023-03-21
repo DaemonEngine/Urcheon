@@ -30,30 +30,15 @@ from operator import attrgetter
 
 
 class MultiRunner():
-	def __init__(self, source_dir_list, stage_name, build_prefix=None, test_prefix=None, test_dir=None, game_name=None, map_profile=None, since_reference=None, no_auto_actions=False, clean_map=False, keep_dust=False, pak_prefix=None, pak_file=None, version_suffix=None, allow_dirty=False, no_compress=False, is_parallel=True):
-
-		# common
+	def __init__(self, source_dir_list, args):
 		self.source_dir_list = source_dir_list
-		self.stage_name = stage_name
-		self.game_name = game_name
-		self.is_parallel = is_parallel
-		# prepare, build, package
-		self.build_prefix = build_prefix
-		# build
-		self.test_prefix = test_prefix
-		self.test_dir = test_dir
-		# prepare, build
-		self.map_profile = map_profile
-		self.since_reference = since_reference
-		self.no_auto_actions = no_auto_actions
-		self.clean_map = clean_map
-		self.keep_dust = keep_dust
-		# package
-		self.pak_prefix = pak_prefix
-		self.pak_file = pak_file
-		self.version_suffix = version_suffix
-		self.allow_dirty = allow_dirty
-		self.no_compress = no_compress
+		self.args = args
+
+		self.runner_dict = {
+			"prepare": Builder,
+			"build": Builder,
+			"package": Packager,
+		}
 
 	def run(self):
 		cpu_count = Parallelism.countCPU()
@@ -61,32 +46,15 @@ class MultiRunner():
 
 		for source_dir in self.source_dir_list:
 			# FIXME: because of this code Urcheon must run within package set directory
-			Ui.notice(self.stage_name + " from: " + source_dir)
+			Ui.notice(self.args.stage_name + " from: " + source_dir)
 			source_dir = os.path.realpath(source_dir)
 
-			source_tree = Repository.Tree(source_dir, game_name=self.game_name)
+			source_tree = Repository.Tree(source_dir, game_name=self.args.game_name)
 
-			if self.stage_name in ["prepare"]:
-				dest_dir = source_dir
-			elif self.stage_name in ["build", "package"]:
-				dest_dir = source_tree.pak_config.getTestDir(build_prefix=self.build_prefix, test_prefix=self.test_prefix, test_dir=self.test_dir)
+			runner = self.runner_dict[self.args.stage_name](source_tree, self.args)
 
-			# FIXME: currently the prepare stage
-			# can't be parallel (for example SlothRun task
-			# needs all PrevRun tasks to be finished first)
-			# btw all packages can be prepared in parallel
-			if self.stage_name in ["prepare"]:
-				is_parallel_runner = False
-			else:
-				is_parallel_runner = self.is_parallel
-
-			if self.stage_name in ["prepare", "build"]:
-				runner = Builder(source_tree, self.stage_name, dest_dir, map_profile=self.map_profile, since_reference=self.since_reference, no_auto_actions=self.no_auto_actions, clean_map=self.clean_map, keep_dust=self.keep_dust, is_parallel=is_parallel_runner)
-			elif self.stage_name in ["package"]:
-				runner = Packager(source_tree, dest_dir, self.pak_file, build_prefix=self.build_prefix, test_prefix=self.test_prefix, pak_prefix=self.pak_prefix, version_suffix=self.version_suffix, allow_dirty=self.allow_dirty, no_compress=self.no_compress)
-
-			if not self.is_parallel:
-				runner.build()
+			if self.args.no_parallel:
+				runner.run()
 			else:
 				runner_thread = Parallelism.Thread(target=runner.run)
 				runner_thread_list.append(runner_thread)
@@ -103,24 +71,42 @@ class MultiRunner():
 
 
 class Builder():
-	def __init__(self, source_tree, stage_name, test_dir, map_profile=None, is_nested=False, since_reference=None, no_auto_actions=False, disabled_action_list=[], file_list=[], clean_map=False, keep_dust=False, is_parallel=True):
-		self.run = self.build
+	def __init__(self, source_tree, args, is_nested=False, disabled_action_list=[], file_list=[]):
 
 		self.source_tree = source_tree
 		self.source_dir = source_tree.dir
 		self.pak_name = source_tree.pak_name
 		self.pak_format = source_tree.pak_format
 		self.game_name = source_tree.game_name
-		self.stage_name = stage_name
-		self.test_dir = test_dir
 		self.is_nested = is_nested
-		self.since_reference = since_reference
-		self.no_auto_actions = no_auto_actions
-		self.clean_map = clean_map
-		self.keep_dust = keep_dust
-		self.is_parallel = is_parallel
 
-		action_list = Action.List(source_tree, stage_name, disabled_action_list=disabled_action_list)
+		self.stage_name = args.stage_name
+		self.keep_dust = args.keep_dust
+
+		action_list = Action.List(source_tree, self.stage_name, disabled_action_list=disabled_action_list)
+
+		if self.stage_name == "prepare":
+			self.test_dir = self.source_dir
+
+			self.since_reference = None
+			self.no_auto_actions = False
+			self.clean_map = False
+			self.map_profile = False
+
+			# FIXME: currently the prepare stage
+			# can't be parallel (for example SlothRun task
+			# needs all PrevRun tasks to be finished first)
+			# btw all packages can be prepared in parallel
+			self.is_parallel = False
+		else:
+			self.test_dir = source_tree.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+
+			self.since_reference = args.since_reference
+			self.no_auto_actions = args.no_auto_actions
+			self.clean_map = args.clean_map
+			self.map_profile = args.map_profile
+
+			self.is_parallel = not args.no_parallel
 
 		if self.pak_format == "dpk":
 			self.deleted = Repository.Deleted(self.source_tree, self.test_dir, self.stage_name)
@@ -139,9 +125,9 @@ class Builder():
 			# makes sense when using tags
 
 			# NOTE: already prepared file can be seen as source again, but there may be no easy way to solve it
-			if since_reference:
+			if self.since_reference:
 				file_repo = Repository.Git(self.source_dir, self.pak_format)
-				file_list = file_repo.listFilesSinceReference(since_reference)
+				file_list = file_repo.listFilesSinceReference(self.since_reference)
 
 				# also look for untracked files
 				untracked_file_list = file_repo.listUntrackedFiles()
@@ -176,15 +162,12 @@ class Builder():
 
 		self.game_profile = Game.Game(source_tree)
 
-		if not map_profile:
+		if not self.map_profile:
 			map_config = MapCompiler.Config(source_tree)
-			map_profile = map_config.requireDefaultProfile()
-			self.map_profile = map_profile
-
-		self.map_profile = map_profile
+			self.map_profile = map_config.requireDefaultProfile()
 
 
-	def build(self):
+	def run(self):
 		if self.source_dir == self.test_dir:
 			Ui.print("Preparing: " + self.source_dir)
 		else:
@@ -442,25 +425,24 @@ class Builder():
 
 
 class Packager():
-	# TODO: reuse paktraces, do not walk for files
-	def __init__(self, source_tree, test_dir, pak_file, build_prefix=None, test_prefix=None, pak_prefix=None, version_suffix=None, allow_dirty=False, no_compress=False):
-		self.run = self.pack
-
+	# TODO: reuse paktraces, do not walk for file,s
+	def __init__(self, source_tree, args):
 		self.source_dir = source_tree.dir
 		self.pak_vfs = source_tree.pak_vfs
 		self.pak_config = source_tree.pak_config
 		self.pak_format = source_tree.pak_format
-		self.allow_dirty = allow_dirty
-		self.no_compress = no_compress
 
-		self.test_dir = self.pak_config.getTestDir(build_prefix=build_prefix, test_prefix=test_prefix, test_dir=test_dir)
-		self.pak_file = self.pak_config.getPakFile(build_prefix=build_prefix, pak_prefix=pak_prefix, pak_file=pak_file, version_suffix=version_suffix)
+		self.allow_dirty = args.allow_dirty
+		self.no_compress = args.no_compress
+
+		self.test_dir = self.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+		self.pak_file = self.pak_config.getPakFile(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix, pak_file=args.pak_file, version_suffix=args.version_suffix)
 
 		self.game_profile = Game.Game(source_tree)
 
 		if self.pak_format == "dpk":
-			self.deleted = Repository.Deleted(source_tree, test_dir, None)
-			self.deps = Repository.Deps(source_tree, test_dir)
+			self.deleted = Repository.Deleted(source_tree, self.test_dir, None)
+			self.deps = Repository.Deps(source_tree, self.test_dir)
 
 	def createSubdirs(self, pak_file):
 		pak_subdir = os.path.dirname(pak_file)
@@ -474,7 +456,7 @@ class Packager():
 			os.makedirs(pak_subdir, exist_ok=True)
 
 
-	def pack(self):
+	def run(self):
 		if not os.path.isdir(self.test_dir):
 			Ui.error("test pakdir not built: " + self.test_dir)
 

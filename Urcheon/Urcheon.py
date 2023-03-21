@@ -33,28 +33,27 @@ def discover(args):
 		action_list.updateActions(action_list)
 
 def prepare(args):
-	stage_name="prepare"
+	args.__dict__.update(stage_name="prepare")
 
 	source_dir_list = args.source_dir
 
 	is_parallel = not args.no_parallel
-	multi_runner = Pak.MultiRunner(source_dir_list, stage_name, game_name=args.game_name, no_auto_actions=args.no_auto_actions, keep_dust=args.keep_dust, is_parallel=is_parallel)
+	multi_runner = Pak.MultiRunner(source_dir_list, args)
 	multi_runner.run()
 
 def build(args):
-	stage_name="build"
+	args.__dict__.update(stage_name="build")
 
 	source_dir_list = args.source_dir
 
 	if args.test_dir and len(source_dir_list) > 1:
 		Ui.error("--test-dir can't be used while building more than one source directory", silent=True)
 
-	is_parallel = not args.no_parallel
-	multi_runner = Pak.MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, game_name=args.game_name, map_profile=args.map_profile, since_reference=args.since_reference, no_auto_actions=args.no_auto_actions, clean_map=args.clean_map, keep_dust=args.keep_dust, is_parallel=is_parallel)
+	multi_runner = Pak.MultiRunner(source_dir_list, args)
 	multi_runner.run()
 
 def package(args):
-	stage_name="package"
+	args.__dict__.update(stage_name="package")
 
 	source_dir_list = args.source_dir
 
@@ -65,7 +64,7 @@ def package(args):
 		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
 	is_parallel = not args.no_parallel
-	multi_runner = Pak.MultiRunner(source_dir_list, stage_name, build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_prefix=args.pak_prefix, pak_file=args.pak_file, game_name=args.game_name, version_suffix=args.version_suffix, allow_dirty=args.allow_dirty, no_compress=args.no_compress, is_parallel=is_parallel)
+	multi_runner = Pak.MultiRunner(source_dir_list, args)
 	multi_runner.run()
 
 def clean(args):
