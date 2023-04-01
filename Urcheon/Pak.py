@@ -81,7 +81,11 @@ class Builder():
 		self.is_nested = is_nested
 
 		self.stage_name = args.stage_name
-		self.keep_dust = args.keep_dust
+
+		if is_nested:
+			self.keep_dust = False
+		else:
+			self.keep_dust = args.keep_dust
 
 		action_list = Action.List(source_tree, self.stage_name, disabled_action_list=disabled_action_list)
 
@@ -99,12 +103,21 @@ class Builder():
 			# btw all packages can be prepared in parallel
 			self.is_parallel = False
 		else:
-			self.test_dir = source_tree.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+			if is_nested:
+				self.test_dir = args.test_dir
+			else:
+				self.test_dir = source_tree.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 
-			self.since_reference = args.since_reference
-			self.no_auto_actions = args.no_auto_actions
-			self.clean_map = args.clean_map
-			self.map_profile = args.map_profile
+			if is_nested:
+				self.since_reference = False
+				self.no_auto_actions = False
+				self.clean_map = False
+				self.map_profile = None
+			else:
+				self.since_reference = args.since_reference
+				self.no_auto_actions = args.no_auto_actions
+				self.clean_map = args.clean_map
+				self.map_profile = args.map_profile
 
 			self.is_parallel = not args.no_parallel
 

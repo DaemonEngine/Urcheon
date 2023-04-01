@@ -30,6 +30,9 @@ from PIL import Image
 # TODO: replace with / os.path.sep when reading then replace os.path.sep to / when writing
 # TODO: comment out missing files
 
+class ArgsNamespace:
+	def __init__(self, **kwargs):
+		self.__dict__.update(kwargs)
 
 class List():
 	def __init__(self, source_tree, stage_name, disabled_action_list=[]):
@@ -926,9 +929,16 @@ class DumbTransient(Action):
 		file_list = file_tree.listFiles()
 
 		# No need for stub configuration in dummy pak anymore.
-		builder = Pak.Builder(file_tree, self.stage_name, self.build_dir, disabled_action_list=disabled_action_list, is_nested=True, is_parallel=False)
+
+		args = ArgsNamespace(
+			stage_name="build",
+			no_parallel=True,
+			test_dir=self.build_dir,
+		);
+
+		builder = Pak.Builder(file_tree, args, is_nested=True, disabled_action_list=disabled_action_list)
 		# keep track of built files
-		produced_unit_list = builder.build()
+		produced_unit_list = builder.run()
 
 		self.body = []
 		for unit in produced_unit_list:
