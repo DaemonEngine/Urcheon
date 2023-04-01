@@ -931,8 +931,9 @@ class DumbTransient(Action):
 		# No need for stub configuration in dummy pak anymore.
 
 		args = ArgsNamespace(
+			# Pak.Builder can be used for both "prepare" and "build"
+			# stages, this one is a "build" one.
 			stage_name="build",
-			no_parallel=True,
 			test_dir=self.build_dir,
 		);
 

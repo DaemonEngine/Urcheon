@@ -113,13 +113,16 @@ class Builder():
 				self.no_auto_actions = False
 				self.clean_map = False
 				self.map_profile = None
+
+				# FIXME: currently the nested build is not parallel,
+				# please investigate why.
+				self.is_parallel = False
 			else:
 				self.since_reference = args.since_reference
 				self.no_auto_actions = args.no_auto_actions
 				self.clean_map = args.clean_map
 				self.map_profile = args.map_profile
-
-			self.is_parallel = not args.no_parallel
+				self.is_parallel = not args.no_parallel
 
 		if self.pak_format == "dpk":
 			self.deleted = Repository.Deleted(self.source_tree, self.test_dir, self.stage_name)
