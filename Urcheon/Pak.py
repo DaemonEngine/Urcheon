@@ -95,7 +95,7 @@ class Builder():
 			self.since_reference = None
 			self.no_auto_actions = False
 			self.clean_map = False
-			self.map_profile = False
+			self.map_profile = None
 
 			# FIXME: currently the prepare stage
 			# can't be parallel (for example SlothRun task
