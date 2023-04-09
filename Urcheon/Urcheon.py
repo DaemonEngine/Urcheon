@@ -119,6 +119,8 @@ def main():
 	parser.add_argument("-l", "--laconic", dest="laconic", help="print laconic information", action="store_true")
 	parser.add_argument("-g", "--game", dest="game_name", metavar="GAMENAME", help="use game %(metavar)s game profile, example: unvanquished")
 
+	parser.add_argument("-C", "--change-directory", dest="change_directory", metavar="DIRNAME", default=".", help="run Urcheon in %(metavar)s directory, default: %(default)s")
+
 	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
 	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="use test pakdir from %(metavar)s prefix, example: build/test")
 	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in %(metavar)s prefix, example: build/pkg")
@@ -186,6 +188,8 @@ def main():
 		Ui.verbosity = "laconic"
 	elif args.verbose:
 		Ui.verbosity = "verbose"
+
+	os.chdir(args.change_directory)
 
 	args.func(args)
 
