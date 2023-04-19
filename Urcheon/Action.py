@@ -284,6 +284,9 @@ class Action():
 			for target_file_path in self.action_list.active_action_dict[action_type.keyword]:
 				target_full_path = os.path.join(self.source_dir, target_file_path)
 
+				if os.path.islink(target_full_path):
+					continue
+
 				if self.file_path == target_file_path:
 					continue
 
@@ -332,7 +335,7 @@ class Action():
 					return self.getProducedUnitList(head=built_file_path)
 
 		if not found_target:
-			Ui.error("Target " + target_file_path + " not found for " + file_path)
+			Ui.error("Target not found for “" + self.file_path + "”, broken symbolic link?")
 
 	def getFileNewName(self):
 		# must be overriden in sub class
@@ -363,7 +366,6 @@ class Action():
 		# the prepare stage clean-up needs to track all produced files
 		# except in nested build of course since they are already tracked.
 		if not self.is_nested:
-			head = self.getFileNewName()
 			if write:
 				self.paktrace.write(self.file_path, head, body)
 
