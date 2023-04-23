@@ -476,22 +476,14 @@ class Action():
 
 		image = image.convert("RGBA")
 
-		has_alpha = False
-
-		# Strip the alpha channel if it's fully opaque.
+		# If there is a single pixel that isn't fully opaque, return the RGBA image.
 		for x in range(0, image.width):
 			for y in range(0, image.height):
 				if image.getpixel((x, y))[3] != 255:
-					has_alpha = True
-					break
+					return image
 
-			if has_alpha:
-				break
-
-		if not has_alpha:
-			image = image.convert("RGB")
-
-		return image
+		# Otherwise strips the alpha channel and return the RGB image.
+		return image.convert("RGB")
 
 
 # TODO: Catch when it is not supported and print a warning.
