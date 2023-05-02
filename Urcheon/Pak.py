@@ -114,9 +114,7 @@ class Builder():
 				self.clean_map = False
 				self.map_profile = None
 
-				# FIXME: currently the nested build is not parallel,
-				# please investigate why.
-				self.is_parallel = False
+				self.is_parallel = not args.no_parallel
 			else:
 				self.since_reference = args.since_reference
 				self.no_auto_actions = args.no_auto_actions

@@ -929,6 +929,7 @@ class DumbTransient(Action):
 			# stages, this one is a "build" one.
 			stage_name="build",
 			test_dir=self.build_dir,
+			no_parallel=not self.is_parallel
 		);
 
 		builder = Pak.Builder(file_tree, args, is_nested=True, disabled_action_list=disabled_action_list)
