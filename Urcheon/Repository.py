@@ -250,7 +250,8 @@ class Config():
 			if not test_prefix:
 				test_prefix = self.getTestPrefix(build_prefix=build_prefix)
 
-			pak_name = self.requireKey("name")
+			if not pak_name:
+				pak_name = self.requireKey("name")
 
 			pak_type = self.requireKey("type")
 
@@ -266,7 +267,8 @@ class Config():
 			if not pak_prefix:
 				pak_prefix = self.getPakPrefix(build_prefix=build_prefix)
 
-			pak_name = self.requireKey("name")
+			if not pak_name:
+				pak_name = self.requireKey("name")
 
 			pak_type = self.requireKey("type")
 

@@ -106,7 +106,7 @@ class Builder():
 			if is_nested:
 				self.test_dir = args.test_dir
 			else:
-				self.test_dir = source_tree.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+				self.test_dir = source_tree.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_name=args.pak_name)
 
 			if is_nested:
 				self.since_reference = False
@@ -450,7 +450,7 @@ class Packager():
 		self.no_compress = args.no_compress
 
 		self.test_dir = self.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
-		self.pak_file = self.pak_config.getPakFile(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix, pak_file=args.pak_file, version_suffix=args.version_suffix)
+		self.pak_file = self.pak_config.getPakFile(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix, pak_name=args.pak_name, pak_file=args.pak_file, version_suffix=args.version_suffix)
 
 		self.game_profile = Game.Game(source_tree)
 

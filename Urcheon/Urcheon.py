@@ -60,6 +60,9 @@ def package(args):
 	if args.test_dir and len(source_dir_list) > 1:
 		Ui.error("--test-dir can't be used while packaging more than one source directory", silent=True)
 
+	if args.pak_name and len(source_dir_list) > 1:
+		Ui.error("--pak-name can't be used while packaging more than one source directory", silent=True)
+
 	if args.pak_file and len(source_dir_list) > 1:
 		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
 
@@ -92,6 +95,7 @@ def clean(args):
 
 		if args.clean_map:
 			pak_config = Repository.Config(source_tree)
+			# Do not use pak_name
 			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
 			cleaner.cleanMap(test_dir)
 
@@ -125,6 +129,8 @@ def main():
 	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="use test pakdir from %(metavar)s prefix, example: build/test")
 	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in %(metavar)s prefix, example: build/pkg")
 	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
+	# FIXME: check on windows if / works
+	parser.add_argument("--pak-name", dest="pak_name", metavar="STRING", help="user %(metavar)s as pak name, example dev/nightly will produce build/pkg/dev/nightly_<version>.dpk")
 	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as %(metavar)s file")
 	parser.add_argument("--version-suffix", dest="version_suffix", metavar="STRING", default=None, help="version suffix string, default: %(default)s")
 	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="process tasks sequentially (disable parallel multitasking)", action="store_true")
