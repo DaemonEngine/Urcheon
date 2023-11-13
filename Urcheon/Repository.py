@@ -1196,6 +1196,9 @@ class Git():
 	def getDate(self, reference):
 		proc = subprocess.Popen(self.git + ["log", "-1", "--pretty=format:%ct", reference], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
+		lines = stdout.decode().splitlines()
+		if len(lines) == 0:
+			return 0
 		return stdout.decode().splitlines()[0]
 
 	def listFiles(self):
