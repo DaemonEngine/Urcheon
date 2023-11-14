@@ -73,7 +73,8 @@ def package(args):
 def clean(args):
 	clean_all = args.clean_all
 
-	if not args.clean_map \
+	if not args.clean_source \
+		and not args.clean_map \
 		and not args.clean_build \
 		and not args.clean_test \
 		and not args.clean_package \
