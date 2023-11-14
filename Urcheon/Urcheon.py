@@ -48,7 +48,7 @@ def build(args):
 	source_dir_list = args.source_dir
 
 	if args.test_dir and len(source_dir_list) > 1:
-		Ui.error("--test-dir can't be used while building more than one source directory", silent=True)
+		Ui.error("--pakdir can't be used while building more than one source directory", silent=True)
 
 	multi_runner = Pak.MultiRunner(source_dir_list, args)
 	multi_runner.run()
@@ -59,13 +59,13 @@ def package(args):
 	source_dir_list = args.source_dir
 
 	if args.test_dir and len(source_dir_list) > 1:
-		Ui.error("--test-dir can't be used while packaging more than one source directory", silent=True)
+		Ui.error("--pakdir can't be used while packaging more than one source directory", silent=True)
 
 	if args.pak_name and len(source_dir_list) > 1:
-		Ui.error("--pak-name can't be used while packaging more than one source directory", silent=True)
+		Ui.error("--pakname can't be used while packaging more than one source directory", silent=True)
 
 	if args.pak_file and len(source_dir_list) > 1:
-		Ui.error("--pak-file can't be used while packaging more than one source directory", silent=True)
+		Ui.error("--pak can't be used while packaging more than one source directory", silent=True)
 
 	is_parallel = not args.no_parallel
 	multi_runner = Pak.MultiRunner(source_dir_list, args)
@@ -112,7 +112,7 @@ def clean(args):
 
 		if args.clean_package or clean_all:
 			package_config = Repository.Config(source_tree)
-			package_dir = package_config.getPackagePkgPrefix(args)
+			package_dir = package_config.getPackageBasePrefix(args)
 			cleaner.cleanPak(package_dir)
 
 def main():
@@ -127,16 +127,16 @@ def main():
 	parser.add_argument("-C", "--change-directory", dest="change_directory", metavar="DIRNAME", default=".", help="run Urcheon in %(metavar)s directory, default: %(default)s")
 
 	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="write build in %(metavar)s prefix, example: " + Default.build_prefix)
-	parser.add_argument("--build-base-prefix", dest="build_base_prefix", metavar="DIRNAME", help="write test pkg folder in %(metavar)s prefix, example: " + Default.build_base_prefix)
-	parser.add_argument("--build-pkg-prefix", dest="build_pkg_prefix", metavar="DIRNAME", help="write test pakdir in %(metavar)s prefix, example: " + Default.build_pkg_prefix)
+	parser.add_argument("--build-root-prefix", dest="build_root_prefix", metavar="DIRNAME", help="write test pkg folder in %(metavar)s prefix, example: " + Default.build_root_prefix)
+	parser.add_argument("--build-base-prefix", dest="build_base_prefix", metavar="DIRNAME", help="write test pakdir in %(metavar)s prefix, example: " + Default.build_base_prefix)
 	parser.add_argument("--package-prefix", dest="package_prefix", metavar="DIRNAME", help="write package in %(metavar)s prefix, example: " + Default.package_prefix + ", default: same as build prefix")
-	parser.add_argument("--package-base-prefix", dest="package_base_prefix", metavar="DIRNAME", help="write package pkg folder in %(metavar)s prefix, example: " + Default.package_base_prefix)
-	parser.add_argument("--package-pkg-prefix", dest="package_pkg_prefix", metavar="DIRNAME", help="write package in %(metavar)s prefix, example: " + Default.package_pkg_prefix)
-	parser.add_argument("--pakprefix", dest="pakprefix", metavar="DIRNAME", help="package release pak in %(metavar)s subfolder")
-	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
-	# FIXME: check on windows if / works
-	parser.add_argument("--pak-name", dest="pak_name", metavar="STRING", help="user %(metavar)s as pak name, example dev/nightly will produce build/pkg/dev/nightly_<version>.dpk")
-	parser.add_argument("--pak-file", dest="pak_file", metavar="FILENAME", help="build release pak as %(metavar)s file")
+	parser.add_argument("--package-root-prefix", dest="package_root_prefix", metavar="DIRNAME", help="write package pkg folder in %(metavar)s prefix, example: " + Default.package_root_prefix)
+	parser.add_argument("--package-base-prefix", dest="package_base_prefix", metavar="DIRNAME", help="write package in %(metavar)s prefix, example: " + Default.package_base_prefix)
+	# FIXME: check on Windows if / works
+	parser.add_argument("--pakname", dest="pak_name", metavar="STRING", help="use %(metavar)s as pak name with optional prefix, example: dev/nightly will produce build/pkg/dev/nightly_<version>.dpk")
+	parser.add_argument("--pakprefix", dest="pakprefix", metavar="DIRNAME", help="package release pak in %(metavar)s subdirectory, example: nightly will write build/pkg/nightly/<name>_<version>.dpk ")
+	parser.add_argument("--pakdir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
+	parser.add_argument("--pak", dest="pak_file", metavar="FILENAME", help="build release pak as %(metavar)s file")
 	parser.add_argument("--version-suffix", dest="version_suffix", metavar="STRING", default=None, help="version suffix string, default: %(default)s")
 	parser.add_argument("-np", "--no-parallel", dest="no_parallel", help="process tasks sequentially (disable parallel multitasking)", action="store_true")
 

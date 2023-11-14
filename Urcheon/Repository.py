@@ -282,21 +282,49 @@ class Config():
 
 		return os.path.abspath(package_prefix)
 
-	def getBuildBasePrefix(self, args):
-		if args and args.build_base_prefix:
-			build_base_prefix = args.build_base_prefix
+	def getBuildRootPrefix(self, args):
+		if args and args.build_root_prefix:
+			build_root_prefix = args.build_root_prefix
 		else:
-			env_build_base_prefix= os.getenv("URCHEON_BUILD_BASE_PREFIX")
-			if env_build_base_prefix:
-				Ui.notice("URCHEON_BUILD_BASE_PREFIX set, will use: " + env_build_base_prefix)
-				build_base_prefix = env_build_base_prefix
+			env_build_root_prefix= os.getenv("URCHEON_BUILD_ROOT_PREFIX")
+			if env_build_root_prefix:
+				Ui.notice("URCHEON_BUILD_ROOT_PREFIX set, will use: " + env_build_root_prefix)
+				build_root_prefix = env_build_root_prefix
 			else:
 				build_prefix = self.getBuildPrefix(args)
 
 				if os.path.exists(os.path.join(build_prefix, "test")):
 					Ui.errorLegacyLayout()
 
-				build_base_prefix = os.path.join(build_prefix, Default.build_pakdir_folder)
+				build_root_prefix = Default.build_root_prefix
+
+		return os.path.abspath(build_root_prefix)
+
+	def getPackageRootPrefix(self, args):
+		if args and args.package_root_prefix:
+			package_root_prefix = args.package_root_prefix
+		else:
+			env_package_root_prefix= os.getenv("URCHEON_PACKAGE_ROOT_PREFIX")
+			if env_package_root_prefix:
+				Ui.notice("URCHEON_PACKAGE_ROOT_PREFIX set, will use: " + env_package_root_prefix)
+				package_root_prefix = env_package_root_prefix
+			else:
+				package_prefix = self.getPackagePrefix(args)
+
+				if os.path.exists(os.path.join(package_prefix, "test")):
+					Ui.errorLegacyLayout()
+
+				package_root_prefix = Default.package_root_prefix
+
+		return os.path.abspath(package_root_prefix)
+
+	def getBuildBasePrefix(self, args):
+		if args and args.build_base_prefix:
+			build_base_prefix = args.build_base_prefix
+		else:
+			build_root_prefix = self.getBuildRootPrefix(args)
+
+			build_base_prefix = os.path.join(build_root_prefix, Default.pkg_dir)
 
 		return os.path.abspath(build_base_prefix)
 
@@ -304,48 +332,20 @@ class Config():
 		if args and args.package_base_prefix:
 			package_base_prefix = args.package_base_prefix
 		else:
-			env_package_base_prefix= os.getenv("URCHEON_PACKAGE_BASE_PREFIX")
-			if env_package_base_prefix:
-				Ui.notice("URCHEON_PACKAGE_BASE_PREFIX set, will use: " + env_package_base_prefix)
-				package_base_prefix = env_package_base_prefix
-			else:
-				package_prefix = self.getPackagePrefix(args)
+			package_root_prefix = self.getPackageRootPrefix(args)
 
-				if os.path.exists(os.path.join(package_prefix, "test")):
-					Ui.errorLegacyLayout()
-
-				package_base_prefix = os.path.join(package_prefix, Default.package_pak_folder)
+			package_base_prefix = os.path.join(package_root_prefix, Default.pkg_dir)
 
 		return os.path.abspath(package_base_prefix)
-
-	def getBuildPkgPrefix(self, args):
-		if args and args.build_pkg_prefix:
-			build_pkg_prefix = args.build_pkg_prefix
-		else:
-			build_base_prefix = self.getBuildBasePrefix(args)
-
-			build_pkg_prefix = os.path.join(build_base_prefix, Default.pkg_dir)
-
-		return os.path.abspath(build_pkg_prefix)
-
-	def getPackagePkgPrefix(self, args):
-		if args and args.package_pkg_prefix:
-			package_pkg_prefix = args.package_pkg_prefix
-		else:
-			package_base_prefix = self.getPackageBasePrefix(args)
-
-			package_pkg_prefix = os.path.join(package_base_prefix, Default.pkg_dir)
-
-		return os.path.abspath(package_pkg_prefix)
 
 	def getTestDir(self, args):
 		if args and args.test_dir:
 			test_dir = args.test_dir
 		else:
-			if args and args.build_pkg_prefix:
-				build_pkg_prefix = args.build_pkg_prefix
+			if args and args.build_base_prefix:
+				build_base_prefix = args.build_base_prefix
 			else:
-				build_pkg_prefix = self.getBuildPkgPrefix(args)
+				build_base_prefix = self.getBuildBasePrefix(args)
 
 			if args and args.pak_name:
 				pak_name = args.pak_name
@@ -359,7 +359,7 @@ class Config():
 			else:
 				test_dir_name = pak_name + self.game_profile.pakdir_ext
 
-			test_dir = os.path.join(build_pkg_prefix, test_dir_name)
+			test_dir = os.path.join(build_base_prefix, test_dir_name)
 
 		return os.path.abspath(test_dir)
 
@@ -367,10 +367,10 @@ class Config():
 		if args and args.pak_file:
 			pak_file = args.pak_file
 		else:
-			if args and args.package_pkg_prefix:
-				package_pkg_prefix = args.package_pkg_prefix
+			if args and args.package_base_prefix:
+				package_base_prefix = args.package_base_prefix
 			else:
-				package_pkg_prefix = self.getPackagePkgPrefix(args)
+				package_base_prefix = self.getPackageBasePrefix(args)
 
 			if args and args.pak_name:
 				pak_name = args.pak_name
@@ -397,9 +397,9 @@ class Config():
 				pak_file_name = pak_name + self.game_profile.pak_ext
 
 			if args and args.pakprefix:
-				pak_file = os.path.join(package_pkg_prefix, args.pakprefix, pak_file_name)
+				pak_file = os.path.join(package_base_prefix, args.pakprefix, pak_file_name)
 			else:
-				pak_file = os.path.join(package_pkg_prefix, pak_file_name)
+				pak_file = os.path.join(package_base_prefix, pak_file_name)
 
 		return os.path.abspath(pak_file)
 
