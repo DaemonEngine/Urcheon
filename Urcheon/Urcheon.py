@@ -9,6 +9,7 @@
 
 
 from Urcheon import Action
+from Urcheon import Default
 from Urcheon import Pak
 from Urcheon import Repository
 from Urcheon import Ui
@@ -76,7 +77,6 @@ def clean(args):
 	if not args.clean_source \
 		and not args.clean_map \
 		and not args.clean_build \
-		and not args.clean_test \
 		and not args.clean_package \
 		and not args.clean_all:
 		clean_all = True
@@ -97,7 +97,7 @@ def clean(args):
 		if args.clean_map:
 			pak_config = Repository.Config(source_tree)
 			# Do not use pak_name
-			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+			test_dir = pak_config.getTestDir(args)
 			cleaner.cleanMap(test_dir)
 
 		if args.clean_source or clean_all:
@@ -105,15 +105,15 @@ def clean(args):
 			previous_file_list = paktrace.listAll()
 			cleaner.cleanDust(source_dir, [], previous_file_list)
 
-		if args.clean_test or args.clean_build or clean_all:
+		if args.clean_build or clean_all:
 			pak_config = Repository.Config(source_tree)
-			test_dir = pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
+			test_dir = pak_config.getTestDir(args)
 			cleaner.cleanTest(test_dir)
 
-		if args.clean_package or args.clean_build or clean_all:
-			pak_config = Repository.Config(source_tree)
-			pak_prefix = pak_config.getPakPrefix(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix)
-			cleaner.cleanPak(pak_prefix)
+		if args.clean_package or clean_all:
+			package_config = Repository.Config(source_tree)
+			package_dir = package_config.getPackagePkgPrefix(args)
+			cleaner.cleanPak(package_dir)
 
 def main():
 	description="Urcheon is a tender knight who takes care of my lovely granger's little flower."
@@ -126,9 +126,13 @@ def main():
 
 	parser.add_argument("-C", "--change-directory", dest="change_directory", metavar="DIRNAME", default=".", help="run Urcheon in %(metavar)s directory, default: %(default)s")
 
-	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="build in %(metavar)s prefix, example: build")
-	parser.add_argument("--test-prefix", dest="test_prefix", metavar="DIRNAME", help="use test pakdir from %(metavar)s prefix, example: build/test")
-	parser.add_argument("--pak-prefix", dest="pak_prefix", metavar="DIRNAME", help="build release pak in %(metavar)s prefix, example: build/pkg")
+	parser.add_argument("--build-prefix", dest="build_prefix", metavar="DIRNAME", help="write build in %(metavar)s prefix, example: " + Default.build_prefix)
+	parser.add_argument("--build-base-prefix", dest="build_base_prefix", metavar="DIRNAME", help="write test pkg folder in %(metavar)s prefix, example: " + Default.build_base_prefix)
+	parser.add_argument("--build-pkg-prefix", dest="build_pkg_prefix", metavar="DIRNAME", help="write test pakdir in %(metavar)s prefix, example: " + Default.build_pkg_prefix)
+	parser.add_argument("--package-prefix", dest="package_prefix", metavar="DIRNAME", help="write package in %(metavar)s prefix, example: " + Default.package_prefix + ", default: same as build prefix")
+	parser.add_argument("--package-base-prefix", dest="package_base_prefix", metavar="DIRNAME", help="write package pkg folder in %(metavar)s prefix, example: " + Default.package_base_prefix)
+	parser.add_argument("--package-pkg-prefix", dest="package_pkg_prefix", metavar="DIRNAME", help="write package in %(metavar)s prefix, example: " + Default.package_pkg_prefix)
+	parser.add_argument("--pakprefix", dest="pakprefix", metavar="DIRNAME", help="package release pak in %(metavar)s subfolder")
 	parser.add_argument("--test-dir", dest="test_dir", metavar="DIRNAME", help="use directory %(metavar)s as pakdir")
 	# FIXME: check on windows if / works
 	parser.add_argument("--pak-name", dest="pak_name", metavar="STRING", help="user %(metavar)s as pak name, example dev/nightly will produce build/pkg/dev/nightly_<version>.dpk")
@@ -146,7 +150,7 @@ def main():
 	discover_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="discover %(metavar)s directory, default: %(default)s")
 
 	# Prepare
-	prepare_parser = subparsers.add_parser('prepare', help='prepare a package')
+	prepare_parser = subparsers.add_parser('prepare', help='prepare a pakdir')
 	prepare_parser.set_defaults(func=prepare)
 
 	prepare_parser.add_argument("-n", "--no-auto-actions", dest="no_auto_actions", help="do not compute actions at build time", action="store_true")
@@ -154,7 +158,7 @@ def main():
 	prepare_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="prepare %(metavar)s directory, default: %(default)s")
 
 	# Build
-	build_parser = subparsers.add_parser('build', help='build a package')
+	build_parser = subparsers.add_parser('build', help='build a pakdir')
 	build_parser.set_defaults(func=build)
 
 	build_parser.add_argument("-mp", "--map-profile", dest="map_profile", metavar="PROFILE", help="build map with %(metavar)s profile, default: %(default)s")
@@ -165,7 +169,7 @@ def main():
 	build_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="build from %(metavar)s directory, default: %(default)s")
 
 	# Package
-	package_parser = subparsers.add_parser('package', help='package a package')
+	package_parser = subparsers.add_parser('package', help='package a pak')
 	package_parser.set_defaults(func=package)
 
 	package_parser.add_argument("-ad", "--allow-dirty", dest="allow_dirty", help="allow to package from repositories with uncommitted files", action="store_true")
@@ -173,15 +177,14 @@ def main():
 	package_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="package from %(metavar)s directory, default: %(default)s")
 
 	# Clean
-	clean_parser = subparsers.add_parser('clean', help='clean a package')
+	clean_parser = subparsers.add_parser('clean', help='clean pakdir and pak')
 	clean_parser.set_defaults(func=clean)
 
 	clean_parser.add_argument("-a", "--all", dest="clean_all", help="clean all (default)", action="store_true")
-	clean_parser.add_argument("-b", "--build", dest="clean_build", help="clean test directory and generated packages (alias for --test --package)", action="store_true")
-	clean_parser.add_argument("-s", "--source", dest="clean_source", help="clean source directory", action="store_true")
-	clean_parser.add_argument("-t", "--test", dest="clean_test", help="clean test directory", action="store_true")
+	clean_parser.add_argument("-s", "--source", dest="clean_source", help="clean source pakdir", action="store_true")
+	clean_parser.add_argument("-b", "--build", dest="clean_build", help="clean built pakdir", action="store_true")
 	clean_parser.add_argument("-m", "--map", dest="clean_map", help="clean map build", action="store_true")
-	clean_parser.add_argument("-p", "--package", dest="clean_package", help="clean previously generated packages", action="store_true")
+	clean_parser.add_argument("-p", "--package", dest="clean_package", help="clean packaged pak", action="store_true")
 	clean_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=[ "." ], help="clean %(metavar)s directory, default: .")
 
 	args = parser.parse_args()

@@ -106,7 +106,7 @@ class Builder():
 			if is_nested:
 				self.test_dir = args.test_dir
 			else:
-				self.test_dir = source_tree.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir, pak_name=args.pak_name)
+				self.test_dir = source_tree.pak_config.getTestDir(args)
 
 			if is_nested:
 				self.since_reference = False
@@ -449,8 +449,8 @@ class Packager():
 		self.allow_dirty = args.allow_dirty
 		self.no_compress = args.no_compress
 
-		self.test_dir = self.pak_config.getTestDir(build_prefix=args.build_prefix, test_prefix=args.test_prefix, test_dir=args.test_dir)
-		self.pak_file = self.pak_config.getPakFile(build_prefix=args.build_prefix, pak_prefix=args.pak_prefix, pak_name=args.pak_name, pak_file=args.pak_file, version_suffix=args.version_suffix)
+		self.test_dir = self.pak_config.getTestDir(args)
+		self.pak_file = self.pak_config.getPakFile(args)
 
 		self.game_profile = Game.Game(source_tree)
 
@@ -616,15 +616,15 @@ class Cleaner():
 		FileSystem.removeEmptyDir(test_dir)
 
 
-	def cleanPak(self, pak_prefix):
-		for dir_name, subdir_name_list, file_name_list in os.walk(pak_prefix):
+	def cleanPak(self, install_dir):
+		for dir_name, subdir_name_list, file_name_list in os.walk(install_dir):
 			for file_name in file_name_list:
 				if file_name.startswith(self.pak_name) and file_name.endswith(self.game_profile.pak_ext):
 					pak_file = os.path.join(dir_name, file_name)
 					Ui.laconic("clean: " + pak_file)
 					os.remove(pak_file)
 					FileSystem.removeEmptyDir(dir_name)
-		FileSystem.removeEmptyDir(pak_prefix)
+		FileSystem.removeEmptyDir(install_dir)
 
 
 	def cleanMap(self, test_dir):
