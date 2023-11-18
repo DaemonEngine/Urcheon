@@ -441,6 +441,8 @@ class Builder():
 class Packager():
 	# TODO: reuse paktraces, do not walk for file,s
 	def __init__(self, source_tree, args):
+		self.source_tree = source_tree
+
 		self.source_dir = source_tree.dir
 		self.pak_vfs = source_tree.pak_vfs
 		self.pak_config = source_tree.pak_config
@@ -448,6 +450,7 @@ class Packager():
 
 		self.allow_dirty = args.allow_dirty
 		self.no_compress = args.no_compress
+		self.merge_dir = args.merge_dir
 
 		self.test_dir = self.pak_config.getTestDir(args)
 		self.pak_file = self.pak_config.getPakFile(args)
@@ -469,6 +472,40 @@ class Packager():
 			logging.debug("create pak subdir: " + pak_subdir)
 			os.makedirs(pak_subdir, exist_ok=True)
 
+	def addToPak(self, pak_zipfile, full_path, file_path):
+		# TODO: add a mechanism to know if VFS supports
+		# symbolic links in packages or not.
+		# Dæmon's DPK VFS is supporting symbolic links.
+		# DarkPlaces' PK3 VFS is supporting symbolic links.
+		# Others may not.
+		is_symlink_supported = True
+		if is_symlink_supported and os.path.islink(full_path):
+			Ui.print("add symlink to package " + os.path.basename(self.pak_file) + ": " + file_path)
+
+			# TODO: Remove this test when Urcheon deletes extra
+			# files in build directory. Currently a deleted but not
+			# committed file is kept.
+			if os.path.exists(full_path):
+				# FIXME: getmtime reads realpath datetime, not symbolic link datetime.
+				file_date_time = (datetime.fromtimestamp(os.path.getmtime(full_path)))
+
+			# See https://stackoverflow.com/a/61795576/9131399
+			attrs = ('year', 'month', 'day', 'hour', 'minute', 'second')
+			file_date_time_tuple = attrgetter(*attrs)(file_date_time)
+
+			# See https://stackoverflow.com/a/60691331/9131399
+			zip_info = zipfile.ZipInfo(file_path, date_time=file_date_time_tuple)
+			zip_info.create_system = 3
+
+			file_permissions = 0o777
+			file_permissions |= 0xA000
+			zip_info.external_attr = file_permissions << 16
+
+			target_path = os.readlink(full_path)
+			pak_zipfile.writestr(zip_info, target_path)
+		else:
+			Ui.print("add file to package " + os.path.basename(self.pak_file) + ": " + file_path)
+			pak_zipfile.write(full_path, arcname=file_path)
 
 	def run(self):
 		if not os.path.isdir(self.test_dir):
@@ -498,25 +535,11 @@ class Packager():
 			# maximum compression
 			zipfile.zlib.Z_DEFAULT_COMPRESSION = zipfile.zlib.Z_BEST_COMPRESSION
 
-		found_file = False
 		paktrace_dir = Default.getPakTraceDir(self.test_dir)
 		relative_paktrace_dir = os.path.relpath(paktrace_dir, self.test_dir)
 
-		for dir_name, subdir_name_list, file_name_list in os.walk(paktrace_dir):
-			for file_name in file_name_list:
-				found_file = True
-				break
-
-			if found_file:
-				break
-
-		# FIXME: if only the DEPS file is modified, the package will
-		# not be created (it should be).
-		if not found_file:
-			Ui.print("Not writing empty package: " + self.pak_file)
-			return
-
-		pak = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
+		paktrace = Repository.Paktrace(self.source_tree, self.test_dir)
+		built_file_list = paktrace.listAll()
 
 		for dir_name, subdir_name_list, file_name_list in os.walk(self.test_dir):
 			for file_name in file_name_list:
@@ -533,47 +556,68 @@ class Packager():
 				if self.pak_format == "dpk" and file_path in Repository.dpk_special_files:
 					continue
 
-				found_file = True
+				if file_path not in built_file_list:
+					Ui.warning("extraneous file, will not package: " + file_path)
 
-				# TODO: add a mechanism to know if VFS supports
-				# symbolic links in packages or not.
-				# Dæmon's DPK VFS is supporting symbolic links.
-				# DarkPlaces' PK3 VFS is supporting symbolic links.
-				# Others may not.
-				is_symlink_supported = True
-				if is_symlink_supported and os.path.islink(full_path):
-					Ui.print("add symlink to package " + os.path.basename(self.pak_file) + ": " + file_path)
+		test_file_list = []
 
-					# TODO: Remove this test when Urcheon deletes extra
-					# files in build directory. Currently a deleted but not
-					# committed file is kept.
-					if os.path.exists(full_path):
-						# FIXME: getmtime reads realpath datetime, not symbolic link datetime.
-						file_date_time = (datetime.fromtimestamp(os.path.getmtime(full_path)))
+		for file_path in built_file_list:
+			full_path = os.path.join(self.test_dir, file_path)
 
-					# See https://stackoverflow.com/a/61795576/9131399
-					attrs = ('year', 'month', 'day', 'hour', 'minute', 'second')
-					file_date_time_tuple = attrgetter(*attrs)(file_date_time)
+			if not os.path.exists(full_path):
+				Ui.error("Missing " + full_path)
 
-					# See https://stackoverflow.com/a/60691331/9131399
-					zip_info = zipfile.ZipInfo(file_path, date_time=file_date_time_tuple)
-					zip_info.create_system = 3
+			file_dict = {
+				"full_path": full_path,
+				"file_path": file_path,
+			}
 
-					file_permissions = 0o777
-					file_permissions |= 0xA000
-					zip_info.external_attr = file_permissions << 16
+			test_file_list.append(file_dict)
 
-					target_path = os.readlink(full_path)
-					pak.writestr(zip_info, target_path)
-				else:
-					Ui.print("add file to package " + os.path.basename(self.pak_file) + ": " + file_path)
-					pak.write(full_path, arcname=file_path)
+		merge_file_list = []
+
+		if self.merge_dir:
+			for dir_name, subdir_name_list, file_name_list in os.walk(self.merge_dir):
+				for file_name in file_name_list:
+					full_path = os.path.join(dir_name, file_name)
+					file_path = os.path.relpath(full_path, self.merge_dir)
+
+					# unsupported paktrace files
+					if file_path.startswith(relative_paktrace_dir + os.path.sep):
+						Ui.error("Merging urcheon-built dpkdir is not supported", silent=True)
+
+					# unsupported DELETED and DEPS file
+					if self.pak_format == "dpk" and file_path in Repository.dpk_special_files:
+						Ui.error("Merging urcheon-built dpkdir is not supported", silent=True)
+
+					file_dict = {
+						"full_path": full_path,
+						"file_path": file_path,
+					}
+
+					merge_file_list.append(file_dict)
+
+		# FIXME: if only the DEPS file is modified, the package will
+		# not be created (it should be).
+		if not test_file_list and not merge_file_list:
+			Ui.print("Not writing empty package: " + self.pak_file)
+			return
+
+		pak_zipfile = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
+
+		for file_dict in test_file_list:
+			self.addToPak(pak_zipfile, file_dict["full_path"], file_dict["file_path"])
+
+		if self.merge_dir:
+			Ui.print("Merging " + self.merge_dir + " directory")
+			for file_dict in merge_file_list:
+				self.addToPak(pak_zipfile, file_dict["full_path"], file_dict["file_path"])
 
 		if self.pak_format == "dpk":
 			# Writing DELETED file.
 			deleted_file_path = self.deleted.get_test_path()
 			if os.path.isfile(deleted_file_path):
-					pak.write(deleted_file_path, arcname="DELETED")
+					pak_zipfile.write(deleted_file_path, arcname="DELETED")
 
 			# Translating DEPS file.
 			if self.deps.read(deps_dir=self.test_dir):
@@ -582,10 +626,10 @@ class Packager():
 				deps_temp_dir = tempfile.mkdtemp()
 				deps_temp_file = self.deps.write(deps_dir=deps_temp_dir)
 				Ui.print("add file to package " + os.path.basename(self.pak_file) + ": DEPS")
-				pak.write(deps_temp_file, arcname="DEPS")
+				pak_zipfile.write(deps_temp_file, arcname="DEPS")
 
 		logging.debug("close: " + self.pak_file)
-		pak.close()
+		pak_zipfile.close()
 
 		if source_repository.isGit():
 			repo_date = int(source_repository.getDate("HEAD"))

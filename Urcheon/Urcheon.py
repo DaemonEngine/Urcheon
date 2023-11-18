@@ -174,6 +174,7 @@ def main():
 
 	package_parser.add_argument("-ad", "--allow-dirty", dest="allow_dirty", help="allow to package from repositories with uncommitted files", action="store_true")
 	package_parser.add_argument("-nc", "--no-compress", dest="no_compress", help="package without compression", action="store_true")
+	package_parser.add_argument("--merge-directory", dest="merge_dir", metavar="DIRNAME", help="add files from the directory to the archive")
 	package_parser.add_argument("source_dir", nargs="*", metavar="DIRNAME", default=".", help="package from %(metavar)s directory, default: %(default)s")
 
 	# Clean
