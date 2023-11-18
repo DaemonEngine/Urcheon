@@ -364,10 +364,11 @@ class Builder():
 					# aren't built in other way to avoid listing
 					# as deleted a file that is actually shipped.
 					for deleted_part_dict in deleted_part_list:
-						is_built = False
-						if deleted_part_dict["pak_name"] == self.pak_name:
-							deleted_part = deleted_part_dict["file_path"]
+						deleted_part = deleted_part_dict["file_path"]
 
+						is_built = False
+
+						if deleted_part_dict["pak_name"] == self.pak_name:
 							if deleted_part.startswith(Default.repository_config_dir + os.path.sep):
 								continue
 
