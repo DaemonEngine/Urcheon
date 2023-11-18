@@ -517,7 +517,7 @@ class Packager():
 			if self.allow_dirty:
 				Ui.warning("Dirty repository: " + self.source_dir)
 			else:
-				Ui.error("Dirty repository isn't allowed to be packaged (use --allow-dirty to override): " + self.source_dir)
+				Ui.error("Dirty repository isn't allowed to be packaged (use --allow-dirty to override): " + self.source_dir, silent=True)
 
 		Ui.print("Packaging “" + self.test_dir + "” as: " + self.pak_file)
 
