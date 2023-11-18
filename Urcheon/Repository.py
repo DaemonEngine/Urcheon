@@ -1209,12 +1209,38 @@ class Git():
 
 		# modified file
 		if proc.numerator != 0:
-			return True
+			# Ignore modified file outside the dpkdir (when the dpkdir is a subfolder of a repository)
 
-		proc = subprocess.Popen(self.git + ["ls-files", "--others", "--exclude-standard"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+			# TODO: Add an option to force those files to marke the package as dirty.
+			# Some files may be contributed to the final package with --merge-directory
+			# like binaries built from sources files from the same repository.
+
+			proc = subprocess.Popen(self.git + ["rev-parse", "--show-toplevel"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+			stdout, stderr = proc.communicate()
+
+			toplevel_path = stdout.decode().splitlines()[0]
+
+			proc = subprocess.Popen(self.git + ["diff", "-z", "--name-only"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+			stdout, stderr = proc.communicate()
+
+			file_list = [x for x in stdout.decode().split('\0')[:-1]]
+
+			source_dir_fullpath = os.path.realpath(self.source_dir)
+			for file_path in file_list:
+				full_path = os.path.realpath(os.path.join(toplevel_path, file_path))
+				if not os.path.relpath(source_dir_fullpath, full_path).startswith(".."):
+					return True
+
+			# TODO: Add an option for ignoring changes in submodules of the dpkdir.
+			# The chance someone does that is very little anyway.
+			# We may want this if we want files modified outside of dpkdir to
+			# make the package dirty if binary merged to the packages are built
+			# from the same repository but outside the dpkdir.
+
+		proc = subprocess.Popen(self.git + ["ls-files", "-z", "--others", "--exclude-standard"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 		stdout, stderr = proc.communicate()
 
-		file_list = stdout.decode().splitlines()
+		file_list = stdout.decode().split('\0')[:-1]
 
 		# added file
 		return len(file_list) > 0
