@@ -1218,6 +1218,9 @@ class Git():
 			proc = subprocess.Popen(self.git + ["rev-parse", "--show-toplevel"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 			stdout, stderr = proc.communicate()
 
+			if proc.returncode != 0:
+				Ui.error("Something bad happened with pakdir " + self.source_dir, silent=True)
+
 			toplevel_path = stdout.decode().splitlines()[0]
 
 			proc = subprocess.Popen(self.git + ["diff", "-z", "--name-only"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
