@@ -396,10 +396,18 @@ class Config():
 			else:
 				pak_file_name = pak_name + self.game_profile.pak_ext
 
+			pakprefix = ""
+
 			if args and args.pakprefix:
-				pak_file = os.path.join(package_base_prefix, args.pakprefix, pak_file_name)
+				pakprefix = args.pakprefix
 			else:
-				pak_file = os.path.join(package_base_prefix, pak_file_name)
+				env_pakprefix = os.getenv("URCHEON_PAKPREFIX")
+
+				if env_pakprefix:
+					Ui.notice("URCHEON_PAKPREFIX set, will use: " + env_pakprefix)
+					pakprefix = env_pakprefix
+
+			pak_file = os.path.join(package_base_prefix, pakprefix, pak_file_name)
 
 		return os.path.abspath(pak_file)
 
