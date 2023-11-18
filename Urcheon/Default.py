@@ -48,17 +48,17 @@ action_list_ext = ".txt"
 
 ignore_list_file = "ignore.txt"
 
-pkg_dir = "pkg"
+base_dir = "pkg"
 
 build_prefix = "build"
 build_parent_dir = "_pakdir"
 build_root_prefix = os.path.join(build_prefix, build_parent_dir)
-build_base_prefix = os.path.join(build_root_prefix, pkg_dir)
+build_base_prefix = os.path.join(build_root_prefix, base_dir)
 
 package_prefix = build_prefix
 package_parent_dir = ""
 package_root_prefix = os.path.join(package_prefix, package_parent_dir).rstrip("/")
-package_base_prefix = os.path.join(package_root_prefix, pkg_dir)
+package_base_prefix = os.path.join(package_root_prefix, base_dir)
 
 prefix_dir = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 

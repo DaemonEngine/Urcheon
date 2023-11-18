@@ -197,7 +197,7 @@ class Config():
 				if os.path.basename(parent_dir) == "src":
 					Ui.errorLegacyLayout()
 
-				if os.path.basename(parent_dir) == Default.pkg_dir:
+				if os.path.basename(parent_dir) == Default.base_dir:
 					grand_parent_dir = os.path.dirname(parent_dir)
 
 					set_build_prefix = os.path.join(grand_parent_dir, Default.build_prefix)
@@ -253,7 +253,7 @@ class Config():
 						if os.path.basename(parent_dir) == "src":
 							Ui.errorLegacyLayout()
 
-						if os.path.basename(parent_dir) == Default.pkg_dir:
+						if os.path.basename(parent_dir) == Default.base_dir:
 							grand_parent_dir = os.path.dirname(parent_dir)
 
 							set_package_prefix = os.path.join(grand_parent_dir, Default.package_prefix)
@@ -296,7 +296,7 @@ class Config():
 				if os.path.exists(os.path.join(build_prefix, "test")):
 					Ui.errorLegacyLayout()
 
-				build_root_prefix = Default.build_root_prefix
+				build_root_prefix = os.path.join(build_prefix, Default.build_parent_dir)
 
 		return os.path.abspath(build_root_prefix)
 
@@ -314,7 +314,7 @@ class Config():
 				if os.path.exists(os.path.join(package_prefix, "test")):
 					Ui.errorLegacyLayout()
 
-				package_root_prefix = Default.package_root_prefix
+				package_root_prefix = os.path.join(package_prefix, Default.package_parent_dir).rstrip("/")
 
 		return os.path.abspath(package_root_prefix)
 
@@ -324,7 +324,7 @@ class Config():
 		else:
 			build_root_prefix = self.getBuildRootPrefix(args)
 
-			build_base_prefix = os.path.join(build_root_prefix, Default.pkg_dir)
+			build_base_prefix = os.path.join(build_root_prefix, Default.base_dir)
 
 		return os.path.abspath(build_base_prefix)
 
@@ -334,7 +334,7 @@ class Config():
 		else:
 			package_root_prefix = self.getPackageRootPrefix(args)
 
-			package_base_prefix = os.path.join(package_root_prefix, Default.pkg_dir)
+			package_base_prefix = os.path.join(package_root_prefix, Default.base_dir)
 
 		return os.path.abspath(package_base_prefix)
 
