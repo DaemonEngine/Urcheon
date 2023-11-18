@@ -72,6 +72,6 @@ def error(message, silent=False, exit=True):
 
 	if exit:
 		if silent:
-			raise SystemExit()
+			raise sys.exit(1)
 		else:
 			raise ValueError(_message)
