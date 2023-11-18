@@ -242,7 +242,7 @@ class Config():
 					env_build_prefix = os.getenv("URCHEON_BUILD_PREFIX")
 
 					if env_build_prefix:
-						Ui.notice("URCHEON_BUILD_PREFIX set, will use as package prefix: " + env_package_prefix)
+						Ui.notice("URCHEON_BUILD_PREFIX set, will use as package prefix: " + env_build_prefix)
 						package_prefix = env_build_prefix
 					else:
 						package_parent_dir = None
