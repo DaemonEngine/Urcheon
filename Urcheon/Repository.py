@@ -1090,6 +1090,13 @@ class Git():
 
 		self.version_tag_pattern = re.compile(r"^v[0-9].*")
 
+		# TODO: add a command-line option
+		env_timestamp_hex = os.getenv("URCHEON_TIMESTAMP_HEX")
+		if env_timestamp_hex:
+			self.timestamp_function = self.getHexTimeStamp
+		else:
+			self.timestamp_function = self.getCompactHumanTimeStamp
+
 	def isGit(self):
 		proc = subprocess.call(self.git + ["rev-parse"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		return proc.numerator == 0
@@ -1177,7 +1184,7 @@ class Git():
 				short_id = self.getShortId(reference_id)
 
 		if not is_straight:
-			time_stamp = self.getCompactHumanTimeStamp(commit_date)
+			time_stamp = self.timestamp_function(commit_date)
 			version += "-" + time_stamp + "-" + short_id
 
 		return version
@@ -1260,7 +1267,6 @@ class Git():
 		return file_list
 
 	def getHexTimeStamp(self, commit_date):
-		# not used
 		time_stamp = "0" + hex(int(commit_date))[2:]
 		return time_stamp
 
