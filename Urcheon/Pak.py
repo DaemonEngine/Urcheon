@@ -456,11 +456,20 @@ class Packager():
 		self.test_dir = self.pak_config.getTestDir(args)
 		self.pak_file = self.pak_config.getPakFile(args)
 
+		self.temp_pak_file = self.getTempPakFile()
+
 		self.game_profile = Game.Game(source_tree)
 
 		if self.pak_format == "dpk":
 			self.deleted = Repository.Deleted(source_tree, self.test_dir, None)
 			self.deps = Repository.Deps(source_tree, self.test_dir)
+
+	def getTempPakFile(self):
+		# TODO: add a specific cleaning function for those files
+		# to clean them from older builds if something aborted packaging
+		temp_pak_file_dirname = os.path.dirname(self.pak_file)
+		temp_pak_file_basename = "." + os.path.basename(self.pak_file) + ".temp"
+		return os.path.join(temp_pak_file_dirname, temp_pak_file_basename)
 
 	def createSubdirs(self, pak_file):
 		pak_subdir = os.path.dirname(pak_file)
@@ -522,12 +531,7 @@ class Packager():
 		Ui.print("Packaging “" + self.test_dir + "” as: " + self.pak_file)
 
 		self.createSubdirs(self.pak_file)
-		logging.debug("opening: " + self.pak_file)
-
-		# remove existing file (do not write in place) to force the game engine to reread the file
-		if os.path.isfile(self.pak_file):
-			logging.debug("remove existing package: " + self.pak_file)
-			os.remove(self.pak_file)
+		logging.debug("opening: " + self.temp_pak_file)
 
 		if self.no_compress:
 			# why zlib.Z_NO_COMPRESSION not defined?
@@ -604,7 +608,7 @@ class Packager():
 			Ui.print("Not writing empty package: " + self.pak_file)
 			return
 
-		pak_zipfile = zipfile.ZipFile(self.pak_file, "w", zipfile.ZIP_DEFLATED)
+		pak_zipfile = zipfile.ZipFile(self.temp_pak_file, "w", zipfile.ZIP_DEFLATED)
 
 		for file_dict in test_file_list:
 			self.addToPak(pak_zipfile, file_dict["full_path"], file_dict["file_path"])
@@ -629,12 +633,22 @@ class Packager():
 				Ui.print("add file to package " + os.path.basename(self.pak_file) + ": DEPS")
 				pak_zipfile.write(deps_temp_file, arcname="DEPS")
 
-		logging.debug("close: " + self.pak_file)
+		logging.debug("close: " + self.temp_pak_file)
 		pak_zipfile.close()
 
 		if source_repository.isGit():
 			repo_date = int(source_repository.getDate("HEAD"))
-			os.utime(self.pak_file, (repo_date, repo_date))
+			os.utime(self.temp_pak_file, (repo_date, repo_date))
+
+		# remove existing file (do not write in place) to force the game engine to reread the file
+		# maybe the renaming of the temp file already makes sure the file is not the same one anyway
+		if os.path.isfile(self.pak_file):
+			logging.debug("remove existing package: " + self.pak_file)
+			os.remove(self.pak_file)
+
+		logging.debug("Renaming “" + self.temp_pak_file +"” as: " + self.pak_file)
+
+		os.rename(self.temp_pak_file, self.pak_file)
 
 		Ui.laconic("Package written: " + self.pak_file)
 
