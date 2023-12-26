@@ -219,7 +219,7 @@ class Action():
 	is_parallel = True
 	threaded = False
 
-	cwebp_base_command = ["cwebp", "-v", "-mt", "-exact"]
+	cwebp_base_command = ["cwebp", "-v", "-mt", "-exact", "-alpha_q", "100"]
 
 	def __init__(self, source_tree, build_dir, file_path, stage_name, map_profile=None, action_list=None, thread_count=1, is_parallel=True, is_nested=False):
 		self.body = []
@@ -619,7 +619,7 @@ class ConvertLossyWebp(Action):
 	description = "convert to lossy webp format"
 
 	printable_target_format = "lossy webp"
-	cwebp_extra_args = ["-m", "6", "-q", "95", "-pass", "10"]
+	cwebp_extra_args = ["-sharp_yuv", "-m", "6", "-q", "95", "-pass", "10"]
 
 	def effective_run(self):
 		source_path = self.getSourcePath()
