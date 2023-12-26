@@ -612,23 +612,61 @@ class ConvertPng(Action):
 		return self.switchExtension("png")
 
 
-class ConvertLossyWebp(Action):
-	threaded = True
+class ConvertLosslessWebp(Action):
+	keyword = "convert_lossless_webp"
+	description = "convert to lossless webp format"
 
-	keyword = "convert_lossy_webp"
-	description = "convert to lossy webp format"
+	printable_target_format = "lossless webp"
 
-	printable_target_format = "lossy webp"
-	cwebp_extra_args = ["-sharp_yuv", "-m", "6", "-q", "95", "-pass", "10"]
+	output_format_is_lossless = True
+	cwebp_extra_args = ["-lossless", "-z", "9"]
+
+	def detect_lossless_webp(self, source_path):
+		subprocess_stdout = subprocess.PIPE
+		subprocess_stderr = subprocess.DEVNULL
+
+		command_list = ["webpinfo", source_path]
+
+		proc = subprocess.Popen(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr)
+
+		stdout, stderr = proc.communicate()
+
+		if proc.returncode != 0:
+			Ui.error("command failed: '" + "' '".join(command_list) + "'")
+
+		return b"Format: Lossless (2)" in stdout
+
 
 	def effective_run(self):
 		source_path = self.getSourcePath()
 		build_path = self.getTargetPath()
 		self.createSubdirs()
 
+		do_copy = False
+
 		if self.getExt() == "webp":
-			Ui.laconic("File already in webp, copy: " + self.file_path)
-			shutil.copyfile(source_path, build_path)
+			detected_format_is_lossless = self.detect_lossless_webp(source_path)
+
+			if self.output_format_is_lossless:
+				if detected_format_is_lossless:
+					# Do not recompress a lossless WebP to lossless WebP.
+					do_copy = True
+				else:
+					# If the file is already lossy, keep it that way,
+					# there is no need to take up extra space for no
+                    # better quality.
+					do_copy = True
+			else:
+				if detected_format_is_lossless:
+					# Convert from lossless WebP to lossy WebP.
+					pass
+				else:
+					# Do not recompress a lossy WebP to lossy WebP.
+					do_copy = True
+
+		if do_copy:
+   			Ui.laconic("File already in webp, copy: " + self.file_path)
+   			shutil.copyfile(source_path, build_path)
 		else:
 			Ui.laconic("Convert to " + self.printable_target_format +  ": " + self.file_path)
 
@@ -653,12 +691,16 @@ class ConvertLossyWebp(Action):
 		return self.switchExtension("webp")
 
 
-class ConvertLosslessWebp(ConvertLossyWebp):
-	keyword = "convert_lossless_webp"
-	description = "convert to lossless webp format"
+class ConvertLossyWebp(ConvertLosslessWebp):
+	threaded = True
 
-	printable_target_format = "lossless webp"
-	cwebp_extra_args = ["-lossless", "-z", "9"]
+	keyword = "convert_lossy_webp"
+	description = "convert to lossy webp format"
+
+	printable_target_format = "lossy webp"
+
+	output_format_is_lossless = False
+	cwebp_extra_args = ["-sharp_yuv", "-m", "6", "-q", "95", "-pass", "10"]
 
 
 class ConvertCrn(Action):
