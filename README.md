@@ -193,13 +193,13 @@ urcheon package <dpkdir>
 When building dpkdirs from a collection requiring dpkdirs from another collection, one can set the `PAKPATH` environment variable this way (the separator is `;` on Windows and `:` on every other operating system):
 
 ```sh
-export PAKPATH='Collection1/pkg:Collection2/pkg:Collection3/plg'
+export PAKPATH='Collection1/pkg:Collection2/pkg:Collection3/pkg'
 ```
 
 or (Windows):
 
 ```cmd
-set PAKPATH='Collection1/plg;Collection2/pkg;Collection3/pkg'
+set PAKPATH='Collection1/pkg;Collection2/pkg;Collection3/pkg'
 ```
 
 
