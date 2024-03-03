@@ -63,7 +63,7 @@ echo 'Hello world!' > about/helloworld.txt
 
 Now we can build the package, this will produce another dpkdir you can use with your game, with files being either copied, converted or compiled given the need.
 
-It will be stored as `res-helloworld_src.dpkdir/build/test/res-helloworld_test.dpkdir`, you can tell the game engine to use `res-helloworld_src.dpkdir/build/test` as a pakpath to be able to find the package (example: `daemon -pakpath res-helloworld_src.dpkdir/build/test`).
+It will be stored as `res-helloworld_src.dpkdir/build/_pakdir/pkg/res-helloworld_test.dpkdir`, you can tell the game engine to use `res-helloworld_src.dpkdir/build/_pakdir/pkg` as a pakpath to be able to find the package (example: `daemon -pakpath res-helloworld_src.dpkdir/build/_pakdir/pkg`).
 
 ```sh
 urcheon build
@@ -73,7 +73,7 @@ Then we can produce the distributable `dpk` package.
 
 It will be stored as `res-helloworld_src.dpkdir/build/pkg/map-castle_<version>.dpk`. The version will be computed by Urcheon (see below).
 
-You can tell the game engine to use `res-helloworld_src.dpkdir/build/test` as a pakpath to be able to find the package (example: `daemon -pakpath res-helloworld_src.dpkdir/build/test`).
+You can tell the game engine to use `res-helloworld_src.dpkdir/build/_pakdir/pkg` as a pakpath to be able to find the package (example: `daemon -pakpath res-helloworld_src.dpkdir/build/_pakdir/pkg`).
 
 ```sh
 urcheon package
@@ -93,7 +93,7 @@ urcheon package res-helloworld_src.dpkdir
 As you noticed with our previous example, the built files were produced within the source dpkdir, with this layout:
 
 ```
-res-helloworld_src.dpkdir/build/test/res-helloworld_test.dpkdir
+res-helloworld_src.dpkdir/build/_pakdir/pkg/res-helloworld_test.dpkdir
 res-helloworld_src.dpkdir/build/pkg/res-helloworld_<version>.dpk
 ```
 
@@ -107,7 +107,7 @@ urcheon --build-prefix build package res-helloworld_src.dpkdir
 You get:
 
 ```
-build/test/res-helloworld_test.dpkdir
+build/_pakdir/pkg/res-helloworld_test.dpkdir
 build/pkg/res-helloworld_<version>.dpk
 ```
 
@@ -146,34 +146,34 @@ touch .urcheon/collection.txt
 Then we create two packages, they must be stored in a subdirectory named `src`:
 
 ```sh
-mkdir src
+mkdir pkg
 
-mkdir src/res-package1_src.dpkdir
-mkdir src/res-package1_src.dpkdir/.urcheon
-echo 'unvanquished' > src/res_package1_src.dpkdir/.urcheon/game.txt
-mkdir src/res-package1_src.dpkdir/about
-echo 'Package 1' > src/res_package1_src.dpkdir/about/package1.txt
+mkdir pkg/res-package1_src.dpkdir
+mkdir pkg/res-package1_src.dpkdir/.urcheon
+echo 'unvanquished' > pkg/res_package1_src.dpkdir/.urcheon/game.txt
+mkdir pkg/res-package1_src.dpkdir/about
+echo 'Package 1' > pkg/res_package1_src.dpkdir/about/package1.txt
 
-mkdir src/res-package2_src.dpkdir
-mkdir src/res-package2_src.dpkdir/.urcheon
-echo 'unvanquished' > src/res_package2_src.dpkdir/.urcheon/game.txt
-mkdir src/res-package2_src.dpkdir/about
-echo 'Package 2' > src/res_package1_src.dpkdir/about/package2.txt
+mkdir pkg/res-package2_src.dpkdir
+mkdir pkg/res-package2_src.dpkdir/.urcheon
+echo 'unvanquished' > pkg/res_package2_src.dpkdir/.urcheon/game.txt
+mkdir pkg/res-package2_src.dpkdir/about
+echo 'Package 2' > pkg/res_package1_src.dpkdir/about/package2.txt
 
-urcheon build src/*.dpkdir
-urcheon package src/*.dpkdir
+urcheon build pkg/*.dpkdir
+urcheon package pkg/*.dpkdir
 ```
 
 You'll get this layout:
 
 ```
-build/test/res-package1_test.dpkdir
-build/test/res-package2_test.dpkdir
+build/_pakdir/pkg/res-package1_test.dpkdir
+build/_pakdir/pkg/res-package2_test.dpkdir
 build/pkg/res-package1_<version>.dpk
 build/pkg/res-package2_<version>.dpk
 ```
 
-You'll be able to use `build/test` or `build/pkg` as pakpath to make the game engine able to find those packages, example: `daemon -pakpath PackageCollection/build/test` or `daemon -pakpath PackageCollection/build/pkg`.
+You'll be able to use `build/_pakdir/pkg` or `build/pkg` as pakpath to make the game engine able to find those packages, example: `daemon -pakpath PackageCollection/build/_pakdir/pkg` or `daemon -pakpath PackageCollection/build/pkg`.
 
 
 ### Delta package building
@@ -193,13 +193,13 @@ urcheon package <dpkdir>
 When building dpkdirs from a collection requiring dpkdirs from another collection, one can set the `PAKPATH` environment variable this way (the separator is `;` on Windows and `:` on every other operating system):
 
 ```sh
-export PAKPATH='Collection1/src:Collection2/src:Collection3/src'
+export PAKPATH='Collection1/pkg:Collection2/pkg:Collection3/plg'
 ```
 
 or (Windows):
 
 ```cmd
-set PAKPATH='Collection1/src;Collection2/src;Collection3/src'
+set PAKPATH='Collection1/plg;Collection2/pkg;Collection3/pkg'
 ```
 
 
@@ -211,9 +211,9 @@ Here we clone the [UnvanquishedAssets](https://github.com/UnvanquishedAssets/Unv
 git clone --recurse-submodules \
    https://github.com/UnvanquishedAssets/UnvanquishedAssets.git
 
-urcheon prepare UnvanquishedAssets/src/*.dpkdir
-urcheon build UnvanquishedAssets/src/*.dpkdir
-urcheon package UnvanquishedAssets/src/*.dpkdir
+urcheon prepare UnvanquishedAssets/pkg/*.dpkdir
+urcheon build UnvanquishedAssets/pkg/*.dpkdir
+urcheon package UnvanquishedAssets/pkg/*.dpkdir
 ```
 
 We can load the Unvanquished game with the stock plat23 map this way:
@@ -226,29 +226,29 @@ daemon -pakpath UnvanquishedAssets/build/pkg +devmap plat23
 Here we build and package delta Unvanquished packages for `res-` and `tex-` packages, only shipping files modified since Unvanquished 0.52.0, and full packages for map ones:
 
 ```sh
-urcheon prepare UnvanquishedAssets/src/*.dpkdir
-urcheon build --reference unvanquished/0.52.0 \
-    UnvanquishedAssets/src/res-*.dpkdir \
-    UnvanquishedAssets/src/tex-*.dpkdir
-urcheon build UnvanquishedAssets/src/map-*.dpkdir
-urcheon package UnvanquishedAssets/src/*.dpkdir
+urcheon prepare UnvanquishedAssets/pkg/*.dpkdir
+urcheon build --reference unvanquished/0.54.1 \
+    UnvanquishedAssets/pkg/res-*.dpkdir \
+    UnvanquishedAssets/pkg/tex-*.dpkdir
+urcheon build UnvanquishedAssets/pkg/map-*.dpkdir
+urcheon package UnvanquishedAssets/pkg/*.dpkdir
 ```
 
 Here we clone the [InterstellarOasis](https://github.com/InterstellarOasis/InterstellarOasis) and build it.
 
-Since it needs to access dpkdirs from UnvanquishedAssets, we set `UnvanquishedAssets/src` as a pakpath using the `PAKPATH` environment variable.
+Since it needs to access dpkdirs from UnvanquishedAssets, we set `UnvanquishedAssets/pkg` as a pakpath using the `PAKPATH` environment variable.
 
-We also need the `UnvanquishedAsset/src` folder to be prepared, but there is no need to prepare `InterstellarOasis/src`, only build and package it:
+We also need the `UnvanquishedAsset/pkg` folder to be prepared, but there is no need to prepare `InterstellarOasis/pkg`, only build and package it:
 
 ```sh
 git clone --recurse-submodules \
    https://github.com/InterstellarOasis/InterstellarOasis.git
 
-export PAKPATH=UnvanquishedAssets/src
+export PAKPATH=UnvanquishedAssets/pkg
 
-urcheon prepare UnvanquishedAssets/src/*.dpkdir
-urcheon build InterstellarOasis/src/*.dpkdir
-urcheon package InterstellarOasis/src/*.dpkdir
+urcheon prepare UnvanquishedAssets/pkg/*.dpkdir
+urcheon build InterstellarOasis/pkg/*.dpkdir
+urcheon package InterstellarOasis/pkg/*.dpkdir
 ```
 
 Given both `UnvanquishedAssets` and `InterstellarOasis` are built, one can load the Unvanquished game with the third-party atcshd map this way:
@@ -347,30 +347,30 @@ Type `urcheon package --help` for help about the specific `package` command opti
 
 This stage is convenient to clean stuff, it has multiple options if you don't want to clean-up everything.
 
-This will delete built files from the source dpkdir if prepared, and from the `build/test` and `build/pkg` folders:
+This will delete built files from the source dpkdir if prepared, and from the `build/_pakdir/pkg` and `build/pkg` folders:
 
 ```sh
-urcheon clean src/<dpkdir>
+urcheon clean pkg/<dpkdir>
 ```
 
 You can clean those folders selectively:
 
 ```sh
-urcheon clean --source src/<dpkdir>
-urcheon clean --test src/<dpkdir>
-urcheon clean --package src/<dpkdir>
+urcheon clean --source pkg/<dpkdir>
+urcheon clean --test pkg/<dpkdir>
+urcheon clean --package pkg/<dpkdir>
 ```
 
-Those special options also exist, here to only clean `build/test` and `build/pkg`: 
+Those special options also exist, here to only clean `build/_pakdir/pkg` and `build/pkg`: 
 
 ```sh
-urcheon clean --build src/<dpkdir>
+urcheon clean --build pkg/<dpkdir>
 ```
 
-This will only delete built maps from `build/test` (keeping every other build files:
+This will only delete built maps from `build/_pakdir/pkg` (keeping every other build files:
 
 ```sh
-urcheon clean --maps src/<dpkdir>
+urcheon clean --maps pkg/<dpkdir>
 ```
 
 Type `urcheon clean --help` for help about the specific `clean` command options.
@@ -460,7 +460,7 @@ No warranty is given, use this at your own risk. It can make you awesome in spac
 Author
 ------
 
-Thomas Debesse <hidden email="dev@illwieckz.net"/>
+Thomas Debesse <hidden email="dev [ad] illwieckz.net"/>
 
 
 Copyright
