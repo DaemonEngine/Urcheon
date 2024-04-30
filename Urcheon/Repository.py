@@ -384,12 +384,14 @@ class Config():
 
 				if args and args.version_suffix:
 					version_suffix = args.version_suffix
+				else:
+					version_suffix = None
 
 				if pak_version == "${ref}":
 					file_repo = Git(self.source_dir, self.game_profile.pak_format)
-					pak_version = file_repo.getVersion(version_suffix=args.version_suffix)
+					pak_version = file_repo.getVersion(version_suffix=version_suffix)
 				elif version_suffix:
-					pak_version += args.version_suffix
+					pak_version += version_suffix
 
 				pak_file_name = pak_name + "_" + pak_version + self.game_profile.pak_ext
 
