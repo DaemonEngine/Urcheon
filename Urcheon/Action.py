@@ -177,6 +177,7 @@ def list():
 		# and navmesh generation
 		CopyBsp,
 		CompileBsp,
+		CompileAse,
 		# perhaps one day MergeBsp will be run on a copied bsp
 		# so it must be called after that
 		MergeBsp,
@@ -957,7 +958,9 @@ class DumbTransient(Action):
 	def createTransientPath(self):
 		build_path = self.getTargetPath()
 		self.transient_path = tempfile.mkdtemp(suffix="_" + os.path.basename(build_path) + "_transient" + os.path.extsep + "dir")
-		self.transient_maps_path = os.path.join(self.transient_path, "maps")
+		logging.debug("transient path: " + self.transient_path)
+
+		self.transient_maps_path = os.path.join(self.transient_path, os.path.dirname(self.file_path))
 		os.makedirs(self.transient_maps_path, exist_ok=True)
 
 	def buildTransientPath(self, disabled_action_list=[]):
@@ -1115,3 +1118,41 @@ class CompileBsp(DumbTransient):
 
 	def getFileNewName(self):
 		return self.switchExtension("bsp")
+
+
+class CompileAse(DumbTransient):
+	keyword = "compile_ase"
+	description = "compile to ase format"
+
+	def effective_run(self):
+		source_path = self.getSourcePath()
+		build_path = self.getTargetPath()
+		bsp_path = self.getFileBspName()
+		self.createSubdirs()
+
+		self.createTransientPath()
+
+		Ui.laconic("Compiling to ase: " + self.file_path)
+
+		# Do not copy the map source when building in the source directory as a prepare step.
+		if self.source_dir == self.build_dir:
+			stage_done = ["copy"]
+		else:
+			stage_done = []
+
+		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile="ase")
+		map_compiler.compile(source_path, self.transient_maps_path, stage_done=stage_done)
+
+		os.remove(os.path.join(self.transient_path, bsp_path))
+
+		self.buildTransientPath(disabled_action_list=["copy_bsp", "compile_bsp"])
+
+		self.setTimeStamp()
+
+		return self.getProducedUnitList()
+
+	def getFileBspName(self):
+		return self.switchExtension("bsp")
+
+	def getFileNewName(self):
+		return self.switchExtension("ase")

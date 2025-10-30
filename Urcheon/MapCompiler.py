@@ -162,6 +162,7 @@ class Config():
 			"light": ["vis"],
 			"minimap": ["vis"],
 			"nav": ["vis"],
+			"convert": ["bsp"],
 		}
 
 		for profile_name in self.profile_dict.keys():
@@ -227,6 +228,7 @@ class Compiler():
 	def compile(self, map_path, build_prefix, stage_done=[]):
 		self.map_path = map_path
 		self.build_prefix = build_prefix
+		self.stage_done = stage_done
 		stage_name = None
 		stage_option_list = []
 		self.pakpath_list = []
@@ -365,7 +367,7 @@ class Compiler():
 		extended_option_list = []
 
 		# bsp stage is the one that calls -bsp, etc.
-		for stage in ["bsp", "vis", "light", "minimap", "nav"]:
+		for stage in ["bsp", "vis", "light", "minimap", "nav", "convert"]:
 			if "-" + stage in option_list:
 				stage_name = stage
 				logging.debug("stage name: " + stage_name)
@@ -383,6 +385,8 @@ class Compiler():
 			source_path = bsp_path
 		elif "-minimap" in option_list:
 			source_path = bsp_path
+		elif "-convert" in option_list:
+			source_path = bsp_path
 		else:
 			extended_option_list = ["-prtfile", self.prt_path, "-srffile", self.srf_path, "-bspfile", bsp_path]
 			# TODO: define the name somewhere
@@ -397,7 +401,7 @@ class Compiler():
 				Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		# keep map source
-		if "-bsp" in option_list and self.map_config.keep_source:
+		if "-bsp" in option_list and self.map_config.keep_source and "copy" not in self.stage_done:
 			self.copy([])
 
 
