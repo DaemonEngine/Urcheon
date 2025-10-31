@@ -177,19 +177,9 @@ def list():
 		# and navmesh generation
 		CopyBsp,
 		CompileBsp,
-		CompileAse,
-		CompileObj,
 		# perhaps one day MergeBsp will be run on a copied bsp
 		# so it must be called after that
 		MergeBsp,
-		# those are probably the slowest compression image
-		# formats we know
-		ConvertKtx,
-		ConvertDds,
-		ConvertCrn,
-		ConvertNormalCrn,
-		ConvertLosslessWebp,
-		ConvertLossyWebp,
 		# sloth needs previews to be done before sloth
 		# TODO: be sure Sloth is not called before
 		# all previews are generated
@@ -199,6 +189,18 @@ def list():
 		SlothRun,
 		# usually quick
 		CompileIqm,
+		# compiling a map model may require shaders and other models
+		# being generated first.
+		CompileAse,
+		CompileObj,
+		# those are probably the slowest compression image
+		# formats we know
+		ConvertKtx,
+		ConvertDds,
+		ConvertCrn,
+		ConvertNormalCrn,
+		ConvertLosslessWebp,
+		ConvertLossyWebp,
 		# can take some time but not blocking
 		ConvertVorbis,
 		ConvertOpus,
