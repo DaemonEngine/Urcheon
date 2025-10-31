@@ -178,6 +178,7 @@ def list():
 		CopyBsp,
 		CompileBsp,
 		CompileAse,
+		CompileObj,
 		# perhaps one day MergeBsp will be run on a copied bsp
 		# so it must be called after that
 		MergeBsp,
@@ -1123,6 +1124,7 @@ class CompileBsp(DumbTransient):
 class CompileAse(DumbTransient):
 	keyword = "compile_ase"
 	description = "compile to ase format"
+	extension = "ase"
 
 	def effective_run(self):
 		source_path = self.getSourcePath()
@@ -1132,7 +1134,7 @@ class CompileAse(DumbTransient):
 
 		self.createTransientPath()
 
-		Ui.laconic("Compiling to ase: " + self.file_path)
+		Ui.laconic("Compiling to " + self.extension + ": " + self.file_path)
 
 		# Do not copy the map source when building in the source directory as a prepare step.
 		if self.source_dir == self.build_dir:
@@ -1140,7 +1142,7 @@ class CompileAse(DumbTransient):
 		else:
 			stage_done = []
 
-		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile="ase")
+		map_compiler = MapCompiler.Compiler(self.source_tree, map_profile=self.extension)
 		map_compiler.compile(source_path, self.transient_maps_path, stage_done=stage_done)
 
 		os.remove(os.path.join(self.transient_path, bsp_path))
@@ -1155,4 +1157,10 @@ class CompileAse(DumbTransient):
 		return self.switchExtension("bsp")
 
 	def getFileNewName(self):
-		return self.switchExtension("ase")
+		return self.switchExtension(self.extension)
+
+
+class CompileObj(CompileAse):
+	keyword = "compile_obj"
+	description = "compile to obj format"
+	extension = "obj"
