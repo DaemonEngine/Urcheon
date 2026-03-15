@@ -356,7 +356,9 @@ class SlothRun():
 		for texture_source_dir in self.texture_source_dir_list:
 			sloth_list = []
 
-			for dir_name, subdir_name_list, file_name_list in os.walk(texture_source_dir):
+			texture_source_dir_fullpath = os.path.join(self.source_dir, texture_source_dir)
+
+			for dir_name, subdir_name_list, file_name_list in os.walk(texture_source_dir_fullpath):
 				dir_relpath = os.path.relpath(dir_name, self.source_dir)
 
 				logging.debug("dir_name: " + dir_name + ", subdir_name_list: " + str(subdir_name_list) + ", file_name_list: " + str(file_name_list))
