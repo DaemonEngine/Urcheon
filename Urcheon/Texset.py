@@ -19,9 +19,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-import toml
-
-# FIXME: do we need OrderedDict toml constructor here?
+import tomllib
 
 
 class PrevRun():
@@ -39,8 +37,8 @@ class PrevRun():
 		self.read(preview_profile_path, real_path = True)
 
 		logging.debug("reading preview profile file: " + preview_profile_fullpath)
-		preview_profile_file = open(preview_profile_fullpath, "r")
-		prevrun_dict = toml.load(preview_profile_file, _dict=OrderedDict)
+		preview_profile_file = open(preview_profile_fullpath, "rb")
+		prevrun_dict = tomllib.load(preview_profile_file)
 		preview_profile_file.close()
 
 		if "dir" not in self.prevrun_dict.keys():
@@ -104,8 +102,8 @@ class PrevRun():
 			Ui.error("prevrun profile file not found: " + prevrun_profile_fullpath)
 
 		logging.debug("reading prevrun profile file: " + prevrun_profile_fullpath)
-		prevrun_profile_file = open(prevrun_profile_fullpath, "r")
-		prevrun_dict = toml.load(prevrun_profile_file, _dict=OrderedDict)
+		prevrun_profile_file = open(prevrun_profile_fullpath, "rb")
+		prevrun_dict = tomllib.load(prevrun_profile_file)
 		prevrun_profile_file.close()
 
 		if "_init_" in prevrun_dict.keys():
@@ -129,7 +127,7 @@ class PrevRun():
 
 	def print(self):
 		logging.debug(str(self.prevrun_dict))
-		print(toml.dumps(self.prevrun_dict))
+		print(tomllib.dumps(self.prevrun_dict))
 
 
 	def walk(self):
@@ -324,8 +322,8 @@ class SlothRun():
 			Ui.error("slothrun profile file not found: " + slothrun_profile_fullpath)
 
 		logging.debug("reading slothrun profile file: " + slothrun_profile_fullpath)
-		slothrun_profile_file = open(slothrun_profile_fullpath, "r")
-		slothrun_dict = toml.load(slothrun_profile_file, _dict=OrderedDict)
+		slothrun_profile_file = open(slothrun_profile_fullpath, "rb")
+		slothrun_dict = tomllib.load(slothrun_profile_file)
 		slothrun_profile_file.close()
 
 		if "_init_" in slothrun_dict.keys():
@@ -349,7 +347,7 @@ class SlothRun():
 
 	def print(self):
 		logging.debug(str(self.slothrun_dict))
-		print(toml.dumps(self.slothrun_dict))
+		print(tomllib.dumps(self.slothrun_dict))
 
 
 	def walk(self):

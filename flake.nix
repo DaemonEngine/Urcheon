@@ -54,7 +54,7 @@
 
           buildInputs = [
             (pkgs.python3.withPackages
-              (ps: [ ps.colorama ps.psutil ps.toml ps.pillow ]))
+              (ps: [ ps.colorama ps.psutil ps.pillow ]))
           ];
 
           propagatedBuildInputs = with pkgs; [

@@ -22,13 +22,12 @@ import json
 import logging
 import operator
 import os
-import toml
+import tomllib
 import re
 import shutil
 import subprocess
 import time
 
-# FIXME: do we need OrderedDict toml constructor here?
 
 dpk_special_files = [
 	"DELETED",
@@ -149,8 +148,8 @@ class Config():
 		logging.debug("reading pak config file " + config_file_path)
 
 		# FIXME: Catch error.
-		config_file = open(config_file_path, "r")
-		config_dict = toml.load(config_file, _dict=OrderedDict)
+		config_file = open(config_file_path, "rb")
+		config_dict = tomllib.load(config_file)
 		config_file.close()
 
 		if not "config" in config_dict.keys():
@@ -451,8 +450,8 @@ class FileProfile():
 			# that's not a typo
 			Ui.error("file profile file not found: " + file_profile_path)
 
-		file_profile_file = open(file_profile_path, "r")
-		file_profile_dict = toml.load(file_profile_file, _dict=OrderedDict)
+		file_profile_file = open(file_profile_path, "rb")
+		file_profile_dict = tomllib.load(file_profile_file)
 		file_profile_file.close()
 
 		if "_init_" in file_profile_dict.keys():
@@ -487,7 +486,7 @@ class FileProfile():
 
 	def printProfile(self):
 		logging.debug(str(self.file_type_dict))
-		print(toml.dumps(self.file_type_dict))
+		print(tomllib.dumps(self.file_type_dict))
 
 	def expandFileType(self, file_type_name):
 		logging.debug("expanding file type: " + file_type_name)

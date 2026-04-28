@@ -380,7 +380,7 @@ Type `urcheon clean --help` for help about the specific `clean` command options.
 
 💡️ The [DaemonMediaAuthoringKit](https://github.com/DaemonEngine/DaemonMediaAuthoringKit) makes easy to set-up a complete production environment with Urcheon, its dependencies, and other tools.
 
-These are the Python3 modules you will need to run `urcheon`: `argparse`, `colorama`, `pillow`, `psutil`, and `toml` >= 0.9.0.
+These are the Python3 modules you will need to run `urcheon`: `argparse`, `colorama`, `pillow`, and `psutil`.
 
 The `urcheon` tool relies on:
 

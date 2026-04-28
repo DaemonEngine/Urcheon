@@ -22,7 +22,7 @@ import sys
 import tempfile
 import time
 import os
-import toml
+import tomllib
 
 
 class Config():
@@ -74,8 +74,8 @@ class Config():
 		config_path = self.profile_fs.getPath(config_file_name)
 
 		logging.debug("reading map config: " + config_path)
-		config_file = open(config_path, "r")
-		config_dict = toml.load(config_file, _dict=OrderedDict)
+		config_file = open(config_path, "rb")
+		config_dict = tomllib.load(config_file)
 		config_file.close()
 
 		if "_init_" in config_dict.keys():
@@ -203,7 +203,7 @@ class Config():
 
 	def printConfig(self):
 		# TODO: order it?
-		print(toml.dumps(self.profile_dict))
+		print(tomllib.dumps(self.profile_dict))
 
 
 class Compiler():
