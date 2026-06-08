@@ -217,10 +217,13 @@ class Map():
 		# }
 		block_ending_pattern = re.compile(r"^[ \t]*}[ \t]*$")
 
+		line_num = 0
 		entity_num = -1
 
 		for line in map_lines:
 			debug("Reading: " + line)
+
+			line_num += 1
 
 			# Empty lines
 			if empty_line_pattern.match(line):
@@ -257,6 +260,7 @@ class Map():
 						self.entity_list[-1].thing_list.append(KeyValue())
 						self.entity_list[-1].thing_list[-1].key = key
 						self.entity_list[-1].thing_list[-1].value = value
+						self.entity_list[-1].thing_list[-1].line_num = line_num
 						continue
 
 					# Shape start
@@ -678,6 +682,14 @@ class Map():
 			bsp_entities_file.write(str.encode(bsp_entities_string))
 			bsp_entities_file.close()
 
+	def printStringList(self):
+		for entity in self.entity_list:
+			found = False
+			for thing in entity.thing_list:
+				if isinstance(thing, KeyValue):
+					if thing.key.lower() == "message":
+						print(str(thing.line_num) + ": " + thing.value)
+
 	def substituteKeywords(self, substitution):
 		if not self.entity_list:
 			Ui.error("No map loaded")
@@ -727,6 +739,7 @@ class KeyValue():
 	def __init__(self):
 		self.key = ""
 		self.value = ""
+		self.line_num = 0
 
 class Shape():
 	pass
@@ -789,6 +802,7 @@ def add_arguments(parser):
 	parser.add_argument("-oe", "--output-bsp-entities", dest="output_bsp_entities", metavar="FILENAME", help="dump entities to .bsp entities format to .txt file %(metavar)s")
 	parser.add_argument("-sk", "--substitute-keywords", dest="substitute_keywords", metavar="FILENAME", help="use entity keyword substitution rules from .csv file %(metavar)s")
 	parser.add_argument("-Lf", "--lowercase-filepaths", dest="lowercase_filepaths", help="lowercase file paths", action="store_true")
+	parser.add_argument("-lS", "--list-strings", help="list strings", action="store_true")
 	parser.add_argument("-dn", "--disable-numbering", dest="disable_numbering", help="disable entity and shape numbering", action="store_true")
 	parser.add_argument("-om", "--output-map", dest="output_map_file", metavar="FILENAME", help="write to .map file %(metavar)s")
 
@@ -814,6 +828,9 @@ def main(args=None):
 
 	if args.lowercase_filepaths:
 		map.lowerCaseFilePaths()
+
+	if args.list_strings:
+		map.printStringList()
 
 	if args.disable_numbering:
 		map.numbering_enabled = False
