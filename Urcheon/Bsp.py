@@ -139,6 +139,9 @@ class Q3Entities(Lump):
 		print("")
 		return True
 
+	def printStringList(self):
+		self.entities_as_map.printStringList()
+
 	def substituteKeywords(self, substitution):
 		self.entities_as_map.substituteKeywords(substitution)
 
@@ -792,6 +795,7 @@ def add_arguments(parser):
 	parser.add_argument("-ls", "--list-sounds", help="list sounds", action="store_true")
 	parser.add_argument("-lt", "--list-textures", help="list textures", action="store_true")
 	parser.add_argument("-ll", "--list-lightmaps", help="list lightmaps", action="store_true")
+	parser.add_argument("-lS", "--list-strings", help="list strings", action="store_true")
 	parser.add_argument("-pe", "--print-entities", help="print entities", action="store_true")
 
 def main(args=None):
@@ -903,6 +907,12 @@ def main(args=None):
 	if args.list_sounds:
 		if not entities.isEmpty():
 			entities.printSoundList()
+		else:
+			Ui.error("Entities lump missing")
+
+	if args.list_strings:
+		if not entities.isEmpty():
+			entities.printStringList()
 		else:
 			Ui.error("Entities lump missing")
 
