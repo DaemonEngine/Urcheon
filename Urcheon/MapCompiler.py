@@ -397,7 +397,7 @@ class Compiler():
 		logging.debug("call list: " + str(command_list))
 		Ui.verbose("Build command: " + " ".join(command_list))
 
-		if subprocess.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
+		if Parallelism.call(command_list, stdout=self.subprocess_stdout, stderr=self.subprocess_stderr) != 0:
 			Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		# keep map source
