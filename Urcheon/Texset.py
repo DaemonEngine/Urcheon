@@ -10,6 +10,7 @@
 
 from Urcheon import Default
 from Urcheon import FileSystem
+from Urcheon import Parallelism
 from Urcheon import Profile
 from Urcheon import Repository
 from Urcheon import Ui
@@ -225,7 +226,7 @@ class PrevRun():
 		# TODO: set something else in verbose mode
 		subprocess_stdout = subprocess.DEVNULL
 		subprocess_stderr = subprocess.STDOUT
-		if subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
+		if Parallelism.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
 			Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		shutil.copystat(source_fullpath, preview_fullpath)
@@ -465,7 +466,7 @@ class SlothRun():
 		# TODO: set something else in verbose mode
 		subprocess_stdout = subprocess.DEVNULL
 		subprocess_stderr = None
-		if subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
+		if Parallelism.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
 			Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 		if sloth_header_file:
