@@ -29,6 +29,7 @@ def countThread(process):
 	# one is called, in this case return 0
 	try:
 		return process.num_threads()
+
 	except (psutil.NoSuchProcess, psutil.ZombieProcess):
 		return 0
 
@@ -39,10 +40,13 @@ def countChildThread(process):
 	# one is called, in this case return 0
 	try:
 		thread_count = 0
+
 		# process.children() is super slow
 		for subprocess in process.children(recursive=True):
 			thread_count = thread_count + countThread(subprocess)
+
 		return thread_count
+
 	except (psutil.NoSuchProcess, psutil.ZombieProcess):
 		return 0
 
@@ -60,6 +64,7 @@ def joinThreads(thread_list):
 	for thread in thread_list:
 		if not thread._started.is_set():
 			thread.start()
+
 		thread.join()
 
 
@@ -72,6 +77,7 @@ class Thread(threading.Thread):
 
 		try:
 			self._return = self._target(*self._args, **self._kwargs)
+
 		except BaseException as exception:
 			self._exception = exception
 
