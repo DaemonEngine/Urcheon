@@ -16,17 +16,16 @@ getProcess = psutil.Process
 
 
 def countCPU():
-	# Reuse computed value
 	if not hasattr(countCPU, "count"):
+		# Reuse computed value.
 		countCPU.count = psutil.cpu_count() or 1
 
 	return countCPU.count
 
 
 def countThread(process):
-	# process can disappear between the time
-	# this function is called and the num_threads()
-	# one is called, in this case return 0
+	# Process can disappear between the time this function is called and
+	# the num_threads() one is called. In this case 0 should be returned.
 	try:
 		return process.num_threads()
 	except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
@@ -48,6 +47,7 @@ def countChildThread(process):
 
 
 def joinDeadThreads(thread_list):
+	# Join completed workers promptly so their exceptions can be propagated.
 	for thread in thread_list[:]:
 		if not thread.is_alive() and thread._started.is_set():
 			thread.join()
@@ -57,15 +57,16 @@ def joinDeadThreads(thread_list):
 
 
 def joinThreads(thread_list):
+	# Start remaining unstarted workers and wait for them.
 	for thread in thread_list:
 		if not thread._started.is_set():
 			thread.start()
 		thread.join()
 
 
-# this extends threading.Thread to transmit exceptions
+# This extends threading.Thread to transmit exceptions
 # back to the parent, best used with joinDeadThreads()
-# on active thread list to raise exceptions early
+# on active thread list to raise exceptions early.
 class Thread(threading.Thread):
 	def run(self):
 		self._exception = None
