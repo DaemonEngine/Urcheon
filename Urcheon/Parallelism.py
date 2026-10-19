@@ -29,7 +29,7 @@ def countThread(process):
 	# one is called, in this case return 0
 	try:
 		return process.num_threads()
-	except (psutil.NoSuchProcess, psutil.ZombieProcess):
+	except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
 		return 0
 
 
@@ -43,7 +43,7 @@ def countChildThread(process):
 		for subprocess in process.children(recursive=True):
 			thread_count = thread_count + countThread(subprocess)
 		return thread_count
-	except (psutil.NoSuchProcess, psutil.ZombieProcess):
+	except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
 		return 0
 
 
