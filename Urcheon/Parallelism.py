@@ -18,7 +18,7 @@ getProcess = psutil.Process
 def countCPU():
 	# Reuse computed value
 	if not hasattr(countCPU, "count"):
-		countCPU.count = psutil.cpu_count()
+		countCPU.count = psutil.cpu_count() or 1
 
 	return countCPU.count
 
