@@ -9,8 +9,10 @@
 
 import atexit
 import logging
+import os
 import psutil
 import subprocess
+import sys
 import threading
 import random
 import time
@@ -106,6 +108,42 @@ def _getWatermarks():
 	high = min(max(int(count * HIGH_WATERMARK), low + 1), count + 5)
 
 	return low, high
+
+
+# Request below-normal priority for a subprocess, where supported.
+def _lowerProcessPriorityKwargs(kwargs):
+	if sys.platform == "win32":
+		# Preserve unrelated creation flags while replacing the priority class.
+		priority_class_mask = 0x0000FF80
+		below_normal = 0x00004000
+
+		flags = kwargs.get("creationflags", 0)
+
+		kwargs["creationflags"] = ((flags & ~priority_class_mask) | below_normal)
+
+
+# Best-effort priority reduction for a launched subprocess.
+def _lowerProcessPriority(process):
+	if sys.platform == "win32":
+		# Priority was selected at process creation.
+		return
+
+	if not (sys.platform.startswith("linux") or sys.platform == "darwin"):
+		return
+
+	try:
+		pid = process.pid
+		current_priority = os.getpriority(os.PRIO_PROCESS, pid)
+
+		if current_priority < 5:
+			# Never accidentally increase priority.
+			os.setpriority(os.PRIO_PROCESS, pid, 5)
+
+		logging.debug("Subprocess priority set to nice=%d: pid=%d", os.getpriority(os.PRIO_PROCESS, pid), pid)
+
+	except (OSError, AttributeError) as exception:
+		# Priority adjustment is optional, failure must not prevent the build.
+		logging.debug("Could not lower subprocess priority: pid=%d: %s", process.pid, exception)
 
 
 # Return the root and its descendants, tolerating processes that disappear
@@ -787,7 +825,11 @@ def call(*popenargs, **kwargs):
 
 	logging.debug("Parallelism.call invoked: %r", popenargs)
 
+	_lowerProcessPriorityKwargs(kwargs)
+
 	with subprocess.Popen(*popenargs, **kwargs) as process:
+		_lowerProcessPriority(process)
+
 		entry = {
 			"pid": process.pid,
 			"process": process,
