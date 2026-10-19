@@ -63,17 +63,42 @@ def countThread(process):
 
 
 def countChildThread(process):
-	# process can disappear between the time
-	# this function is called and the children()
-	# one is called, in this case return 0
+	# Process can disappear between the time
+	# this function is called and children() is called.
 	try:
-		thread_count = 0
-		# process.children() is super slow
-		for children in process.children(recursive=True):
-			thread_count = thread_count + countThread(children)
-		return thread_count
+		children = process.children(recursive=True)
 	except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
 		return 0
+
+	# Deduplicate child processes by PID and creation time.
+	processes = {}
+
+	for child in children:
+		try:
+			identity = (child.pid, child.create_time())
+			processes[identity] = child
+		except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
+			continue
+
+	# Snapshot the suspension records.
+	with _process_lock:
+		suspended = set(_suspensions)
+
+	thread_count = 0
+
+	for identity, child in processes.items():
+		# Exclude threads only when Urcheon tracks the suspension and the
+		# process is still stopped. A process may have been resumed externally.
+		if identity in suspended:
+			try:
+				if child.status() == psutil.STATUS_STOPPED:
+					continue
+			except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
+				continue
+
+		thread_count += countThread(child)
+
+	return thread_count
 
 
 def joinDeadThreads(thread_list):
