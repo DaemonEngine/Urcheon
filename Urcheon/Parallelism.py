@@ -9,8 +9,10 @@
 
 import atexit
 import logging
+import os
 import psutil
 import subprocess
+import sys
 import threading
 import random
 import time
@@ -101,6 +103,51 @@ def _get_watermarks():
 	high = min(max(int(count * HIGH_WATERMARK), low + 1), count + 5)
 
 	return low, high
+
+
+def _lower_process_priority_kwargs(kwargs):
+	"""Request below-normal priority for a subprocess, where supported."""
+	if sys.platform == "win32":
+		# Preserve unrelated creation flags while replacing the priority class.
+		priority_class_mask = 0x0000FF80
+		below_normal = 0x00004000
+
+		flags = kwargs.get("creationflags", 0)
+		kwargs["creationflags"] = (
+			(flags & ~priority_class_mask) | below_normal
+		)
+
+
+def _lower_process_priority(process):
+	"""Best-effort priority reduction for a launched subprocess."""
+	if sys.platform == "win32":
+		# Priority was selected at process creation.
+		return
+
+	if not (sys.platform.startswith("linux") or sys.platform == "darwin"):
+		return
+
+	try:
+		pid = process.pid
+		current_priority = os.getpriority(os.PRIO_PROCESS, pid)
+
+		if current_priority < 5:
+			# Never accidentally increase priority.
+			os.setpriority(os.PRIO_PROCESS, pid, 5)
+
+		logging.debug(
+			"Subprocess priority set to nice=%d: pid=%d",
+			os.getpriority(os.PRIO_PROCESS, pid),
+			pid,
+		)
+
+	except (OSError, AttributeError) as exception:
+		# Priority adjustment is optional, failure must not prevent the build.
+		logging.debug(
+			"Could not lower subprocess priority: pid=%d: %s",
+			process.pid,
+			exception,
+		)
 
 
 def _process_tree(root_pid):
@@ -844,7 +891,11 @@ def call(*popenargs, **kwargs):
 
 	logging.debug("Parallelism.call invoked: %r", popenargs)
 
+	_lower_process_priority_kwargs(kwargs)
+
 	with subprocess.Popen(*popenargs, **kwargs) as process:
+		_lower_process_priority(process)
+
 		entry = {
 			"pid": process.pid,
 			"process": process,
