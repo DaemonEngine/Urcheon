@@ -42,8 +42,8 @@ def countChildThread(process):
 		thread_count = 0
 
 		# process.children() is super slow
-		for subprocess in process.children(recursive=True):
-			thread_count = thread_count + countThread(subprocess)
+		for children in process.children(recursive=True):
+			thread_count = thread_count + countThread(children)
 
 		return thread_count
 
