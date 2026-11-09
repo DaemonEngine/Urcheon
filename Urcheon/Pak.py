@@ -62,6 +62,9 @@ class MultiRunner():
 					while len(runner_thread_list) >= cpu_count:
 						runner_thread_list = Parallelism.joinDeadThreads(runner_thread_list)
 
+						if len(runner_thread_list) >= cpu_count:
+							Parallelism.joinOldestThread(runner_thread_list)
+
 					runner_thread.start()
 
 			# Wait for all remaining threads.
