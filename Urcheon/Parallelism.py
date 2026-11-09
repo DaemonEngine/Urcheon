@@ -728,10 +728,195 @@ def _rootStoppedExternallyLocked(entry):
 		return True
 
 
-# Continuously regulate aggregate subprocess thread usage.
-def _monitorProcesses():
+def _scheduleProcessesLocked(low, high):
 	global _last_resume_time
 
+	# Recover any suspensions whose previous resume failed.
+	_retryPendingResumesLocked()
+	active_threads = _activeThreadCountLocked()
+	running = _runningEntriesLocked()
+
+	if logging.getLogger().isEnabledFor(logging.DEBUG):
+		logging.debug("Monitor snapshot: active_threads=%d high=%d low=%d registered=%d running=%d suspended=%d pending_resumes=%d",
+			active_threads, high, low, len(_processes), len(running), sum(1 for entry in _processes.values() if entry["suspended"]), len(_pending_resumes))
+
+	if logging.getLogger().isEnabledFor(logging.DEBUG):
+		for entry in running:
+			try:
+				process = psutil.Process(entry["pid"])
+				logging.debug("Process pid=%d name=%s threads=%d children=%d",
+					entry["pid"], process.name(), countThread(process), len(process.children(recursive=True)))
+
+			except psutil.Error:
+				pass
+
+	if active_threads > high:
+		# Suspend jobs until usage falls to the low watermark.
+		# Recalculate after each attempt because process trees
+		# and their thread counts can change at any time.
+		attempted = set()
+
+		while active_threads > low:
+			candidates = [
+				entry for entry in _runningEntriesLocked()
+				if entry["pid"] not in attempted
+				and not _rootStoppedExternallyLocked(entry)
+			]
+
+			if not candidates:
+				break
+
+			thread_counts = {
+				entry["pid"]: _entryActiveThreadCountLocked(entry)
+				for entry in candidates
+			}
+
+			# Ignore process trees that contribute no active threads.
+			thread_counts = {
+				pid: threads
+				for pid, threads in thread_counts.items()
+				if threads > 0
+			}
+
+			if not thread_counts:
+				break
+
+			# Prefer small trees to reduce the amount of work paused.
+			smallest = min(thread_counts.values())
+			smallest_candidates = [
+				entry for entry in candidates
+				if thread_counts.get(entry["pid"], 0) == smallest
+			]
+
+			# Randomize ties to avoid always favoring the same job.
+			random.shuffle(smallest_candidates)
+			entry = None
+
+			for candidate in smallest_candidates:
+				attempted.add(candidate["pid"])
+
+				if _hasRunnableProcessesLocked(exclude=candidate):
+					# Never suspend a candidate if doing so would leave
+					# no other runnable job to make progress.
+					entry = candidate
+					break
+
+			if entry is None:
+				break
+
+			suspended_successfully = _suspend(entry)
+
+			# Refresh state after every attempt, successful or not.
+			running = _runningEntriesLocked()
+			active_threads = _activeThreadCountLocked()
+
+			if not suspended_successfully:
+				logging.debug("Suspension failed: pid=%d active=%d", entry["pid"], active_threads)
+
+	elif active_threads < low:
+		# Resume jobs when capacity is available, but rate-limit
+		# resumes to reduce oscillation around the thresholds.
+		now = time.monotonic()
+
+		if now - _last_resume_time >= RESUME_COOLDOWN:
+			suspended = [
+				entry for entry in _processes.values()
+				if entry["process"].poll() is None
+				and entry["suspended_pids"]
+			]
+
+			candidates = [
+				(_entryResumeThreadCountLocked(entry), entry)
+				for entry in suspended
+			]
+
+			# Consider the smallest process trees first.
+			candidates = [
+				(threads, entry)
+				for threads, entry in candidates
+				if threads > 0
+			]
+
+			candidates.sort(key=lambda candidate: candidate[0])
+
+			if candidates:
+				smallest_threads = candidates[0][0]
+
+				# Only the smallest trees are eligible for resumption.
+				smallest_candidates = [
+					(threads, entry) for threads, entry in candidates
+					if threads == smallest_threads
+				]
+
+				_, candidate_entry = random.choice(smallest_candidates)
+
+				if active_threads + smallest_threads <= high:
+					entry = candidate_entry
+
+				elif not _hasRunnableProcessesLocked(exclude=candidate_entry):
+					# Allow progress when no other runnable work remains.
+					entry = candidate_entry
+
+					logging.debug("Overriding high watermark to resume the last runnable job: pid=%d threads=%d active=%d high=%d",
+						entry["pid"], smallest_threads, active_threads, high)
+
+				else:
+					entry = None
+
+					logging.debug("Skipping resume: smallest tree needs %d threads, active=%d high=%d",
+						smallest_threads, active_threads, high)
+
+				if entry is not None:
+					logging.debug("Resuming process tree: pid=%d estimated_threads=%d active_before=%d high=%d",
+						entry["pid"], smallest_threads, active_threads, high)
+
+					_resume(entry)
+					_last_resume_time = now
+
+			elif not running:
+				# Normal estimates can exclude every candidate.
+				# Recover a stopped root only when this entry is
+				# the sole owner of its tracked suspension.
+				recovery_candidates = []
+
+				for candidate_entry in suspended:
+					pid = candidate_entry["pid"]
+					create_time = (candidate_entry["suspended_pids"].get(pid))
+
+					if create_time is None:
+						continue
+
+					identity = (pid, create_time)
+					record = _suspensions.get(identity)
+
+					if (record is None or record["owners"] != {id(candidate_entry)}):
+						continue
+
+					if _rootStoppedExternallyLocked(candidate_entry):
+						continue
+
+					try:
+						root = psutil.Process(pid)
+
+						if (root.create_time() != create_time or root.status() != psutil.STATUS_STOPPED):
+							continue
+
+					except psutil.Error:
+						continue
+
+					recovery_candidates.append(candidate_entry)
+
+				if recovery_candidates:
+					entry = random.choice(recovery_candidates)
+					logging.warning("No runnable jobs and no estimated resume candidates; recovering suspended root: pid=%d",
+						entry["pid"])
+
+					_resume(entry)
+					_last_resume_time = now
+
+
+# Continuously regulate aggregate subprocess thread usage.
+def _monitorProcesses():
 	low, high = _getWatermarks()
 
 	while True:
@@ -747,188 +932,7 @@ def _monitorProcesses():
 					_retryPendingResumesLocked()
 					continue
 
-				# Recover any suspensions whose previous resume failed.
-				_retryPendingResumesLocked()
-				active_threads = _activeThreadCountLocked()
-				running = _runningEntriesLocked()
-
-				if logging.getLogger().isEnabledFor(logging.DEBUG):
-					logging.debug("Monitor snapshot: active_threads=%d high=%d low=%d registered=%d running=%d suspended=%d pending_resumes=%d",
-						active_threads, high, low, len(_processes), len(running), sum(1 for entry in _processes.values() if entry["suspended"]), len(_pending_resumes))
-
-				if logging.getLogger().isEnabledFor(logging.DEBUG):
-					for entry in running:
-						try:
-							process = psutil.Process(entry["pid"])
-							logging.debug("Process pid=%d name=%s threads=%d children=%d",
-								entry["pid"], process.name(), countThread(process), len(process.children(recursive=True)))
-
-						except psutil.Error:
-							pass
-
-				if active_threads > high:
-					# Suspend jobs until usage falls to the low watermark.
-					# Recalculate after each attempt because process trees
-					# and their thread counts can change at any time.
-					attempted = set()
-
-					while active_threads > low:
-						candidates = [
-							entry for entry in _runningEntriesLocked()
-							if entry["pid"] not in attempted
-							and not _rootStoppedExternallyLocked(entry)
-						]
-
-						if not candidates:
-							break
-
-						thread_counts = {
-							entry["pid"]: _entryActiveThreadCountLocked(entry)
-							for entry in candidates
-						}
-
-						# Ignore process trees that contribute no active threads.
-						thread_counts = {
-							pid: threads
-							for pid, threads in thread_counts.items()
-							if threads > 0
-						}
-
-						if not thread_counts:
-							break
-
-						# Prefer small trees to reduce the amount of work paused.
-						smallest = min(thread_counts.values())
-						smallest_candidates = [
-							entry for entry in candidates
-							if thread_counts.get(entry["pid"], 0) == smallest
-						]
-
-						# Randomize ties to avoid always favoring the same job.
-						random.shuffle(smallest_candidates)
-						entry = None
-
-						for candidate in smallest_candidates:
-							attempted.add(candidate["pid"])
-
-							if _hasRunnableProcessesLocked(exclude=candidate):
-								# Never suspend a candidate if doing so would leave
-								# no other runnable job to make progress.
-								entry = candidate
-								break
-
-						if entry is None:
-							break
-
-						suspended_successfully = _suspend(entry)
-
-						# Refresh state after every attempt, successful or not.
-						running = _runningEntriesLocked()
-						active_threads = _activeThreadCountLocked()
-
-						if not suspended_successfully:
-							logging.debug("Suspension failed: pid=%d active=%d", entry["pid"], active_threads)
-
-				elif active_threads < low:
-					# Resume jobs when capacity is available, but rate-limit
-					# resumes to reduce oscillation around the thresholds.
-					now = time.monotonic()
-
-					if now - _last_resume_time >= RESUME_COOLDOWN:
-						suspended = [
-							entry for entry in _processes.values()
-							if entry["process"].poll() is None
-							and entry["suspended_pids"]
-						]
-
-						candidates = [
-							(_entryResumeThreadCountLocked(entry), entry)
-							for entry in suspended
-						]
-
-						# Consider the smallest process trees first.
-						candidates = [
-							(threads, entry)
-							for threads, entry in candidates
-							if threads > 0
-						]
-
-						candidates.sort(key=lambda candidate: candidate[0])
-
-						if candidates:
-							smallest_threads = candidates[0][0]
-
-							# Only the smallest trees are eligible for resumption.
-							smallest_candidates = [
-								(threads, entry) for threads, entry in candidates
-								if threads == smallest_threads
-							]
-
-							_, candidate_entry = random.choice(smallest_candidates)
-
-							if active_threads + smallest_threads <= high:
-								entry = candidate_entry
-
-							elif not _hasRunnableProcessesLocked(exclude=candidate_entry):
-								# Allow progress when no other runnable work remains.
-								entry = candidate_entry
-
-								logging.debug("Overriding high watermark to resume the last runnable job: pid=%d threads=%d active=%d high=%d",
-									entry["pid"], smallest_threads, active_threads, high)
-
-							else:
-								entry = None
-
-								logging.debug("Skipping resume: smallest tree needs %d threads, active=%d high=%d",
-									smallest_threads, active_threads, high)
-
-							if entry is not None:
-								logging.debug("Resuming process tree: pid=%d estimated_threads=%d active_before=%d high=%d",
-									entry["pid"], smallest_threads, active_threads, high)
-
-								_resume(entry)
-								_last_resume_time = now
-
-						elif not running:
-							# Normal estimates can exclude every candidate.
-							# Recover a stopped root only when this entry is
-							# the sole owner of its tracked suspension.
-							recovery_candidates = []
-
-							for candidate_entry in suspended:
-								pid = candidate_entry["pid"]
-								create_time = (candidate_entry["suspended_pids"].get(pid))
-
-								if create_time is None:
-									continue
-
-								identity = (pid, create_time)
-								record = _suspensions.get(identity)
-
-								if (record is None or record["owners"] != {id(candidate_entry)}):
-									continue
-
-								if _rootStoppedExternallyLocked(candidate_entry):
-									continue
-
-								try:
-									root = psutil.Process(pid)
-
-									if (root.create_time() != create_time or root.status() != psutil.STATUS_STOPPED):
-										continue
-
-								except psutil.Error:
-									continue
-
-								recovery_candidates.append(candidate_entry)
-
-							if recovery_candidates:
-								entry = random.choice(recovery_candidates)
-								logging.warning("No runnable jobs and no estimated resume candidates; recovering suspended root: pid=%d",
-									entry["pid"])
-
-								_resume(entry)
-								_last_resume_time = now
+				_scheduleProcessesLocked(low, high)
 
 			if logging.getLogger().isEnabledFor(logging.DEBUG):
 				elapsed = time.monotonic() - iteration_start
