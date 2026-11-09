@@ -194,9 +194,6 @@ class Config():
 				source_real_path = os.path.realpath(self.source_dir)
 				parent_dir = os.path.dirname(source_real_path)
 
-				if os.path.basename(parent_dir) == "src":
-					self.errorLegacyLayout()
-
 				if os.path.basename(parent_dir) == Default.base_dir:
 					grand_parent_dir = os.path.dirname(parent_dir)
 
@@ -250,9 +247,6 @@ class Config():
 						source_real_path = os.path.realpath(self.source_dir)
 						parent_dir = os.path.dirname(source_real_path)
 
-						if os.path.basename(parent_dir) == "src":
-							self.errorLegacyLayout()
-
 						if os.path.basename(parent_dir) == Default.base_dir:
 							grand_parent_dir = os.path.dirname(parent_dir)
 
@@ -293,9 +287,6 @@ class Config():
 			else:
 				build_prefix = self.getBuildPrefix(args)
 
-				if os.path.exists(os.path.join(build_prefix, "test")):
-					self.errorLegacyLayout()
-
 				build_root_prefix = os.path.join(build_prefix, Default.build_parent_dir)
 
 		return os.path.abspath(build_root_prefix)
@@ -310,9 +301,6 @@ class Config():
 				package_root_prefix = env_package_root_prefix
 			else:
 				package_prefix = self.getPackagePrefix(args)
-
-				if os.path.exists(os.path.join(package_prefix, "test")):
-					self.errorLegacyLayout()
 
 				package_root_prefix = os.path.join(package_prefix, Default.package_parent_dir).rstrip("/")
 
@@ -412,9 +400,6 @@ class Config():
 			pak_file = os.path.join(package_base_prefix, pakprefix, pak_file_name)
 
 		return os.path.abspath(pak_file)
-
-	def errorLegacyLayout(self):
-		Ui.error("Unsupported legacy layout", silent=True)
 
 
 class FileProfile():
