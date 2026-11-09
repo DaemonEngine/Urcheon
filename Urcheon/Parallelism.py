@@ -120,6 +120,12 @@ def joinDeadThreads(thread_list):
 	return thread_list
 
 
+def joinOldestThread(thread_list):
+	if thread_list:
+		thread = thread_list.pop(0)
+		thread.join()
+
+
 # Start remaining unstarted workers and wait for them.
 def joinThreads(thread_list):
 	for thread in thread_list:
