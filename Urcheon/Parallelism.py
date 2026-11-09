@@ -109,8 +109,9 @@ def countChildThread(process):
 	return thread_count
 
 
+# Join completed workers promptly so their exceptions can be propagated.
 def joinDeadThreads(thread_list):
-	# Join completed workers promptly so their exceptions can be propagated.
+	# Remove threads that have already finished.
 	for thread in thread_list[:]:
 		if not thread.is_alive() and thread._started.is_set():
 			thread.join()
@@ -119,8 +120,8 @@ def joinDeadThreads(thread_list):
 	return thread_list
 
 
+# Start remaining unstarted workers and wait for them.
 def joinThreads(thread_list):
-	# Start remaining unstarted workers and wait for them.
 	for thread in thread_list:
 		if not thread._started.is_set():
 			thread.start()
