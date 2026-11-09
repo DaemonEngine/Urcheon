@@ -11,6 +11,7 @@ import atexit
 import logging
 import os
 import psutil
+import signal
 import subprocess
 import sys
 import threading
@@ -39,6 +40,8 @@ _process_lock = threading.RLock()
 # Each record contains the entries that still require the process to stay
 # suspended. Creation time protects against accidentally acting on a reused PID.
 _suspensions = {}
+# We need to interrupt every suspended task on global interruption.
+_interrupting = False
 # The monitor itself.
 _monitor = None
 
@@ -472,6 +475,122 @@ def _isStopped(process):
 		return False
 
 
+# Ensure Urcheon-suspended processes can receive SIGINT.
+def _continueSuspendedProcesses():
+	with _process_lock:
+		identities = list(_suspensions)
+
+	for pid, create_time in identities:
+		if not _tryResume(pid, create_time):
+			logging.error("Unable to resume suspended process during interruption: pid=%d", pid)
+
+
+# Resume all Urcheon-suspended processes, then interrupt every
+# registered subprocess tree. Caller need not hold _process_lock.
+def _interruptProcesses():
+	global _interrupting
+
+	previous_sigint_handler = None
+
+	try:
+		try:
+			previous_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+		except ValueError:
+			# Signal handlers can only be changed from the main thread.
+			pass
+
+		with _process_lock:
+			if _interrupting:
+				return
+
+			_interrupting = True
+
+		processes = {}
+		entries = []
+		# Snapshot all live process trees before resuming anything.
+		with _process_lock:
+			entries = list(_processes.values())
+
+			for entry in entries:
+				try:
+					tree = _processTree(entry["pid"])
+
+				except psutil.Error:
+					continue
+
+				for process in tree:
+					try:
+						identity = (process.pid, process.create_time())
+						processes[identity] = process
+
+					except psutil.Error:
+						continue
+
+			# Release all Urcheon suspension ownership.
+			for identity in list(_suspensions):
+				record = _suspensions.get(identity)
+
+				if record is not None:
+					record["owners"].clear()
+
+				_pending_resumes[identity] = None
+
+		# Retry failed resumes. Do not hold the lock while sleeping.
+		deadline = time.monotonic() + 5.0
+		pending_count = 0
+
+		while True:
+			with _process_lock:
+				_retryPendingResumesLocked()
+				pending_count = len(_pending_resumes)
+
+			if not pending_count or time.monotonic() >= deadline:
+				break
+
+			time.sleep(MONITOR_INTERVAL)
+
+		if pending_count:
+			logging.error("Could not resume %d suspended processes during interruption", pending_count)
+
+		# Ensure suspended processes can receive SIGINT.
+		_continueSuspendedProcesses()
+
+		# Interrupt all processes, including previously suspended ones.
+		if sys.platform == "win32":
+			# Send Ctrl+Break to each registered process group.
+			for entry in entries:
+				try:
+					if entry["process"].poll() is None:
+						entry["process"].send_signal(signal.CTRL_BREAK_EVENT)
+
+				except OSError:
+					logging.debug("Could not interrupt process group", exc_info=True)
+
+		else:
+			# First resume every process in the snapshot.
+			for identity, process in processes.items():
+				try:
+					if process.create_time() == identity[1]:
+						process.send_signal(signal.SIGCONT)
+
+				except psutil.Error:
+					logging.debug("Could not continue process: pid=%d", identity[0], exc_info=True)
+
+			# Then deliver SIGINT.
+			for identity, process in processes.items():
+				try:
+					if process.create_time() == identity[1]:
+						process.send_signal(signal.SIGINT)
+
+				except psutil.Error:
+					logging.debug("Could not interrupt process: pid=%d", identity[0], exc_info=True)
+
+	finally:
+		if previous_sigint_handler is not None:
+			signal.signal(signal.SIGINT, previous_sigint_handler)
+
+
 # Estimate active threads in one registered job's process tree.
 def _entryActiveThreadCountLocked(entry):
 	if entry["process"].poll() is not None:
@@ -623,6 +742,11 @@ def _monitorProcesses():
 
 		try:
 			with _process_lock:
+				# Stop normal scheduling while interruption cleanup is in progress.
+				if _interrupting:
+					_retryPendingResumesLocked()
+					continue
+
 				# Recover any suspensions whose previous resume failed.
 				_retryPendingResumesLocked()
 				active_threads = _activeThreadCountLocked()
@@ -853,8 +977,17 @@ def call(*popenargs, **kwargs):
 
 	_lowerProcessPriorityKwargs(kwargs)
 
-	with subprocess.Popen(*popenargs, **kwargs) as process:
-		_lowerProcessPriority(process)
+	# Create a separate process group so Ctrl+Break can interrupt the process
+	# and its descendants on Windows.
+	if sys.platform == "win32":
+		kwargs["creationflags"] = (kwargs.get("creationflags", 0) | subprocess.CREATE_NEW_PROCESS_GROUP)
+
+	# Serialize process creation and registration with global interruption.
+	with _process_lock:
+		if _interrupting:
+			raise KeyboardInterrupt
+
+		process = subprocess.Popen(*popenargs, **kwargs)
 
 		entry = {
 			"pid": process.pid,
@@ -864,25 +997,31 @@ def call(*popenargs, **kwargs):
 			"external_stop": None,
 		}
 
-		with _process_lock:
-			_processes[process.pid] = entry
-			_startMonitorLocked()
+		_processes[process.pid] = entry
+		_startMonitorLocked()
 
+	with process:
+		_lowerProcessPriority(process)
+
+		try:
 			try:
-				try:
-					return process.wait(timeout=timeout)
+				return process.wait(timeout=timeout)
 
-				except subprocess.TimeoutExpired:
-					# Avoid leaving a timed-out child running after the call fails.
-					process.kill()
-					process.wait()
-					raise
+			except KeyboardInterrupt:
+				_interruptProcesses()
+				raise
 
-			finally:
-				# Release owned suspensions and unregister the completed job.
-				with _process_lock:
-					_resume(entry)
-					_processes.pop(process.pid, None)
+			except subprocess.TimeoutExpired:
+				# Avoid leaving a timed-out child running after the call fails.
+				process.kill()
+				process.wait()
+				raise
+
+		finally:
+			# Release owned suspensions and unregister the completed job.
+			with _process_lock:
+				_resume(entry)
+				_processes.pop(process.pid, None)
 
 
 # This extends threading.Thread to transmit exceptions
@@ -899,7 +1038,12 @@ class Thread(threading.Thread):
 			self._exception = exception
 
 	def join(self):
-		super(Thread, self).join()
+		try:
+			super(Thread, self).join()
+
+		except KeyboardInterrupt:
+			_interruptProcesses()
+			raise
 
 		if self._exception:
 			raise self._exception
