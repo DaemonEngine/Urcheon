@@ -44,30 +44,47 @@ class MultiRunner():
 		cpu_count = Parallelism.countCPU()
 		runner_thread_list = []
 
-		for source_dir in self.source_dir_list:
-			# FIXME: because of this code Urcheon must run within package set directory
-			Ui.notice(self.args.stage_name + " from: " + source_dir)
-			source_dir = os.path.realpath(source_dir)
+		try:
+			for source_dir in self.source_dir_list:
+				# FIXME: because of this code Urcheon must run within package set directory
+				Ui.notice(self.args.stage_name + " from: " + source_dir)
+				source_dir = os.path.realpath(source_dir)
 
-			source_tree = Repository.Tree(source_dir, game_name=self.args.game_name)
+				source_tree = Repository.Tree(source_dir, game_name=self.args.game_name)
 
-			runner = self.runner_dict[self.args.stage_name](source_tree, self.args)
+				runner = self.runner_dict[self.args.stage_name](source_tree, self.args)
+				if self.args.no_parallel:
+					runner.run()
+				else:
+					runner_thread = Parallelism.Thread(target=runner.run)
+					runner_thread_list.append(runner_thread)
 
-			if self.args.no_parallel:
-				runner.run()
-			else:
-				runner_thread = Parallelism.Thread(target=runner.run)
-				runner_thread_list.append(runner_thread)
+					while len(runner_thread_list) >= cpu_count:
+						runner_thread_list = Parallelism.joinDeadThreads(runner_thread_list)
 
-				while len(runner_thread_list) > cpu_count:
-					# join dead thread early to raise thread exceptions early
-					# forget ended threads
-					runner_thread_list = Parallelism.joinDeadThreads(runner_thread_list)
+						if len(runner_thread_list) >= cpu_count:
+							Parallelism.joinOldestThread(runner_thread_list)
 
-				runner_thread.start()
+					runner_thread.start()
 
-		# wait for all remaining threads ending
-		Parallelism.joinThreads(runner_thread_list)
+			# Wait for all remaining threads.
+			Parallelism.joinThreads(runner_thread_list)
+
+		except KeyboardInterrupt:
+			# Stop all registered subprocesses, including those owned by
+			# runner threads that have already started.
+			Parallelism._interruptProcesses()
+
+			# Wait for workers to finish their interruption cleanup.
+			for thread in runner_thread_list:
+				if thread._started.is_set():
+					try:
+						thread.join()
+					except BaseException:
+						# Preserve the original KeyboardInterrupt.
+						logging.debug("Worker failed during interruption cleanup", exc_info=True)
+
+			raise
 
 
 class Builder():

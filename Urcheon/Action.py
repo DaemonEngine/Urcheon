@@ -11,6 +11,7 @@ from Urcheon import Default
 from Urcheon import FileSystem
 from Urcheon import IqmConfig
 from Urcheon import MapCompiler
+from Urcheon import Parallelism
 from Urcheon import Repository
 from Urcheon import Texset
 from Urcheon import Ui
@@ -441,7 +442,7 @@ class Action():
 			subprocess_stdout = subprocess.DEVNULL
 			subprocess_stderr = subprocess.DEVNULL
 
-		if subprocess.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
+		if Parallelism.call(command_list, stdout=subprocess_stdout, stderr=subprocess_stderr) != 0:
 			Ui.error("command failed: '" + "' '".join(command_list) + "'")
 
 	def getSourceList(self):
